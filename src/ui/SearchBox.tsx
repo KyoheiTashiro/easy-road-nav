@@ -99,7 +99,10 @@ export function SearchBox(props: SearchBoxProps) {
   const empty = !!active && q === "";
   const showHome = empty && active !== "home" && home;
   const saved = empty ? history : [];
-  const showList = !!active && (showCurrent || !!showHome || saved.length > 0 || hits.length > 0);
+  // 入力中は末尾に「"q" を施設名で検索」行を常時出す（Enter と同じ）。施設検索を実行済みのクエリでは出さない
+  const showPoiRow = !!active && q !== "" && poiQ !== q;
+  const showList =
+    !!active && (showCurrent || !!showHome || saved.length > 0 || hits.length > 0 || showPoiRow);
 
   // Enter 確定 → 施設検索（Yahoo! ローカルサーチ）。それ以外は 2 文字以上で debounce 300 ms の住所検索。
   // q が変わると cleanup で前回リクエストを中断し、施設検索結果は住所検索で置き換わる
@@ -247,6 +250,18 @@ export function SearchBox(props: SearchBoxProps) {
               </button>
             </li>
           ))}
+          {showPoiRow && (
+            <li>
+              <button
+                {...stylex.props(button.base, button.ghost, styles.current)}
+                // 入力欄の blur（→ リスト非表示）を防ぐ
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setPoiQ(q)}
+              >
+                🔍 「{q}」で検索
+              </button>
+            </li>
+          )}
           {hits.length > 0 &&
             (result!.source === "gsi" ? (
               <li {...stylex.props(styles.source)}>出典: 国土地理院</li>

@@ -328,7 +328,7 @@ else if (q.length >= 2) → 300 ms debounce → searchAddress(q)
 cleanup → AbortController で中断
 ```
 
-Enter で `poiQ = q`。入力が変わると `poiQ !== q` になり住所検索へ戻る（施設検索中なら cleanup で中断）。フォーカス時に `poiQ` を null に戻す（同じ文字列を再入力しただけで施設検索が走らないように）。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
+Enter または候補末尾の「施設名で検索」行（`q !== "" && poiQ !== q` のとき表示。`onMouseDown` で preventDefault し入力欄の blur を防ぐ）で `poiQ = q`。入力が変わると `poiQ !== q` になり住所検索へ戻る（施設検索中なら cleanup で中断）。フォーカス時に `poiQ` を null に戻す（同じ文字列を再入力しただけで施設検索が走らないように）。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
 
 ## `src/ui/PointPopup.tsx`
 

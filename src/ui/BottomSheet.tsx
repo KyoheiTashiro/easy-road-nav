@@ -1,10 +1,11 @@
 import * as stylex from "@stylexjs/stylex";
 import { useRef } from "react";
 import type { NarrowSegment } from "../model/narrow.ts";
-import type { Point, PointRole, RouteModel } from "../model/route.ts";
+import type { Point, PointRole, RouteModel, SavedPoint } from "../model/route.ts";
 import { RouteSummary } from "./RouteSummary.tsx";
 import { StepList } from "./StepList.tsx";
 import { button } from "./button.stylex.ts";
+import { HomeIcon } from "./icons.tsx";
 import { colors } from "./tokens.stylex.ts";
 
 /** ピーク時の高さ（px）。Map の fitBounds 下パディングに使う */
@@ -76,6 +77,8 @@ type BottomSheetProps = {
   onMoveVia(index: number, dir: -1 | 1): void;
   notoll: boolean;
   onNotoll(v: boolean): void;
+  home: SavedPoint | null;
+  onHomeSetup(): void; // 「自宅を設定」/「変更」→ 自宅設定モード
   routes: RouteModel[];
   narrows: NarrowSegment[][];
   selected: number;
@@ -123,7 +126,7 @@ function Row({
 
 export function BottomSheet(props: BottomSheetProps) {
   const { expanded, onExpand, from, to, vias, passedVia, onDelete, onMoveVia } = props;
-  const { notoll, onNotoll } = props;
+  const { notoll, onNotoll, home, onHomeSetup } = props;
   const { routes, narrows, selected, onSelect, loading, canStart, onStart } = props;
   const route = routes[selected];
   const summaryProps = { routes, selected, onSelect, loading };
@@ -190,6 +193,21 @@ export function BottomSheet(props: BottomSheetProps) {
           <input type="checkbox" checked={notoll} onChange={(e) => onNotoll(e.target.checked)} />
           高速・有料を避ける
         </label>
+        <div {...stylex.props(styles.row)}>
+          <HomeIcon size={20} />
+          {home ? (
+            <>
+              <span {...stylex.props(styles.name)}>{home.label}</span>
+              <button {...stylex.props(button.base)} onClick={onHomeSetup}>
+                変更
+              </button>
+            </>
+          ) : (
+            <button {...stylex.props(button.base)} onClick={onHomeSetup}>
+              自宅を設定
+            </button>
+          )}
+        </div>
         <RouteSummary {...summaryProps} compact={false} />
         {route && <StepList route={route} narrow={narrows[selected] ?? []} />}
       </div>

@@ -2,7 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import { searchAddress, type SearchHit } from "../api/gsi.ts";
 import { searchPoi } from "../api/yahoo.ts";
-import type { Fix, LatLng, Point } from "../model/route.ts";
+import type { Fix, LatLng, Point, SavedPoint } from "../model/route.ts";
 import { button } from "./button.stylex.ts";
 import { PointIcon } from "./icons.tsx";
 import { colors } from "./tokens.stylex.ts";
@@ -48,6 +48,8 @@ const styles = stylex.create({
     color: colors.fg,
     fontSize: 18,
   },
+  back: { marginRight: 4 },
+  sub: { marginLeft: 8, fontSize: 13, opacity: 0.6 },
   source: { padding: "4px 12px 6px", fontSize: 10, opacity: 0.6, textAlign: "right" },
   credit: { padding: "4px 12px 6px", textAlign: "right" }, // Yahoo のスニペットは色・サイズを変えない
   current: { color: colors.accent },
@@ -64,19 +66,25 @@ const styles = stylex.create({
   },
 });
 
-type Role = "from" | "to";
+type Role = "from" | "to" | "home";
 type Source = "gsi" | "yahoo";
 
 type SearchBoxProps = {
+  mode: "edit" | "home"; // edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ
   from: Point | null;
   to: Point | null;
-  fix: Fix | null; // 出発地候補「現在地」の表示条件
+  fix: Fix | null; // 候補「現在地」の表示条件
+  home: SavedPoint | null; // 空欄候補「自宅」（home モードでは出さない）
+  history: SavedPoint[]; // 空欄候補（新しい順）
   onSet(role: Role, p: LatLng, label: string | null): void; // label null = 逆ジオへ
-  onClear(role: Role): void;
+  onPick(p: SavedPoint): void; // 住所 / 施設名の候補タップ（履歴に追加）。onSet の直前
+  onClear(role: "from" | "to"): void;
+  onBack(): void; // home モードの「戻る」
   onError(msg: string): void; // トースト
 };
 
-export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxProps) {
+export function SearchBox(props: SearchBoxProps) {
+  const { mode, from, to, fix, home, history, onSet, onPick, onClear, onBack, onError } = props;
   const [active, setActive] = useState<Role | null>(null); // フォーカス中の欄
   const [query, setQuery] = useState("");
   // 結果はクエリ付き。表示は現在のクエリと一致するものだけ（古い結果・短いクエリで空）
@@ -86,7 +94,12 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
   const [poiQ, setPoiQ] = useState<string | null>(null); // Enter 確定したクエリ。q と一致する間だけ施設検索
   const q = query.trim();
   const hits = active && result?.q === q ? result.hits : [];
-  const showCurrent = active === "from" && !!fix;
+  const showCurrent = (active === "from" || active === "home") && !!fix;
+  // 入力が空のときだけ出す固定候補: 自宅（edit のみ）→ 履歴
+  const empty = !!active && q === "";
+  const showHome = empty && active !== "home" && home;
+  const saved = empty ? history : [];
+  const showList = !!active && (showCurrent || !!showHome || saved.length > 0 || hits.length > 0);
 
   // Enter 確定 → 施設検索（Yahoo! ローカルサーチ）。それ以外は 2 文字以上で debounce 300 ms の住所検索。
   // q が変わると cleanup で前回リクエストを中断し、施設検索結果は住所検索で置き換わる
@@ -129,9 +142,19 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
     const focused = active === role;
     return (
       <div {...stylex.props(styles.row, role === "to" && styles.divider)}>
-        <span {...stylex.props(styles.role)}>
-          <PointIcon role={role} size={20} />
-        </span>
+        {role === "home" ? (
+          <button
+            {...stylex.props(button.base, button.icon, styles.back)}
+            onClick={onBack}
+            aria-label="戻る"
+          >
+            ←
+          </button>
+        ) : (
+          <span {...stylex.props(styles.role)}>
+            <PointIcon role={role} size={20} />
+          </span>
+        )}
         <div {...stylex.props(styles.inputWrap)}>
           <input
             {...stylex.props(styles.input)}
@@ -153,7 +176,7 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
             }}
             aria-label={name}
           />
-          {!focused && point && (
+          {!focused && point && role !== "home" && (
             <button
               {...stylex.props(button.base, button.icon, styles.clear)}
               onClick={() => onClear(role)}
@@ -170,26 +193,55 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
   return (
     <div {...stylex.props(styles.box)}>
       <div {...stylex.props(styles.card)}>
-        {field("from", from, "出発地")}
-        {field("to", to, "到着地")}
+        {mode === "home" ? (
+          field("home", null, "自宅")
+        ) : (
+          <>
+            {field("from", from, "出発地")}
+            {field("to", to, "到着地")}
+          </>
+        )}
       </div>
-      {active && (showCurrent || hits.length > 0) && (
+      {showList && (
         <ul {...stylex.props(styles.list)}>
           {showCurrent && (
             <li>
               <button
                 {...stylex.props(button.base, button.ghost, styles.current)}
-                onClick={() => pick("from", { lat: fix.lat, lng: fix.lng }, null)}
+                onClick={() => pick(active, { lat: fix.lat, lng: fix.lng }, null)}
               >
                 現在地
               </button>
             </li>
           )}
+          {showHome && (
+            <li>
+              <button
+                {...stylex.props(button.base, button.ghost)}
+                onClick={() => pick(active, home, home.label)}
+              >
+                自宅<span {...stylex.props(styles.sub)}>{home.label}</span>
+              </button>
+            </li>
+          )}
+          {saved.map((h, i) => (
+            <li key={i}>
+              <button
+                {...stylex.props(button.base, button.ghost)}
+                onClick={() => pick(active, h, h.label)}
+              >
+                {h.label}
+              </button>
+            </li>
+          ))}
           {hits.map((h, i) => (
             <li key={i}>
               <button
                 {...stylex.props(button.base, button.ghost)}
-                onClick={() => pick(active, { lat: h.lat, lng: h.lng }, h.title)}
+                onClick={() => {
+                  onPick({ lat: h.lat, lng: h.lng, label: h.title });
+                  pick(active, { lat: h.lat, lng: h.lng }, h.title);
+                }}
               >
                 {h.title}
               </button>

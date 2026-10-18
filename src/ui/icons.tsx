@@ -37,6 +37,15 @@ export function PointIcon({ role, size = 24 }: { role: "from" | "to"; size?: num
   );
 }
 
+// 自宅（家）。自宅マーカー・ボトムシート自宅行
+export function HomeIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg {...svgProps(size)}>
+      <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}
+
 export function DirectionIcon({ sign, size = 24 }: { sign: number; size?: number }) {
   const common = svgProps(size);
   if (sign === 4 || sign === 5) {

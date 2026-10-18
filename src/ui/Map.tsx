@@ -5,11 +5,12 @@ import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NavState } from "../model/progress.ts";
-import type { Fix, LatLng, Point, PointRole, RouteModel } from "../model/route.ts";
+import type { Fix, LatLng, Point, PointRole, RouteModel, SavedPoint } from "../model/route.ts";
 import { PEEK_HEIGHT } from "./BottomSheet.tsx";
 import { NAVBAR_HEIGHT } from "./NavBar.tsx";
 import { button } from "./button.stylex.ts";
 import { PointPopup } from "./PointPopup.tsx";
+import { HomeIcon } from "./icons.tsx";
 
 /** ナビ開始時のカメラ（nav.md「カメラ」節） */
 export const NAV_ZOOM = 17;
@@ -41,14 +42,26 @@ const styles = stylex.create({
     textAlign: "center",
     cursor: "pointer",
   },
+  homeMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    color: "#5f6368",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+  },
 });
 
 type MapProps = {
-  mode: "edit" | "nav";
+  mode: "edit" | "nav" | "home";
   nav: NavState | null; // follow / heading / zoom を読む
   from: Point | null;
   to: Point | null;
   vias: Point[];
+  home: SavedPoint | null; // 自宅マーカー。全モードで表示
   fix: Fix | null;
   routes: RouteModel[];
   selected: number;
@@ -56,7 +69,7 @@ type MapProps = {
   popup: { p: LatLng; label: string | null } | null;
   canAddVia: boolean;
   onTap(p: LatLng): void;
-  onPopupAction(role: "from" | "to" | "via"): void;
+  onPopupAction(role: "from" | "to" | "via" | "home"): void;
   onPopupClose(): void;
   onMarkerDelete(role: PointRole): void;
   onDragStart(): void; // ナビ中のドラッグ → follow false
@@ -206,7 +219,7 @@ function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC; fix: 
 }
 
 export function Map(props: MapProps) {
-  const { mode, nav, from, to, vias, fix, routes, selected, fitVersion, popup } = props;
+  const { mode, nav, from, to, vias, home, fix, routes, selected, fitVersion, popup } = props;
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   // 一度だけ登録する map イベントから最新の callback を呼ぶため
@@ -217,6 +230,14 @@ export function Map(props: MapProps) {
   const [popupDiv] = useState(() => document.createElement("div"));
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  // 自宅マーカー: HomeIcon を portal で描く要素を Marker に渡す
+  const [homeDiv] = useState(() => {
+    const el = document.createElement("div");
+    el.className = stylex.props(styles.homeMarker).className ?? "";
+    el.addEventListener("click", (ev) => ev.stopPropagation());
+    return el;
+  });
+  const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   // style.load 時に最新データで source を作り直すため ref に持つ
   const dataRef = useRef({ route: EMPTY, alt: EMPTY, fix: EMPTY_FIX });
   const easedToFix = useRef(false);
@@ -306,6 +327,13 @@ export function Map(props: MapProps) {
     );
   }, [from, to, vias]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    homeMarkerRef.current?.remove();
+    homeMarkerRef.current =
+      map && home ? new maplibregl.Marker({ element: homeDiv }).setLngLat(home).addTo(map) : null;
+  }, [home, homeDiv]);
+
   // ポップアップ 1 個。地点ポップアップ優先、どちらも無ければ remove
   useEffect(() => {
     const map = mapRef.current;
@@ -349,6 +377,8 @@ export function Map(props: MapProps) {
       map.dragRotate.enable();
       map.jumpTo({ bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
     }
+    // 自宅設定モードに入ったら登録済みの自宅へ
+    if (mode === "home" && cb.current.home) map.easeTo({ center: cb.current.home, zoom: 15 });
   }, [mode]);
 
   // 追従: nav が更新されるたび（= 受理した fix ごと・follow/zoom 変更）に easeTo。heading null なら bearing 据え置き
@@ -378,7 +408,12 @@ export function Map(props: MapProps) {
   }, [fitVersion]);
 
   const popupContent = popup ? (
-    <PointPopup label={popup.label} canAddVia={props.canAddVia} onAction={props.onPopupAction} />
+    <PointPopup
+      mode={mode === "home" ? "home" : "edit"}
+      label={popup.label}
+      canAddVia={props.canAddVia}
+      onAction={props.onPopupAction}
+    />
   ) : markerPopup ? (
     <button
       {...stylex.props(button.base, button.danger)}
@@ -396,6 +431,7 @@ export function Map(props: MapProps) {
     <>
       <div ref={container} {...stylex.props(styles.map)} />
       {createPortal(popupContent, popupDiv)}
+      {createPortal(<HomeIcon size={18} />, homeDiv)}
     </>
   );
 }

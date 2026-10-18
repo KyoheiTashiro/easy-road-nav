@@ -21,7 +21,7 @@ Web で使える Google Maps ライクな地図・ナビアプリ。日本国内
 - [経路探索](requirements/routing.md) — プロファイル、代替経路、経由地、有料道路
 - [地図表示](requirements/map-display.md) — タイル、経路描画、案内文、サマリ、URL 共有
 - [ナビゲーション](requirements/navigation.md) — 現在地追従、音声、細い道警告、リルート
-- [地点検索](requirements/search.md) — 住所検索、地図タップ、逆ジオ
+- [地点検索](requirements/search.md) — 住所検索、施設名検索、地図タップ、逆ジオ、自宅、検索履歴
 - [基盤](requirements/infrastructure.md) — 構成、GraphHopper 設定、公開、デプロイ、運用
 - [フロント構成](requirements/frontend.md) — 方針、ディレクトリ、テスト
 

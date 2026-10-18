@@ -12,6 +12,7 @@ export type LatLng = { lat: number; lng: number };
 export type Fix = LatLng & { accuracy: number; t: number }; // t = position.timestamp
 export type Point = LatLng & { label: string | null }; // label null = 逆ジオ中
 export type PointRole = "from" | "to" | { via: number }; // マーカー削除・地点リスト操作の対象
+export type SavedPoint = LatLng & { label: string }; // 自宅・検索履歴。label 確定済みのみ保存
 ```
 
 ## `src/url.ts`
@@ -36,6 +37,21 @@ notoll = params.get("notoll") === "1"
 ```
 
 不正な地点はその地点だけ無視（全クエリ破棄しない）。build は `toFixed(5)`。
+
+## `src/saved.ts`
+
+自宅・検索履歴の `localStorage` 読み書き。キーは `home` `history`。壊れた JSON・形式違いは `null` / `[]` として読む（例外を投げない。`localStorage` 不可の環境も同じ）。
+
+```ts
+export const HISTORY_MAX = 5; // 検索履歴件数（CONTEXT.md）
+export function loadHome(): SavedPoint | null;
+export function saveHome(p: SavedPoint): void;
+export function loadHistory(): SavedPoint[];
+export function saveHistory(list: SavedPoint[]): void;
+export function pushHistory(list: SavedPoint[], p: SavedPoint): SavedPoint[]; // 純関数。同座標（lat・lng 一致）を除いて先頭に追加、HISTORY_MAX 件に切る
+```
+
+読み込み時の検証: `lat` `lng` が有限数で範囲内（`url.ts` の `parseLatLng` と同じ条件）、`label` が文字列。満たさない要素は捨てる。
 
 ## `src/api/graphhopper.ts`
 
@@ -243,10 +259,11 @@ export function useUpdateCheck(blocked: boolean): void;
 
 ```ts
 type MapProps = {
-  mode: "edit" | "nav";
+  mode: "edit" | "nav" | "home";
   from: Point | null;
   to: Point | null;
   vias: Point[];
+  home: SavedPoint | null; // 自宅マーカー（家アイコン）。全モードで表示
   fix: Fix | null;
   routes: RouteModel[];
   selected: number;
@@ -254,8 +271,8 @@ type MapProps = {
   nav: NavState | null; // follow / heading / zoom を読む
   popup: { p: LatLng; label: string | null } | null;
   canAddVia: boolean;
-  onTap(p: LatLng): void; // 編集モードの click。ナビ中は無視
-  onPopupAction(role: "from" | "to" | "via"): void;
+  onTap(p: LatLng): void; // 編集・自宅設定モードの click。ナビ中は無視
+  onPopupAction(role: "from" | "to" | "via" | "home"): void;
   onPopupClose(): void;
   onMarkerDelete(role: "from" | "to" | { via: number }): void;
   onDragStart(): void; // ナビ中 → follow false
@@ -273,6 +290,8 @@ export function Map(props: MapProps): JSX.Element;
 - ラベル上書き: `map.getStyle().layers` のうち `layout["text-field"]` を持ち、その式に `"ref"` を含まないもの全部に `setLayoutProperty(id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]])`
 - 精度円: feature に `r0 = accuracy / (156543.03 × cos(lat))`（zoom 0 での px 半径）を持たせ、`circle-radius: ["interpolate", ["exponential", 2], ["zoom"], 0, ["get", "r0"], 22, ["*", ["get", "r0"], 4194304]]`
 - 地点マーカー: DOM `Marker` を `useEffect([from, to, vias])` で作り直す。タップで「削除」ポップアップ
+- 自宅マーカー: DOM `Marker` 1 個を `useEffect([home])` で作り直す（`HomeIcon`）。click は `stopPropagation` のみ
+- `useEffect([mode])`: `home` に入ったとき `home` があれば `easeTo(自宅, zoom 15)`
 - ポップアップ: MapLibre `Popup` 1 個（`closeOnClick: false`）。`setDOMContent(div)` して `createPortal(…, div)`。内容は `popup` prop（PointPopup）優先、無ければ内部 state のマーカー「削除」ボタン。両方 null で `remove`。開いている間は `setLngLat` のみ（`addTo` し直すと `close` が発火して閉じる）。`close` イベント（×）→ `onPopupClose`。マーカー click は `stopPropagation`（地図 `click` に伝播させない）
 - 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `from` `to` とも null なら `easeTo(zoom 15)`（1 回だけ）
 - カメラ: `useEffect([fitVersion])` で `fitBounds`。ナビ中は `useEffect([fix, nav.heading])` で `easeTo`（nav.md「カメラ」）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
@@ -281,15 +300,23 @@ export function Map(props: MapProps): JSX.Element;
 ## `src/ui/SearchBox.tsx`
 
 ```ts
+type SearchRole = "from" | "to" | "home";
 type SearchBoxProps = {
+  mode: "edit" | "home"; // edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ
   from: Point | null;
   to: Point | null;
-  fix: Fix | null; // 出発地候補「現在地」の表示条件（App は GPS エラー中 null を渡す）
-  onSet(role: "from" | "to", p: LatLng, label: string | null): void; // label null = 逆ジオへ
+  fix: Fix | null; // 候補「現在地」の表示条件（App は GPS エラー中 null を渡す）
+  home: SavedPoint | null; // 空欄候補「自宅」。home モードでは出さない
+  history: SavedPoint[]; // 空欄候補（新しい順）
+  onSet(role: SearchRole, p: LatLng, label: string | null): void; // label null = 逆ジオへ（現在地）
+  onPick(p: SavedPoint): void; // 住所 / 施設名の候補タップ。onSet の直前に呼ぶ（App が履歴に追加）
   onClear(role: "from" | "to"): void; // × ボタン。App の onDelete
+  onBack(): void; // home モードの「戻る」
   onError(msg: string): void; // トースト
 };
 ```
+
+空欄候補: `active` あり かつ `query.trim() === ""` のとき、検索結果の代わりに固定行を出す。出発地欄 = 現在地 → 自宅 → 履歴、到着地欄 = 自宅 → 履歴、自宅欄 = 現在地 → 履歴。「現在地」は `fix` あり、「自宅」は `home` ありのときだけ。自宅・履歴行のタップは `onSet(role, p, p.label)`（`onPick` は呼ばない）。
 
 内部 state: `active`（フォーカス中の欄）、`query`、`poiQ`（Enter 確定したクエリ）、`result = { q, hits, source: "gsi" | "yahoo" }`。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。候補リスト末尾の出典行は `source` で切替（「出典: 国土地理院」/ 「Webサービス by Yahoo! JAPAN」リンク）。
 
@@ -307,11 +334,14 @@ Enter で `poiQ = q`。入力が変わると `poiQ !== q` になり住所検索�
 
 ```ts
 type PointPopupProps = {
+  mode: "edit" | "home";
   label: string | null;
   canAddVia: boolean;
-  onAction(role: "from" | "to" | "via"): void;
+  onAction(role: "from" | "to" | "via" | "home"): void;
 };
 ```
+
+`home` モードはボタン「自宅にする」1 つ。`label === null` の間は disabled（保存する label が要る）。
 
 ## `src/ui/BottomSheet.tsx`
 
@@ -327,6 +357,8 @@ type BottomSheetProps = {
   onMoveVia(index: number, dir: -1 | 1): void;
   notoll: boolean;
   onNotoll(v: boolean): void;
+  home: SavedPoint | null; // 自宅行の表示
+  onHomeSetup(): void; // 「自宅を設定」/「変更」→ App が mode home
   routes: RouteModel[];
   narrows: NarrowSegment[][];
   selected: number;
@@ -337,7 +369,7 @@ type BottomSheetProps = {
 };
 ```
 
-内部に地点リスト（別ファイルにしない）。ピーク = `RouteSummary` + 「案内開始」。展開 = 地点リスト → トグル → 代替カード → `StepList`。
+内部に地点リスト（別ファイルにしない）。ピーク = `RouteSummary` + 「案内開始」。展開 = 地点リスト → トグル → 自宅行 → 代替カード → `StepList`。
 
 ## `src/ui/RouteSummary.tsx`
 
@@ -395,6 +427,7 @@ export const NAVBAR_HEIGHT = 64; // Map のナビ時 padding.bottom
 
 ```ts
 export function DirectionIcon(props: { sign: number; exitNumber?: number }): JSX.Element;
+export function HomeIcon(): JSX.Element; // 自宅マーカー・ボトムシート自宅行
 ```
 
 sign → 11 種（nav.md）。`4` `5` はピン。未知の sign は直進アイコン。
@@ -426,7 +459,7 @@ const [passedVia, setPassedVia] = useState(0); // 現在の経路より前に通
 
 主要な流れ:
 
-- 起動: `parseQuery(location.search)` → 地点 state（label null）→ 各地点を `reverseGeocode`（失敗は座標文字列）。`useGeolocation` は即 watch。初回 fix で `map.easeTo(zoom 15)`（`from` `to` とも null のときだけ。URL に地点があれば `fitVersion` が優先）
+- 起動: `useState(loadHome)` `useState(loadHistory)` で自宅・履歴を読む。`parseQuery(location.search)` → 地点 state（label null）→ 各地点を `reverseGeocode`（失敗は座標文字列）。`useGeolocation` は即 watch。初回 fix で `map.easeTo(zoom 15)`（`from` `to` とも null のときだけ。URL に地点があれば `fitVersion` が優先）
 - 探索: `useEffect([pointsKey, reqKey])`（ui.md「状態」）。前回と `pointsKey` が違えば応答後に `fitVersion++`。`routes` `loading` は `result` からの派生値
 - 逆ジオ: `useEffect([from, to, vias])` で `label === null` の地点を `reverseGeocode`（失敗・`{}` は座標文字列）。座標キーで in-flight を重複排除し、解決時は座標一致かつ `label === null` の地点だけ更新（配列 identity は不変時維持）
 - `useEffect([fix])`（ナビ中）: `step` → events を分配。`speak` → `useSpeech`、`hud` / `narrow` → state、`viaPassed` → `nav.passedVia` は state 内、`arrived` → 終了処理、`reroute` → `fetchRoute([offsetOrigin(fix, heading), ...vias.slice(passedVia + nav.passedVia), to], profile, false)`
@@ -436,6 +469,8 @@ const [passedVia, setPassedVia] = useState(0); // 現在の経路より前に通
 - ナビ開始の再探索は探索 effect を通さず `fetchRoute` を直接呼ぶ（代替なし）。結果を `result` に `key = 新地点の pointsKey + notoll` で入れ、`fittedKey` も更新して探索 effect の再 fetch と `fitVersion++` を抑止。探索 effect はナビ中 return
 - 終了・到着: `setMode("edit")`、`setNav(null)`、`fitVersion++`。「終了」のみ `cancel()`（到着は発話を言い切る）。GPS watch とマーカーはそのまま
 - URL: `useEffect([from, to, vias, notoll])` で `history.replaceState(null, "", buildQuery(...) || location.pathname)`
+- 自宅設定: `onHomeSetup` → `setMode("home")`・`setPopup(null)`。`home` モードの `onTap` は edit と同じく `setPopup`。保存は `saveAsHome(p, label)` 1 関数に集める: `saveHome` → `setHome` → トースト「自宅を登録しました」→ `setPopup(null)` → `setMode("edit")`。呼び元は `onPopupAction("home")`（popup の p・label）と SearchBox `onSet("home", p, label)`。後者で `label === null`（現在地）のときは保存せず `setPopup({ p, label: null })` して逆ジオを待つ。`onBack` → `setMode("edit")`・`setPopup(null)`
+- 検索履歴: `onPick(p)` → `setHistory(h => { const n = pushHistory(h, p); saveHistory(n); return n; })`。edit・home どちらのモードでも同じ
 
 ## `src/main.tsx`
 

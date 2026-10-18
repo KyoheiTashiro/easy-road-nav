@@ -8,12 +8,27 @@ const styles = stylex.create({
 });
 
 type PointPopupProps = {
+  mode: "edit" | "home"; // home = 「自宅にする」1 つ
   label: string | null; // null = 逆ジオ中
   canAddVia: boolean;
-  onAction(role: "from" | "to" | "via"): void;
+  onAction(role: "from" | "to" | "via" | "home"): void;
 };
 
-export function PointPopup({ label, canAddVia, onAction }: PointPopupProps) {
+export function PointPopup({ mode, label, canAddVia, onAction }: PointPopupProps) {
+  if (mode === "home") {
+    return (
+      <div {...stylex.props(styles.box)}>
+        <div {...stylex.props(styles.label)}>{label ?? "…"}</div>
+        <button
+          {...stylex.props(button.base)}
+          disabled={label === null}
+          onClick={() => onAction("home")}
+        >
+          自宅にする
+        </button>
+      </div>
+    );
+  }
   return (
     <div {...stylex.props(styles.box)}>
       <div {...stylex.props(styles.label)}>{label ?? "…"}</div>

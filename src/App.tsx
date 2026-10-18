@@ -11,10 +11,19 @@ import {
   type NavEvent,
   type NavState,
 } from "./model/progress.ts";
-import type { Fix, Instruction, LatLng, Point, PointRole, RouteModel } from "./model/route.ts";
+import type {
+  Fix,
+  Instruction,
+  LatLng,
+  Point,
+  PointRole,
+  RouteModel,
+  SavedPoint,
+} from "./model/route.ts";
 import { useGeolocation } from "./nav/useGeolocation.ts";
 import { useSpeech } from "./nav/useSpeech.ts";
 import { useWakeLock } from "./nav/useWakeLock.ts";
+import { loadHistory, loadHome, pushHistory, saveHistory, saveHome } from "./saved.ts";
 import { useUpdateCheck } from "./useUpdateCheck.ts";
 import { BottomSheet } from "./ui/BottomSheet.tsx";
 import { Map, NAV_ZOOM } from "./ui/Map.tsx";
@@ -55,9 +64,12 @@ export default function App() {
   const [fitVersion, setFitVersion] = useState(0);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null);
+  // 自宅・検索履歴（localStorage。URL には入れない）
+  const [home, setHome] = useState(loadHome);
+  const [recent, setRecent] = useState(loadHistory); // 検索履歴（history は window.history と衝突）
   const { fix, error: gpsError } = useGeolocation(() => setToast("現在地を取得できません"));
   // ナビ（docs/design/nav.md）
-  const [mode, setMode] = useState<"edit" | "nav">("edit");
+  const [mode, setMode] = useState<"edit" | "nav" | "home">("edit");
   const [nav, setNav] = useState<NavState | null>(null);
   const [muted, setMuted] = useState(false); // セッション内のみ
   const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number } | null>(
@@ -288,12 +300,40 @@ export default function App() {
     );
   }
 
-  function onSearchSet(role: "from" | "to", p: LatLng, label: string | null) {
+  // 自宅を保存して編集モードへ戻る
+  function saveAsHome(p: LatLng, label: string) {
+    const h: SavedPoint = { lat: p.lat, lng: p.lng, label };
+    saveHome(h);
+    setHome(h);
+    setToast("自宅を登録しました");
+    setPopup(null);
+    setMode("edit");
+  }
+
+  function onSearchSet(role: "from" | "to" | "home", p: LatLng, label: string | null) {
+    if (role === "home") {
+      // 「現在地」は label 未確定 → ポップアップで逆ジオを待ち「自宅にする」で確定
+      if (label === null) onTap(p);
+      else saveAsHome(p, label);
+      return;
+    }
     (role === "from" ? setFrom : setTo)({ ...p, label });
   }
 
-  function onPopupAction(role: "from" | "to" | "via") {
+  function onPick(p: SavedPoint) {
+    setRecent((h) => {
+      const next = pushHistory(h, p);
+      saveHistory(next);
+      return next;
+    });
+  }
+
+  function onPopupAction(role: "from" | "to" | "via" | "home") {
     if (!popup) return;
+    if (role === "home") {
+      if (popup.label !== null) saveAsHome(popup.p, popup.label);
+      return;
+    }
     const pt = { ...popup.p, label: popup.label };
     if (role === "from") setFrom(pt);
     else if (role === "to") setTo(pt);
@@ -325,6 +365,7 @@ export default function App() {
         from={from}
         to={to}
         vias={vias}
+        home={home}
         fix={fix}
         routes={routes}
         selected={selected}
@@ -360,32 +401,49 @@ export default function App() {
       ) : (
         <>
           <SearchBox
+            key={mode} // モード切替で入力 state を捨てる
+            mode={mode === "home" ? "home" : "edit"}
             from={from}
             to={to}
             fix={gpsError ? null : fix}
+            home={home}
+            history={recent}
             onSet={onSearchSet}
+            onPick={onPick}
             onClear={onDelete}
+            onBack={() => {
+              setPopup(null);
+              setMode("edit");
+            }}
             onError={setToast}
           />
-          <BottomSheet
-            expanded={sheetExpanded}
-            onExpand={setSheetExpanded}
-            from={from}
-            to={to}
-            vias={vias}
-            passedVia={passedVia}
-            onDelete={onDelete}
-            onMoveVia={onMoveVia}
-            notoll={notoll}
-            onNotoll={setNotoll}
-            routes={routes}
-            narrows={narrows}
-            selected={selected}
-            onSelect={setSelected}
-            loading={loading || starting}
-            canStart={!!route && !!fix && !gpsError && !starting}
-            onStart={onStart}
-          />
+          {mode === "edit" && (
+            <BottomSheet
+              expanded={sheetExpanded}
+              onExpand={setSheetExpanded}
+              from={from}
+              to={to}
+              vias={vias}
+              passedVia={passedVia}
+              onDelete={onDelete}
+              onMoveVia={onMoveVia}
+              notoll={notoll}
+              onNotoll={setNotoll}
+              home={home}
+              onHomeSetup={() => {
+                setPopup(null);
+                setSheetExpanded(false);
+                setMode("home");
+              }}
+              routes={routes}
+              narrows={narrows}
+              selected={selected}
+              onSelect={setSelected}
+              loading={loading || starting}
+              canStart={!!route && !!fix && !gpsError && !starting}
+              onStart={onStart}
+            />
+          )}
         </>
       )}
       <Toast message={toast} navMode={mode === "nav"} />

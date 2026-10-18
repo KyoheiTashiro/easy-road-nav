@@ -5,7 +5,7 @@
 - 状態ライブラリ・ルーター不使用。React `useState` と props のみ。状態の一覧は [design/ui.md](../design/ui.md)
 - URL クエリ（[map-display.md](map-display.md)）が地点 + notoll の正。編集で `history.replaceState`、読み込み時に復元して探索
 - `src/model/` は React・DOM 非依存の純ロジック。UI → model の一方向 import
-- Vitest は `src/model/` と `src/url.ts` のみ。UI・API 呼び出しは手動確認
+- Vitest は `src/model/` と `src/url.ts` `src/saved.ts` のみ。UI・API 呼び出しは手動確認
 - ライブラリは React / Vite / TypeScript / MapLibre GL JS / Vitest + StyleX（CSS）のみ。追加しない（turf 不採用: 必要な計算は `geo.ts` 数十行）
 - CSS: StyleX。`@stylexjs/postcss-plugin` + `@vitejs/plugin-react`（5 系、`babel.configFile: true`）が共通の `babel.config.js` から `@stylexjs/babel-plugin` を読む。色トークンは `src/ui/tokens.stylex.ts`（`defineVars`、ダーク値は `@media (prefers-color-scheme: dark)`）
 - StyleX は `border` `background` 等のショートハンドを**黙って捨てる**（CSS に出ない → ブラウザ既定の枠が見える）。`borderWidth` / `borderStyle` / `borderColor`、`backgroundColor` の longhand で書く
@@ -38,6 +38,7 @@ src/
   main.tsx
   App.tsx                   # 状態の置き場。画面モード（編集 / ナビ）の切替
   url.ts                    # クエリ ↔ 地点・notoll
+  saved.ts                  # 自宅・検索履歴の localStorage 読み書き（search.md）
   useUpdateCheck.ts         # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
   stylex.css                # @stylex; のみ（StyleX 出力先）
   api/
@@ -59,9 +60,9 @@ src/
   ui/
     tokens.stylex.ts        # 色トークン（ライト / ダーク）
     Map.tsx                 # MapLibre、スタイル切替・ラベル上書き、経路レイヤー、マーカー、追従・回転
-    SearchBox.tsx           # 出発地 / 到着地 検索欄
-    PointPopup.tsx          # 出発地 / 到着地 / 経由地に追加
-    BottomSheet.tsx         # 2 段、地点リスト・トグル・代替カード・StepList を内包
+    SearchBox.tsx           # 出発地 / 到着地 検索欄。自宅設定モードでは自宅欄 1 つ
+    PointPopup.tsx          # 出発地 / 到着地 / 経由地に追加。自宅設定モードでは「自宅にする」
+    BottomSheet.tsx         # 2 段、地点リスト・トグル・自宅行・代替カード・StepList を内包
     RouteSummary.tsx        # 距離 / 時間 / 細い道 / 有料、代替経路の切替
     StepList.tsx
     NavHud.tsx              # 次の指示・残り距離・細い道バナー
@@ -74,4 +75,4 @@ src/
 
 - `*.test.ts` を実装ファイルの隣に置く
 - fixture は `src/model/__fixtures__/`（[route-model.md](../design/route-model.md)）
-- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）
+- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）

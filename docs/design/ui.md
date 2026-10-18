@@ -4,10 +4,12 @@
 
 ## 画面モード
 
-`edit`（経路編集）と `nav`（案内中）の 2 つ。`App.tsx` の `mode` state で切替。
+`edit`（経路編集）・`nav`（案内中）・`home`（自宅設定）の 3 つ。`App.tsx` の `mode` state で切替。
 
 - `edit` → `nav`: 「案内開始」（[nav.md](nav.md) の開始手順）
 - `nav` → `edit`: 「終了」（確認なし）または到着。経路・地点はそのまま残り、再度「案内開始」できる。GPS watch は継続
+- `edit` → `home`: ボトムシートの「自宅を設定」/「変更」。経路・地点はそのまま残る
+- `home` → `edit`: 自宅を選んで保存したとき、または「戻る」（[自宅設定モード](#自宅設定モード)）
 
 ## 初期表示
 
@@ -37,8 +39,9 @@
 - **展開**: 上から順に
   1. 地点リスト（出発地 / 経由地 1..n / 到着地）。各行: 役割ラベル・地点名・削除ボタン。経由地行は ▲▼ 並べ替えボタン付き
   2. 「高速・有料を避ける」トグル
-  3. 代替経路カード（最大 3 枚。距離 / 時間 / 細い道 x.x km（n 区間）。選択中はハイライト。タップで本線入替）
-  4. 案内文リスト（`StepList`。GraphHopper の返却全部（`sign 0` 含む）。ステップごとに 距離 / 指示 / 道路名。細い道区間に入るステップの先頭に「⚠ 細い道」）
+  3. 自宅行。登録済みなら「自宅」+ 地点名 + 「変更」ボタン、未登録なら「自宅を設定」ボタン。どちらも `home` モードへ
+  4. 代替経路カード（最大 3 枚。距離 / 時間 / 細い道 x.x km（n 区間）。選択中はハイライト。タップで本線入替）
+  5. 案内文リスト（`StepList`。GraphHopper の返却全部（`sign 0` 含む）。ステップごとに 距離 / 指示 / 道路名。細い道区間に入るステップの先頭に「⚠ 細い道」）
 
 表示文字列（距離・時間・時刻）は `src/model/format.ts` に集約（[modules.md](modules.md)）。所要時間は「1 時間 20 分」「25 分」「1 分」。
 
@@ -54,6 +57,8 @@
 - Enter（`enterKeyHint="search"`、ソフトキーボードの「検索」。IME 変換確定の Enter は `isComposing` で無視）→ Yahoo! ローカルサーチ 施設名検索（[search.md](../requirements/search.md)）。入力中の候補を置き換えて同じリストに出す。入力を変えると住所検索に戻る。0 件はトースト「施設が見つかりません」
 - 候補タップ → その欄の役割（出発地 / 到着地）に直接セット。ポップアップ・`flyTo` はしない（探索後の `fitBounds` に任せる）。欄のフォーカスを外す
 - 出発地欄の候補リスト先頭に「現在地」行（fix あり・GPS エラーなしのとき）。選択で最新 fix を出発地に置換（地点名は逆ジオ）
+- 入力が空のとき（`query.trim() === ""`）は「現在地」の下に「自宅」行（登録済みのとき。「自宅」+ 地点名）と検索履歴行（地点名のみ。新しい順、最大 5）を出す。到着地欄は「自宅」→ 履歴。1 文字でも入力すると消える（2 文字未満は候補なし）
+- 住所検索・施設名検索の候補タップは、その地点を検索履歴の先頭に入れる（`saved.ts` の `pushHistory`）。「現在地」「自宅」「履歴」行のタップは入れない
 - 失敗（ネットワーク・非 2xx）→ トースト「住所検索に失敗しました」/「施設検索に失敗しました」。地図タップで代替
 - blur で候補リストを閉じる。候補タップより blur が先に来るので 150 ms 遅らせる
 
@@ -67,11 +72,13 @@
 - 「出発地にする」「到着地にする」は既存地点を無確認で置換
 - 「経由地に追加」は末尾に追加。経由地 5 件のとき無効表示
 - ボタン押下でポップアップを閉じる。別地点タップは置換（閉じない）。閉じるだけなら × ボタン
+- `home` モードではボタンは「自宅にする」1 つ。地点名が逆ジオ中（null）の間は無効。押下で自宅を保存し `edit` へ戻る
 
 ### 地点マーカー
 
 MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（青、番号付き）。ドラッグ不可。
 マーカータップ → 「削除」ボタンだけのポップアップ。削除で再探索。
+自宅マーカー（家アイコン）は登録済みなら全モードで常時表示。タップしても何も起きない。
 
 ### 現在地
 
@@ -80,6 +87,18 @@ MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（�
 - 出発地の既定 = 現在地。URL に `from` がなければ初回 fix で 1 回だけ出発地にセット（地点名は逆ジオ）。以後 fix に追従しない（追従すると毎 fix 再探索。ナビ開始時に最新 fix で置換される: [nav.md](nav.md)）。× で消したら再セットしない
 - 出発地欄の候補「現在地」: 最新 fix を出発地に置換（地点名は逆ジオ）。fix なし・GPS エラー中は非表示
 - 権限拒否・取得失敗 → トースト「現在地を取得できません」（`error` の立ち上がりで 1 回）。「現在地」候補を隠し「案内開始」を無効化。ナビ中の失敗はトーストのみ、ナビ継続
+
+## 自宅設定モード
+
+`mode === "home"`。地図フルスクリーンに上部の検索カード 1 枚だけを重ねる。ボトムシートは出さない。経路レイヤー・地点マーカーは編集中のまま残す（state を変えない。消す手間を省く割り切り）。
+
+- 上部カード: 「戻る」ボタン + 入力欄 1 つ（placeholder「自宅を検索」）。入力欄の動きは編集モードの検索欄と同じ（住所検索・Enter で施設名検索）。空欄候補は「現在地」→ 検索履歴。「自宅」行は出さない
+- 候補タップ（住所・施設名・履歴）→ 自宅を保存、トースト「自宅を登録しました」、`edit` へ戻る。住所・施設名の候補は検索履歴にも入れる
+- 「現在地」タップ → 最新 fix にポップアップを開く（地点名は逆ジオ）。確定はポップアップの「自宅にする」
+- 地図タップ → ポップアップ「自宅にする」（[地点ポップアップ](#地点ポップアップ)）
+- 入ったとき自宅が登録済みなら `easeTo`（自宅、zoom 15）。未登録ならカメラはそのまま
+- 「戻る」→ `edit`。ポップアップを閉じる。保存しない
+- ナビ中は入れない（入口がボトムシートにしかない）
 
 ## 探索
 
@@ -109,7 +128,7 @@ GeoJSON source 2 つ、line layer 3 つ。描画分割は [route-model.md](route
 ```ts
 type Point = { lat: number; lng: number; label: string | null }; // label null = 逆ジオ中
 
-const [mode, setMode] = useState<"edit" | "nav">("edit");
+const [mode, setMode] = useState<"edit" | "nav" | "home">("edit");
 const [from, setFrom] = useState<Point | null>(null);
 const [to, setTo] = useState<Point | null>(null);
 const [vias, setVias] = useState<Point[]>([]);
@@ -126,9 +145,12 @@ const [sheetExpanded, setSheetExpanded] = useState(false);
 const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null); // 地図タップ専用
 const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number } | null>(null);
 const [inNarrow, setInNarrow] = useState(false);
+const [home, setHome] = useState<SavedPoint | null>(loadHome); // 自宅。更新時に saveHome
+const [history, setHistory] = useState<SavedPoint[]>(loadHistory); // 検索履歴（新しい順、最大 5）。更新時に saveHistory
 ```
 
 - `fix` `gpsError` は `useGeolocation()` の戻り値
+- `home` `history` は `localStorage`（[modules.md](modules.md) の `saved.ts`）。URL には入れない
 - 派生値（`useMemo`）: 選択中 `RouteModel`、各経路の細い道区間（`NarrowSegment[][]`）、サマリ数値、URL クエリ
 - URL: `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
 - 探索は `useEffect([pointsKey, reqKey])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）、`reqKey` = `pointsKey` + notoll。cleanup で `abort()`

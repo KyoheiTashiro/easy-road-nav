@@ -1,6 +1,6 @@
 {
   "name": "easy-road-nav",
-  "short_name": "道案内",
+  "short_name": "easy-road-nav",
   "display": "standalone",
   "start_url": "/",
   "background_color": "#1a73e8",

@@ -57,7 +57,8 @@ export function fetchRoute(
 
 ```ts
 export type SearchHit = { title: string; lat: number; lng: number };
-export function searchAddress(q: string, signal: AbortSignal): Promise<SearchHit[]>; // 先頭 10 件
+export function rankHits(q: string, hits: SearchHit[]): SearchHit[]; // q を title に含む候補を先頭へ（安定）
+export function searchAddress(q: string, signal: AbortSignal): Promise<SearchHit[]>; // rankHits 後の先頭 10 件
 export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string | null>; // results.lv01Nm。応答 {} → null
 ```
 

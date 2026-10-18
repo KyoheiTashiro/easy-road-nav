@@ -21,11 +21,16 @@
      ```jsonc
      {
        "grants": [
-         {"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
-         {"src": ["autogroup:shared"], "dst": ["*"], "ip": ["tcp:443"]},
+         { "src": ["autogroup:member"], "dst": ["*"], "ip": ["*"] },
+         { "src": ["autogroup:shared"], "dst": ["*"], "ip": ["tcp:443"] },
        ],
        "ssh": [
-         {"action": "check", "src": ["autogroup:member"], "dst": ["autogroup:self"], "users": ["autogroup:nonroot", "root"]},
+         {
+           "action": "check",
+           "src": ["autogroup:member"],
+           "dst": ["autogroup:self"],
+           "users": ["autogroup:nonroot", "root"],
+         },
        ],
      }
      ```
@@ -54,6 +59,8 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy
 ```
 
 = `npm run build`（`tsc --noEmit && vite build`）→ `rsync -az --delete dist/ $VPS_HOST:/srv/easy-road-nav/web/`。
+
+ビルド前に Mac のリポジトリ直下に `.env.local` が要る（6 章）。無いままビルドすると施設名検索だけが「施設検索に失敗しました」になる。
 
 ### graph-cache + GraphHopper 設定
 
@@ -102,3 +109,23 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
 
 1. Geofabrik のサブリージョン pbf を追加取得、`osmium merge` で 1 ファイルに
 2. 3 章の手順。全国は RAM 8 GB 必要 → VPS プランを 8 GB（¥3,410）へ変更してから `deploy:graph`
+
+## 6. Yahoo! ローカルサーチ API の appid（初回のみ）
+
+1. Yahoo! JAPAN ID でログインし、<https://e.developer.yahoo.co.jp/register> でアプリケーションを登録。Client ID が発行される（1 ID で 10 アプリまで）。フォームの項目と入れる値:
+   - ID連携利用有無: 「ID連携を利用しない」（YOLP だけならこちら。登録後は変更不可）
+   - 利用者情報: 「個人」（登録後は変更不可）
+   - 個人情報提供先としてユーザーへ開示することに同意: ID 連携を使わないので実質無関係。「同意する」は取り消せない
+   - 契約者住所の国または地域: 「日本」（登録後は変更不可）
+   - アプリケーション名: `easy-road-nav`
+   - サイト URL: `https://easy-road-nav.<tailnet>.ts.net/`（任意項目。フォームの説明では「利用者同意画面に表示」のみ）
+   - アプリケーションの説明: 自分用の経路案内アプリで施設名検索に使う旨を一文
+   - 利用規約への同意にチェック → 「確認」→ 登録
+2. Mac のリポジトリ直下に `.env.local` を作る（gitignore 済み）
+
+   ```sh
+   echo 'VITE_YAHOO_APPID=<Client ID>' > .env.local
+   ```
+
+3. `npm run dev` で施設名検索（Enter）が動くことを確認してから `npm run deploy`
+4. 発行済み ID の確認・削除は <https://e.developer.yahoo.co.jp/dashboard/>。1 年以上使わないアプリは削除されることがある（再登録で復帰）

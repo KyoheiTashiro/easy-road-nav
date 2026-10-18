@@ -1,7 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import { searchAddress, type SearchHit } from "../api/gsi.ts";
-import { searchPoi } from "../api/nominatim.ts";
+import { searchPoi } from "../api/yahoo.ts";
 import type { Fix, LatLng, Point } from "../model/route.ts";
 import { button } from "./button.stylex.ts";
 import { PointIcon } from "./icons.tsx";
@@ -49,6 +49,7 @@ const styles = stylex.create({
     fontSize: 18,
   },
   source: { padding: "4px 12px 6px", fontSize: 10, opacity: 0.6, textAlign: "right" },
+  credit: { padding: "4px 12px 6px", textAlign: "right" }, // Yahoo のスニペットは色・サイズを変えない
   current: { color: colors.accent },
   list: {
     listStyle: "none",
@@ -64,11 +65,7 @@ const styles = stylex.create({
 });
 
 type Role = "from" | "to";
-type Source = "gsi" | "osm";
-const SOURCE: Record<Source, string> = {
-  gsi: "出典: 国土地理院",
-  osm: "© OpenStreetMap contributors",
-};
+type Source = "gsi" | "yahoo";
 
 type SearchBoxProps = {
   from: Point | null;
@@ -91,7 +88,7 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
   const hits = active && result?.q === q ? result.hits : [];
   const showCurrent = active === "from" && !!fix;
 
-  // Enter 確定 → 施設検索（Nominatim、規約でオートコンプリート不可）。それ以外は 2 文字以上で debounce 300 ms の住所検索。
+  // Enter 確定 → 施設検索（Yahoo! ローカルサーチ）。それ以外は 2 文字以上で debounce 300 ms の住所検索。
   // q が変わると cleanup で前回リクエストを中断し、施設検索結果は住所検索で置き換わる
   useEffect(() => {
     const ac = new AbortController();
@@ -102,7 +99,7 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
     if (poiQ === q) {
       searchPoi(q, ac.signal)
         .then((hits) => {
-          setResult({ q, hits, source: "osm" });
+          setResult({ q, hits, source: "yahoo" });
           if (hits.length === 0) onError("施設が見つかりません");
         })
         .catch(skipAbort)
@@ -198,7 +195,14 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
               </button>
             </li>
           ))}
-          {hits.length > 0 && <li {...stylex.props(styles.source)}>{SOURCE[result!.source]}</li>}
+          {hits.length > 0 &&
+            (result!.source === "gsi" ? (
+              <li {...stylex.props(styles.source)}>出典: 国土地理院</li>
+            ) : (
+              <li {...stylex.props(styles.credit)}>
+                <a href="https://developer.yahoo.co.jp/sitemap/">Webサービス by Yahoo! JAPAN</a>
+              </li>
+            ))}
         </ul>
       )}
     </div>

@@ -30,6 +30,7 @@ data/                       # gitignore。*.osm.pbf、graph-cache/
 scripts/
   deploy-graph.sh
   heap-check.sh           # ヒープ実測（infrastructure.md）
+.env.local                  # VITE_YAHOO_APPID（gitignore。ビルド時に埋め込む）
 vite.config.ts              # react(babel.configFile)、/gh proxy、allowedHosts、vitest
 babel.config.js             # @stylexjs/babel-plugin（vite / postcss 共用）
 postcss.config.js           # @stylexjs/postcss-plugin
@@ -42,6 +43,7 @@ src/
   api/
     graphhopper.ts          # fetch + 例外変換（契約は design/route-model.md）
     gsi.ts                  # 住所検索・逆ジオ（search.md）
+    yahoo.ts                # 施設名検索（search.md。JSONP）
   model/
     geo.ts                  # haversine・方位・線分射影
     route.ts                # 共通型、RouteModel、GraphHopper 応答 → RouteModel、累積距離、最近傍点

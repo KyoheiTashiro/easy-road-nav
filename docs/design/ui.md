@@ -51,7 +51,7 @@
 - 未フォーカス: 地点名を表示（逆ジオ中は「…」、未設定なら placeholder「出発地を検索」）。右端の × で地点を削除（`onDelete` と同じ。削除後は空のまま）
 - フォーカス: 空欄から検索開始。入力 2 文字以上で国土地理院 住所検索を呼ぶ。debounce 300 ms。飛行中リクエストは `AbortController` で中断。検索 state はフォーカス中の欄 1 つ分だけ持つ
 - 結果は素の GeoJSON Feature 配列（FeatureCollection ではない）。`geometry.coordinates` = `[lng, lat]`、`properties.title` = 表示名。件数上限なし → 先頭 10 件のみリスト表示
-- Enter（`enterKeyHint="search"`、ソフトキーボードの「検索」。IME 変換確定の Enter は `isComposing` で無視）→ Nominatim 施設名検索（[search.md](../requirements/search.md)）。入力中の候補を置き換えて同じリストに出す。入力を変えると住所検索に戻る。0 件はトースト「施設が見つかりません」
+- Enter（`enterKeyHint="search"`、ソフトキーボードの「検索」。IME 変換確定の Enter は `isComposing` で無視）→ Yahoo! ローカルサーチ 施設名検索（[search.md](../requirements/search.md)）。入力中の候補を置き換えて同じリストに出す。入力を変えると住所検索に戻る。0 件はトースト「施設が見つかりません」
 - 候補タップ → その欄の役割（出発地 / 到着地）に直接セット。ポップアップ・`flyTo` はしない（探索後の `fitBounds` に任せる）。欄のフォーカスを外す
 - 出発地欄の候補リスト先頭に「現在地」行（fix あり・GPS エラーなしのとき）。選択で最新 fix を出発地に置換（地点名は逆ジオ）
 - 失敗（ネットワーク・非 2xx）→ トースト「住所検索に失敗しました」/「施設検索に失敗しました」。地図タップで代替
@@ -144,4 +144,4 @@ const [inNarrow, setInNarrow] = useState(false);
 
 ## 帰属表示
 
-MapLibre `AttributionControl`（compact）に「© OpenStreetMap contributors, © OpenFreeMap」。検索候補リストの末尾に出典を小さく表示（候補が出ている間のみ）。住所検索は「出典: 国土地理院」、施設名検索は「© OpenStreetMap contributors」（Nominatim 利用規約の帰属表示）。
+MapLibre `AttributionControl`（compact）に「© OpenStreetMap contributors, © OpenFreeMap」。検索候補リストの末尾に出典を小さく表示（候補が出ている間のみ）。住所検索は「出典: 国土地理院」、施設名検索は「Webサービス by Yahoo! JAPAN」（`https://developer.yahoo.co.jp/sitemap/` へのテキストリンク。Yahoo のクレジット表示ガイドラインの公式スニペット A をそのまま使い、色・サイズを CSS で変えない）。

@@ -6,7 +6,7 @@
 
 - フロント: Vite + React + TypeScript + MapLibre GL JS。静的ファイル。構成は [frontend.md](frontend.md)
 - バックエンド: GraphHopper 11.0（Docker、`israelhikingmap/graphhopper:11.0`）。フロントからは同一ホスト名の `/gh/*` 経由で呼ぶ
-- 外部: OpenFreeMap（タイル）、国土地理院 API（住所検索・逆ジオ）
+- 外部: OpenFreeMap（タイル）、国土地理院 API（住所検索・逆ジオ）、Yahoo! ローカルサーチ API（施設名検索。JSONP、appid はビルド時埋め込み）
 - 公開・認証: Tailscale。VPS を tailnet に置き、共有先の端末へノード共有。公開 URL・ドメイン・ID/PW なし
 
 ## 構成図
@@ -20,6 +20,7 @@ flowchart LR
     subgraph EXT["外部サービス"]
         OFM["OpenFreeMap（タイル）"]
         GSI["国土地理院 API（住所検索・逆ジオ）"]
+        YJ["Yahoo! ローカルサーチ API（施設名検索）"]
     end
 
     subgraph VPS["VPS（2 GB、inbound は UDP 41641 のみ）"]
@@ -41,6 +42,7 @@ flowchart LR
 
     BR --> OFM
     BR --> GSI
+    BR -->|JSONP| YJ
     BR -->|tailnet 内 HTTPS| TS
     RP --> GH --> CACHE
 
@@ -72,6 +74,7 @@ Mac（リポジトリ）:
 - `compose.yml`
 - `graphhopper/config.yml`、`graphhopper/custom_models/*.json` — git 管理
 - `data/*.osm.pbf`、`data/graph-cache/` — gitignore。compose から相対パスで mount
+- `.env.local` — `VITE_YAHOO_APPID`（Yahoo! ローカルサーチの Client ID）。gitignore（`*.local`）。`vite build` と Vite dev が読み、ビルド成果物に埋め込まれる。VPS には置かない
 - `src/` 以下は [frontend.md](frontend.md)
 
 VPS:
@@ -144,11 +147,12 @@ VPS:
 - OSM データ: ODbL。帰属表示必須
 - OpenFreeMap: 帰属表示必須
 - 国土地理院 API: 利用規約に従い出典明記
+- Yahoo! ローカルサーチ API: クレジット表示ガイドラインに従い「Webサービス by Yahoo! JAPAN」を `https://developer.yahoo.co.jp/sitemap/` にリンクして表示。無料条件（一般公開の無償サービス）との関係は [ADR-0003](../adr/0003-poi-geocoder-yahoo.md)
 
 ## 費用（月額、2026-09 時点）
 
 - VPS 2 GB: ¥770（日額 ¥28 上限。年一括なら ¥715 相当）
 - Tailscale Personal: ¥0（6 ユーザー・端末無制限、2026-04 改定。ノード共有・Serve・SSH 込み）
-- OpenFreeMap / 国土地理院 API: ¥0
+- OpenFreeMap / 国土地理院 API / Yahoo! ローカルサーチ API: ¥0
 - ドメイン・Cloudflare・GitHub Actions: 不使用
 - 合計: ¥770

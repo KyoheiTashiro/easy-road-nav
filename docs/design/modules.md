@@ -64,13 +64,25 @@ export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string 
 
 失敗は throw。呼び出し側がトースト（検索）または座標表示にフォールバック（逆ジオ）。
 
-## `src/api/nominatim.ts`
+## `src/api/yahoo.ts`
 
 ```ts
-export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Nominatim 公式。name（無ければ display_name）を title に
+export function normalizePoiQuery(q: string): string; // （株）(株)（有）(有) を空白に → trim
+export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Yahoo! ローカルサーチ。Name を title に
 ```
 
-`format=jsonv2&countrycodes=jp&accept-language=ja&limit=10`。モジュール変数で前回送信時刻を持ち、1 秒未満なら待ってから送る（規約 1 req/秒）。待ち中に abort されたら `throwIfAborted` で抜ける。失敗は throw。
+JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受ける。URL は `https://map.yahooapis.jp/search/local/V1/localSearch?appid=…&output=json&results=10&query=…&callback=…`。callback 名は呼び出しごとに一意（連番）。
+
+- appid は `import.meta.env.VITE_YAHOO_APPID`。未設定なら即 throw（トースト「施設検索に失敗しました」になる）
+- 応答 `Feature[]` の `Name` を title、`Geometry.Coordinates`（`"lon,lat"` 文字列）を split して lng / lat。`Feature` が無ければ空配列
+- 失敗は throw: script の `error` イベント（非 2xx・ネットワーク断）、10 秒タイムアウト、`ResultInfo.Status !== 200`
+- `signal` の abort は `AbortError`（`DOMException`）で reject。呼び出し側は fetch と同じ扱いで握りつぶせる
+- 終了理由を問わず script 要素と `window[callback]` を削除する
+
+```
+normalizePoiQuery: q.replace(/[（(][株有][）)]/g, " ").trim()
+  「○○（株）△△事業所」 → 「○○ △△事業所」（削除して「○○△△事業所」にすると 0 件、空白なら 1 件。ADR-0003）
+```
 
 ## `src/model/geo.ts`
 
@@ -279,7 +291,7 @@ type SearchBoxProps = {
 };
 ```
 
-内部 state: `active`（フォーカス中の欄）、`query`、`poiQ`（Enter 確定したクエリ）、`result = { q, hits, source: "gsi" | "osm" }`。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。候補リスト末尾の出典行は `source` で切替（国土地理院 / © OpenStreetMap contributors）。
+内部 state: `active`（フォーカス中の欄）、`query`、`poiQ`（Enter 確定したクエリ）、`result = { q, hits, source: "gsi" | "yahoo" }`。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。候補リスト末尾の出典行は `source` で切替（「出典: 国土地理院」/ 「Webサービス by Yahoo! JAPAN」リンク）。
 
 検索の effect は `[q, poiQ]` 依存 1 つ:
 

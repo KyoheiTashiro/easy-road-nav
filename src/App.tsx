@@ -15,6 +15,7 @@ import type { Fix, Instruction, LatLng, Point, PointRole, RouteModel } from "./m
 import { useGeolocation } from "./nav/useGeolocation.ts";
 import { useSpeech } from "./nav/useSpeech.ts";
 import { useWakeLock } from "./nav/useWakeLock.ts";
+import { useUpdateCheck } from "./useUpdateCheck.ts";
 import { BottomSheet } from "./ui/BottomSheet.tsx";
 import { Map, NAV_ZOOM } from "./ui/Map.tsx";
 import { NavBar } from "./ui/NavBar.tsx";
@@ -68,6 +69,7 @@ export default function App() {
   const [passedVia, setPassedVia] = useState(0);
   const speech = useSpeech(muted);
   useWakeLock(mode === "nav");
+  useUpdateCheck(mode === "nav");
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const fixRef = useRef(fix);

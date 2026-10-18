@@ -139,7 +139,7 @@ const [inNarrow, setInNarrow] = useState(false);
 
 ## PWA
 
-`manifest.json`（`display: standalone`、アイコン 1 枚）。Service Worker なし。
+`manifest.json`（`display: standalone`、アイコン 1 枚）。Service Worker なし。更新は `useUpdateCheck`（[modules.md](modules.md)）が visible 復帰時に検知して reload（ナビ中は終了後）。
 
 ## 帰属表示
 

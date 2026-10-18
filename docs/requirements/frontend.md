@@ -37,6 +37,7 @@ src/
   main.tsx
   App.tsx                   # 状態の置き場。画面モード（編集 / ナビ）の切替
   url.ts                    # クエリ ↔ 地点・notoll
+  useUpdateCheck.ts         # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
   stylex.css                # @stylex; のみ（StyleX 出力先）
   api/
     graphhopper.ts          # fetch + 例外変換（契約は design/route-model.md）

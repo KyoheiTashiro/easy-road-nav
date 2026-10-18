@@ -207,6 +207,17 @@ export function useWakeLock(active: boolean): void;
 - `active` 中 `navigator.wakeLock?.request("screen")`。非対応なら何もしない
 - `visibilitychange` で `visible` に戻ったら再取得。`active` が false になったら・アンマウントで `release`
 
+## `src/useUpdateCheck.ts`
+
+```ts
+export function useUpdateCheck(blocked: boolean): void;
+```
+
+- standalone PWA は再表示時にページを再読込しない（`tailscale serve` はヘッダ制御不可で `index.html` の heuristic cache も効く）ため自前で更新検知する
+- `visibilitychange` で `visible` に戻ったら `fetch("/", { cache: "no-store" })`。現在の `<script type="module">` の `src`（hash 付き bundle）が応答に含まれなければ古い → `location.reload()`
+- `blocked`（ナビ中）なら reload を保留し、false になった時点で実行。fetch 失敗は無視（次回 visible で再試行）
+- `import.meta.env.DEV` では何もしない
+
 ## `src/ui/Map.tsx`
 
 ```ts

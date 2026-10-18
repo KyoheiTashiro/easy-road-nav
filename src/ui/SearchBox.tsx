@@ -4,6 +4,7 @@ import { searchAddress, type SearchHit } from "../api/gsi.ts";
 import { searchPoi } from "../api/nominatim.ts";
 import type { Fix, LatLng, Point } from "../model/route.ts";
 import { button } from "./button.stylex.ts";
+import { PointIcon } from "./icons.tsx";
 import { colors } from "./tokens.stylex.ts";
 
 const styles = stylex.create({
@@ -17,34 +18,26 @@ const styles = stylex.create({
     flexDirection: "column",
     gap: 6,
   },
-  row: { display: "flex", gap: 8, alignItems: "center" },
-  role: {
-    width: 44,
-    height: 44,
-    lineHeight: "44px",
-    textAlign: "center",
-    fontSize: 11,
-    flexShrink: 0,
-    borderRadius: 8,
+  card: {
     backgroundColor: colors.bg,
     color: colors.fg,
+    borderRadius: 12,
     boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
   },
+  row: { display: "flex", alignItems: "center", height: 44, padding: "0 8px" },
+  divider: { borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: colors.border },
+  role: { width: 32, display: "flex", justifyContent: "center", flexShrink: 0 },
   inputWrap: { position: "relative", flex: 1 },
   input: {
     width: "100%",
     boxSizing: "border-box",
     height: 44,
-    padding: "0 40px 0 12px",
+    padding: "0 36px 0 4px",
     appearance: "none",
     fontSize: 16,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.bg,
+    borderWidth: 0,
+    backgroundColor: "transparent",
     color: colors.fg,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
   },
   clear: {
     position: "absolute",
@@ -138,8 +131,10 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
   function field(role: Role, point: Point | null, name: string) {
     const focused = active === role;
     return (
-      <div {...stylex.props(styles.row)}>
-        <span {...stylex.props(styles.role)}>{name}</span>
+      <div {...stylex.props(styles.row, role === "to" && styles.divider)}>
+        <span {...stylex.props(styles.role)}>
+          <PointIcon role={role} size={20} />
+        </span>
         <div {...stylex.props(styles.inputWrap)}>
           <input
             {...stylex.props(styles.input)}
@@ -177,8 +172,10 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
 
   return (
     <div {...stylex.props(styles.box)}>
-      {field("from", from, "出発地")}
-      {field("to", to, "到着地")}
+      <div {...stylex.props(styles.card)}>
+        {field("from", from, "出発地")}
+        {field("to", to, "到着地")}
+      </div>
       {active && (showCurrent || hits.length > 0) && (
         <ul {...stylex.props(styles.list)}>
           {showCurrent && (

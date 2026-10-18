@@ -14,8 +14,8 @@ const ROTATE: Record<number, number> = {
   "-3": -135,
 };
 
-export function DirectionIcon({ sign, size = 24 }: { sign: number; size?: number }) {
-  const common = {
+function svgProps(size: number) {
+  return {
     width: size,
     height: size,
     viewBox: "0 0 24 24",
@@ -26,6 +26,19 @@ export function DirectionIcon({ sign, size = 24 }: { sign: number; size?: number
     strokeLinejoin: "round" as const,
     "aria-hidden": true,
   };
+}
+
+// 出発地 = 白抜き丸、到着地 = ピン
+export function PointIcon({ role, size = 24 }: { role: "from" | "to"; size?: number }) {
+  return (
+    <svg {...svgProps(size)}>
+      {role === "from" ? <circle cx={12} cy={12} r={4} /> : <path d={PIN} />}
+    </svg>
+  );
+}
+
+export function DirectionIcon({ sign, size = 24 }: { sign: number; size?: number }) {
+  const common = svgProps(size);
   if (sign === 4 || sign === 5) {
     return (
       <svg {...common}>

@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import { searchAddress, type SearchHit } from "../api/gsi.ts";
+import { searchPoi } from "../api/nominatim.ts";
 import type { Fix, LatLng, Point } from "../model/route.ts";
 import { button } from "./button.stylex.ts";
 import { colors } from "./tokens.stylex.ts";
@@ -70,6 +71,11 @@ const styles = stylex.create({
 });
 
 type Role = "from" | "to";
+type Source = "gsi" | "osm";
+const SOURCE: Record<Source, string> = {
+  gsi: "出典: 国土地理院",
+  osm: "© OpenStreetMap contributors",
+};
 
 type SearchBoxProps = {
   from: Point | null;
@@ -84,28 +90,44 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
   const [active, setActive] = useState<Role | null>(null); // フォーカス中の欄
   const [query, setQuery] = useState("");
   // 結果はクエリ付き。表示は現在のクエリと一致するものだけ（古い結果・短いクエリで空）
-  const [result, setResult] = useState<{ q: string; hits: SearchHit[] } | null>(null);
+  const [result, setResult] = useState<{ q: string; hits: SearchHit[]; source: Source } | null>(
+    null,
+  );
+  const [poiQ, setPoiQ] = useState<string | null>(null); // Enter 確定したクエリ。q と一致する間だけ施設検索
   const q = query.trim();
   const hits = active && result?.q === q ? result.hits : [];
   const showCurrent = active === "from" && !!fix;
 
-  // 2 文字以上で debounce 300 ms。前回リクエストは cleanup で中断
+  // Enter 確定 → 施設検索（Nominatim、規約でオートコンプリート不可）。それ以外は 2 文字以上で debounce 300 ms の住所検索。
+  // q が変わると cleanup で前回リクエストを中断し、施設検索結果は住所検索で置き換わる
   useEffect(() => {
-    if (q.length < 2) return;
     const ac = new AbortController();
+    const skipAbort = (e: unknown) => {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      throw e;
+    };
+    if (poiQ === q) {
+      searchPoi(q, ac.signal)
+        .then((hits) => {
+          setResult({ q, hits, source: "osm" });
+          if (hits.length === 0) onError("施設が見つかりません");
+        })
+        .catch(skipAbort)
+        .catch(() => onError("施設検索に失敗しました"));
+      return () => ac.abort();
+    }
+    if (q.length < 2) return;
     const t = setTimeout(() => {
       searchAddress(q, ac.signal)
-        .then((hits) => setResult({ q, hits }))
-        .catch((e: unknown) => {
-          if (e instanceof DOMException && e.name === "AbortError") return;
-          onError("住所検索に失敗しました");
-        });
+        .then((hits) => setResult({ q, hits, source: "gsi" }))
+        .catch(skipAbort)
+        .catch(() => onError("住所検索に失敗しました"));
     }, 300);
     return () => {
       clearTimeout(t);
       ac.abort();
     };
-  }, [q, onError]);
+  }, [q, poiQ, onError]);
 
   function pick(role: Role, p: LatLng, label: string | null) {
     setQuery("");
@@ -122,15 +144,21 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
           <input
             {...stylex.props(styles.input)}
             type="search"
+            enterKeyHint="search"
             placeholder={`${name}を検索`}
             value={focused ? query : (point && (point.label ?? "…")) || ""}
             onFocus={() => {
               setActive(role);
               setQuery("");
+              setPoiQ(null);
             }}
             // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら active は既に null
             onBlur={() => setTimeout(() => setActive((a) => (a === role ? null : a)), 150)}
             onChange={(e) => setQuery(e.target.value)}
+            // IME 変換確定の Enter（isComposing）は無視
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing && q) setPoiQ(q);
+            }}
             aria-label={name}
           />
           {!focused && point && (
@@ -173,7 +201,7 @@ export function SearchBox({ from, to, fix, onSet, onClear, onError }: SearchBoxP
               </button>
             </li>
           ))}
-          {hits.length > 0 && <li {...stylex.props(styles.source)}>出典: 国土地理院</li>}
+          {hits.length > 0 && <li {...stylex.props(styles.source)}>{SOURCE[result!.source]}</li>}
         </ul>
       )}
     </div>

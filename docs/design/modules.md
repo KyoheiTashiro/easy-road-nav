@@ -64,6 +64,14 @@ export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string 
 
 失敗は throw。呼び出し側がトースト（検索）または座標表示にフォールバック（逆ジオ）。
 
+## `src/api/nominatim.ts`
+
+```ts
+export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Nominatim 公式。name（無ければ display_name）を title に
+```
+
+`format=jsonv2&countrycodes=jp&accept-language=ja&limit=10`。モジュール変数で前回送信時刻を持ち、1 秒未満なら待ってから送る（規約 1 req/秒）。待ち中に abort されたら `throwIfAborted` で抜ける。失敗は throw。
+
 ## `src/model/geo.ts`
 
 ```ts
@@ -271,7 +279,17 @@ type SearchBoxProps = {
 };
 ```
 
-内部 state: `active`（フォーカス中の欄）、`query`、`result = { q, hits }`。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。2 文字以上で debounce 300 ms → `searchAddress`。`AbortController` で前回中断。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
+内部 state: `active`（フォーカス中の欄）、`query`、`poiQ`（Enter 確定したクエリ）、`result = { q, hits, source: "gsi" | "osm" }`。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。候補リスト末尾の出典行は `source` で切替（国土地理院 / © OpenStreetMap contributors）。
+
+検索の effect は `[q, poiQ]` 依存 1 つ:
+
+```
+if (poiQ === q)   → searchPoi(q)（即時）。0 件ならトースト「施設が見つかりません」
+else if (q.length >= 2) → 300 ms debounce → searchAddress(q)
+cleanup → AbortController で中断
+```
+
+Enter で `poiQ = q`。入力が変わると `poiQ !== q` になり住所検索へ戻る（施設検索中なら cleanup で中断）。フォーカス時に `poiQ` を null に戻す（同じ文字列を再入力しただけで施設検索が走らないように）。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
 
 ## `src/ui/PointPopup.tsx`
 

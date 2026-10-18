@@ -1,0 +1,56 @@
+# GraphHopper 11.0 設定。graph-cache 互換条件の一部（変更したら再インポート）。
+# 根拠: docs/requirements/routing.md, docs/CONTEXT.md
+graphhopper:
+  datareader.file: /data/kanto-latest.osm.pbf
+  graph.location: /data/graph-cache
+
+  # 徒歩・自転車系は読み込まない（自動車のみ）
+  import.osm.ignored_highways: footway,construction,cycleway,path,steps,pedestrian,bridleway,corridor,platform
+
+  # car.json（既定）が car_access, car_average_speed, road_access を要求。
+  # road_class, toll は details で返す。surface, toll は既定リストに無いので明示。
+  graph.encoded_values: car_access, car_average_speed, road_access, road_class, road_class_link, road_environment, surface, toll
+
+  # custom_model_files は順にマージ。car.json は jar 内蔵の既定モデル。
+  custom_models.directory: /graphhopper/custom_models
+  profiles:
+    - name: car
+      turn_costs:
+        vehicle_types: [motorcar, motor_vehicle]
+        u_turn_costs: 60
+      custom_model_files: [car.json, wide.json]
+    - name: car_notoll
+      turn_costs:
+        vehicle_types: [motorcar, motor_vehicle]
+        u_turn_costs: 60
+      custom_model_files: [car.json, wide.json, notoll.json]
+
+  profiles_ch:
+    - profile: car
+    - profile: car_notoll
+
+  prepare.min_network_size: 200
+  prepare.subnetworks.threads: 1
+  routing.snap_preventions_default: tunnel, bridge, ferry
+
+  # import は RAM_STORE（既定）。serve は compose の JAVA_OPTS で MMAP_STORE に上書き
+  graph.dataaccess.default_type: RAM_STORE
+
+server:
+  application_connectors:
+    - type: http
+      port: 8989
+      bind_host: 0.0.0.0 # コンテナ内。外部露出は compose の ports（127.0.0.1）で絞る
+      max_request_header_size: 50k
+  request_log:
+    appenders: []
+  admin_connectors: []
+
+logging:
+  appenders:
+    - type: console
+      time_zone: Asia/Tokyo
+      log_format: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  loggers:
+    "com.graphhopper.osm_warnings":
+      level: WARN

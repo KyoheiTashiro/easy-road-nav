@@ -1,0 +1,140 @@
+# UI 設計（編集モード・共通部品）
+
+要件は [map-display.md](../requirements/map-display.md) [search.md](../requirements/search.md) [routing.md](../requirements/routing.md)。ここでは画面・操作・状態の「どう作るか」。ナビ中の画面は [nav.md](nav.md)。
+
+## 画面モード
+
+`edit`（経路編集）と `nav`（案内中）の 2 つ。`App.tsx` の `mode` state で切替。
+
+- `edit` → `nav`: 「案内開始」（[nav.md](nav.md) の開始手順）
+- `nav` → `edit`: 「終了」（確認なし）または到着。経路・地点はそのまま残り、再度「案内開始」できる。GPS watch は継続
+
+## 初期表示
+
+- 起動と同時に `watchPosition` 開始（[現在地](#現在地)）。URL に地点がなければ初回 fix で `easeTo`（zoom 15）。URL に地点があれば探索結果の `fitBounds` が優先
+- 初回 fix 前・権限拒否時の中心は東京駅 zoom 10
+
+## 地図スタイル
+
+- OpenFreeMap `liberty`。`prefers-color-scheme: dark` なら `dark`。`matchMedia` の `change` で `map.setStyle` し実行中も追従
+- `setStyle` は自前の source / layer とラベル上書きを消す → `style.load` のたびに同じ初期化関数を呼ぶ（経路レイヤー・現在地レイヤー・ラベル上書き）
+- ラベル上書き: `text-field` を持つレイヤーのうち `ref` シールド以外を `["coalesce", ["get", "name:ja"], ["get", "name"]]` に置換（付属スタイルは「ローマ字 + 日本語」併記）
+- UI 側のダークは StyleX トークンの `@media` で自動。経路線の色（青 / オレンジ）は両テーマ共通
+
+## 編集モードのレイアウト
+
+地図フルスクリーン。オーバーレイは 3 つ。
+
+- 上部: 検索欄 1 個 + 「現在地から」ボタン
+- 下部: ボトムシート
+- 右下: MapLibre 帰属表示（compact）
+
+### ボトムシート
+
+2 段。上スワイプで展開、下スワイプで収納（touchstart/touchend の縦移動 30px 以上。展開中にリストがスクロール済みなら下スワイプは無視）。タップ切替なし。CSS `max-height` transition のみ、ライブラリ不使用。
+
+- **ピーク**: サマリ 1 行（距離 / 時間 / 細い道 x.x km（n 区間）/ 有料 x.x km）+ 「案内開始」ボタン
+- **展開**: 上から順に
+  1. 地点リスト（出発地 / 経由地 1..n / 到着地）。各行: 役割ラベル・地点名・削除ボタン。経由地行は ▲▼ 並べ替えボタン付き
+  2. 「高速・有料を避ける」トグル
+  3. 代替経路カード（最大 3 枚。距離 / 時間 / 細い道 x.x km（n 区間）。選択中はハイライト。タップで本線入替）
+  4. 案内文リスト（`StepList`。GraphHopper の返却全部（`sign 0` 含む）。ステップごとに 距離 / 指示 / 道路名。細い道区間に入るステップの先頭に「⚠ 細い道」）
+
+表示文字列（距離・時間・時刻）は `src/model/format.ts` に集約（[modules.md](modules.md)）。所要時間は「1 時間 20 分」「25 分」「1 分」。
+
+「案内開始」の有効条件: 経路あり かつ GPS fix あり。
+
+### 検索欄
+
+- 入力 2 文字以上で国土地理院 住所検索を呼ぶ。debounce 300 ms。飛行中リクエストは `AbortController` で中断
+- 結果は素の GeoJSON Feature 配列（FeatureCollection ではない）。`geometry.coordinates` = `[lng, lat]`、`properties.title` = 表示名。件数上限なし → 先頭 10 件のみリスト表示
+- 候補タップ → 地図をその地点へ `flyTo` → 地点ポップアップ（下記）を開く。検索欄はクリア
+- 失敗（ネットワーク・非 2xx）→ トースト「住所検索に失敗しました」。地図タップで代替
+
+### 地点ポップアップ
+
+地図タップ・検索候補選択の両方で開く MapLibre `Popup`。1 つだけ（開いたまま別地点タップで置換）。
+
+- 内容: 地点名（逆ジオ結果。取得中は「…」）+ ボタン 3 つ「出発地にする」「到着地にする」「経由地に追加」
+- 逆ジオ: 国土地理院 `LonLatToAddress`。表示は `results.lv01Nm`（町丁目）のみ。市区町村名は出さない（`muniCd` → 名前の変換表 `muni.js` が別途必要なため v1 は不採用）
+- 逆ジオ失敗・海上（応答 `{}`）→ 地点名は座標 `35.68123, 139.76712`（小数 5 桁）。探索は止めない
+- 「出発地にする」「到着地にする」は既存地点を無確認で置換
+- 「経由地に追加」は末尾に追加。経由地 5 件のとき無効表示
+- ボタン押下でポップアップを閉じる。別地点タップは置換（閉じない）。閉じるだけなら × ボタン
+
+### 地点マーカー
+
+MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（青、番号付き）。ドラッグ不可。
+マーカータップ → 「削除」ボタンだけのポップアップ。削除で再探索。
+
+### 現在地
+
+- 起動時に `watchPosition` 開始（`enableHighAccuracy: true`）。アンマウントまで常時継続。ナビ終了でも止めない
+- 現在地マーカー: 青ドット + 精度円（GeoJSON `circle` layer、半径は `accuracy` をズームでメートル換算。式は [modules.md](modules.md)）。編集・ナビとも常時表示
+- 「現在地から」: 最新 fix を出発地に置換（地点名は逆ジオ）。fix なし・GPS エラー中は無効
+- 権限拒否・取得失敗 → トースト「現在地を取得できません」（`error` の立ち上がりで 1 回）。「現在地から」「案内開始」を無効化。ナビ中の失敗はトーストのみ、ナビ継続
+
+## 探索
+
+- 自動。出発地 + 到着地が揃った時点、および地点・経由地・順序・有料トグルの変更のたびに再探索
+- 飛行中リクエストは `AbortController` で中断してから次を投げる。中断はトーストしない
+- ローディング表示: サマリ行にスピナー 1 個
+- 経由地なし → `alternative_route` 最大 3 本、あり → 1 本（[route-model.md](route-model.md) の契約）
+- 新しい経路が返ったら `fitBounds`（下パディング = シートのピーク高さ）。代替切替・トグル変更・再探索の結果でもカメラは動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（App が地点集合の変化を検知して増やし、Map が `useEffect` で fit）
+- 失敗（400 / ネットワーク）→ トースト 1 種「経路を探索できません」。経路表示は空にする
+
+## 経路レイヤー
+
+GeoJSON source 2 つ、line layer 3 つ。描画分割は [route-model.md](route-model.md)。
+
+| source  | layer          | 内容                            | 見た目                               |
+| ------- | -------------- | ------------------------------- | ------------------------------------ |
+| `alt`   | `alt-line`     | 非選択の代替経路（全区間 1 本） | 青、薄い、細い                       |
+| `route` | `route-wide`   | 選択経路の広い道区間            | 青 実線                              |
+| `route` | `route-narrow` | 選択経路の細い道区間            | オレンジ 破線、`route-wide` より太い |
+
+`route` source の feature は `kind` プロパティで filter。短区間無視は描画に適用しない。
+
+## 状態（App.tsx）
+
+`useState` を関心ごとに分ける。reducer は使わない。
+
+```ts
+type Point = { lat: number; lng: number; label: string | null }; // label null = 逆ジオ中
+
+const [mode, setMode] = useState<"edit" | "nav">("edit");
+const [from, setFrom] = useState<Point | null>(null);
+const [to, setTo] = useState<Point | null>(null);
+const [vias, setVias] = useState<Point[]>([]);
+const [notoll, setNotoll] = useState(false);
+const [result, setResult] = useState<{ key: string; routes: RouteModel[] } | null>(null); // 探索結果 + リクエストキー
+const [selected, setSelected] = useState(0); // routes の index
+const [fix, setFix] = useState<Fix | null>(null); // 最新 GPS fix
+const [gpsError, setGpsError] = useState(false);
+const [muted, setMuted] = useState(false); // セッション内のみ
+const [nav, setNav] = useState<NavState | null>(null); // nav.md
+const [toast, setToast] = useState<string | null>(null);
+const [fitVersion, setFitVersion] = useState(0); // fitBounds トリガ
+const [sheetExpanded, setSheetExpanded] = useState(false);
+const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null);
+const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number } | null>(null);
+const [inNarrow, setInNarrow] = useState(false);
+```
+
+- `fix` `gpsError` は `useGeolocation()` の戻り値
+- 派生値（`useMemo`）: 選択中 `RouteModel`、各経路の細い道区間（`NarrowSegment[][]`）、サマリ数値、URL クエリ
+- URL: `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
+- 探索は `useEffect([pointsKey, reqKey])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）、`reqKey` = `pointsKey` + notoll。cleanup で `abort()`
+- `routes` `loading` は派生値: `routes` = 地点が揃い `result.key === reqKey` のときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い `result.key !== reqKey`。effect 内で同期 setState しない（地点欠けで即空になる）
+
+## トースト
+
+1 つだけ。新しいメッセージで置換。4 秒で自動消去。画面上部（ナビ中は NavHud の下）。
+
+## PWA
+
+`manifest.json`（`display: standalone`、アイコン 1 枚）。Service Worker なし。
+
+## 帰属表示
+
+MapLibre `AttributionControl`（compact）に「© OpenStreetMap contributors, © OpenFreeMap」。地点名の出典「国土地理院」は検索候補リストの末尾に小さく表示（候補が出ている間のみ）。

@@ -53,7 +53,6 @@ type MapProps = {
   routes: RouteModel[];
   selected: number;
   fitVersion: number; // 増えたら選択経路に fitBounds
-  flyTo: LatLng | null; // 検索候補の選択。identity が変わるたびに flyTo
   popup: { p: LatLng; label: string | null } | null;
   canAddVia: boolean;
   onTap(p: LatLng): void;
@@ -207,7 +206,7 @@ function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC; fix: 
 }
 
 export function Map(props: MapProps) {
-  const { mode, nav, from, to, vias, fix, routes, selected, fitVersion, flyTo, popup } = props;
+  const { mode, nav, from, to, vias, fix, routes, selected, fitVersion, popup } = props;
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   // 一度だけ登録する map イベントから最新の callback を呼ぶため
@@ -283,11 +282,6 @@ export function Map(props: MapProps) {
       if (!cb.current.from && !cb.current.to) map.easeTo({ center: fix, zoom: 15 });
     }
   }, [fix]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map && flyTo) map.flyTo({ center: flyTo, zoom: Math.max(map.getZoom(), 15) });
-  }, [flyTo]);
 
   // 地点マーカー: 変化のたびに作り直す
   useEffect(() => {

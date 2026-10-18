@@ -56,7 +56,7 @@ src/
   ui/
     tokens.stylex.ts        # 色トークン（ライト / ダーク）
     Map.tsx                 # MapLibre、スタイル切替・ラベル上書き、経路レイヤー、マーカー、追従・回転
-    SearchBox.tsx           # 検索欄 + 「現在地から」
+    SearchBox.tsx           # 出発地 / 到着地 検索欄
     PointPopup.tsx          # 出発地 / 到着地 / 経由地に追加
     BottomSheet.tsx         # 2 段、地点リスト・トグル・代替カード・StepList を内包
     RouteSummary.tsx        # 距離 / 時間 / 細い道 / 有料、代替経路の切替

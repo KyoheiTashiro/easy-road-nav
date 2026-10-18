@@ -54,7 +54,6 @@ export default function App() {
   const [fitVersion, setFitVersion] = useState(0);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null);
-  const [flyTo, setFlyTo] = useState<LatLng | null>(null);
   const { fix, error: gpsError } = useGeolocation(() => setToast("現在地を取得できません"));
   // ナビ（docs/design/nav.md）
   const [mode, setMode] = useState<"edit" | "nav">("edit");
@@ -75,6 +74,14 @@ export default function App() {
   fixRef.current = fix;
   const navRef = useRef(nav);
   navRef.current = nav;
+
+  // 出発地の既定 = 現在地。URL に from がなければ初回 fix で 1 回だけ置く（fix 追従はしない。× で消したら空のまま）
+  const defaulted = useRef(INIT.from !== null);
+  useEffect(() => {
+    if (defaulted.current || !fix) return;
+    defaulted.current = true;
+    setFrom((f) => f ?? { lat: fix.lat, lng: fix.lng, label: null });
+  }, [fix]);
 
   const points = [from, ...vias, to];
   const pointsKey = keyOf(points);
@@ -279,13 +286,8 @@ export default function App() {
     );
   }
 
-  function onSearchSelect(p: LatLng, title: string) {
-    setFlyTo(p);
-    setPopup({ p, label: title });
-  }
-
-  function onUseCurrent() {
-    if (fix) setFrom({ lat: fix.lat, lng: fix.lng, label: null });
+  function onSearchSet(role: "from" | "to", p: LatLng, label: string | null) {
+    (role === "from" ? setFrom : setTo)({ ...p, label });
   }
 
   function onPopupAction(role: "from" | "to" | "via") {
@@ -325,7 +327,6 @@ export default function App() {
         routes={routes}
         selected={selected}
         fitVersion={fitVersion}
-        flyTo={flyTo}
         popup={popup}
         canAddVia={vias.length < MAX_VIAS}
         onTap={onTap}
@@ -357,9 +358,11 @@ export default function App() {
       ) : (
         <>
           <SearchBox
-            onSelect={onSearchSelect}
-            onUseCurrent={onUseCurrent}
-            currentDisabled={!fix || gpsError}
+            from={from}
+            to={to}
+            fix={gpsError ? null : fix}
+            onSet={onSearchSet}
+            onClear={onDelete}
             onError={setToast}
           />
           <BottomSheet

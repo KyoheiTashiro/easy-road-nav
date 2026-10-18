@@ -219,7 +219,6 @@ type MapProps = {
   routes: RouteModel[];
   selected: number;
   fitVersion: number; // 増えたら選択経路に fitBounds（下パディング = シートのピーク高）
-  flyTo: LatLng | null; // 検索候補の選択。identity が変わるたびに flyTo（zoom は現在値と 15 の大きい方）
   nav: NavState | null; // follow / heading / zoom を読む
   popup: { p: LatLng; label: string | null } | null;
   canAddVia: boolean;
@@ -244,21 +243,23 @@ export function Map(props: MapProps): JSX.Element;
 - 地点マーカー: DOM `Marker` を `useEffect([from, to, vias])` で作り直す。タップで「削除」ポップアップ
 - ポップアップ: MapLibre `Popup` 1 個（`closeOnClick: false`）。`setDOMContent(div)` して `createPortal(…, div)`。内容は `popup` prop（PointPopup）優先、無ければ内部 state のマーカー「削除」ボタン。両方 null で `remove`。開いている間は `setLngLat` のみ（`addTo` し直すと `close` が発火して閉じる）。`close` イベント（×）→ `onPopupClose`。マーカー click は `stopPropagation`（地図 `click` に伝播させない）
 - 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `from` `to` とも null なら `easeTo(zoom 15)`（1 回だけ）
-- カメラ: `useEffect([fitVersion])` で `fitBounds`。`useEffect([flyTo])` で `flyTo`。ナビ中は `useEffect([fix, nav.heading])` で `easeTo`（nav.md「カメラ」）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
+- カメラ: `useEffect([fitVersion])` で `fitBounds`。ナビ中は `useEffect([fix, nav.heading])` で `easeTo`（nav.md「カメラ」）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
 - イベント: `click`（編集モードのみ `onTap`）、`dragstart`、`zoomend`（`originalEvent` あり）
 
 ## `src/ui/SearchBox.tsx`
 
 ```ts
 type SearchBoxProps = {
-  onSelect(p: LatLng, title: string): void; // 候補タップ → App が flyTo + ポップアップ
-  onUseCurrent(): void; // 「現在地から」
-  currentDisabled: boolean; // fix なし or GPS エラー
+  from: Point | null;
+  to: Point | null;
+  fix: Fix | null; // 出発地候補「現在地」の表示条件（App は GPS エラー中 null を渡す）
+  onSet(role: "from" | "to", p: LatLng, label: string | null): void; // label null = 逆ジオへ
+  onClear(role: "from" | "to"): void; // × ボタン。App の onDelete
   onError(msg: string): void; // トースト
 };
 ```
 
-内部 state: `query`、`result = { q, hits }`。表示する候補は `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。2 文字以上で debounce 300 ms → `searchAddress`。`AbortController` で前回中断。選択でクリア。
+内部 state: `active`（フォーカス中の欄）、`query`、`result = { q, hits }`。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。2 文字以上で debounce 300 ms → `searchAddress`。`AbortController` で前回中断。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
 
 ## `src/ui/PointPopup.tsx`
 

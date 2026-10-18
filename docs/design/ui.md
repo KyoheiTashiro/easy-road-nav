@@ -25,7 +25,7 @@
 
 地図フルスクリーン。オーバーレイは 3 つ。
 
-- 上部: 検索欄 1 個 + 「現在地から」ボタン
+- 上部: 検索欄 2 段（出発地 / 到着地）
 - 下部: ボトムシート
 - 右下: MapLibre 帰属表示（compact）
 
@@ -46,14 +46,19 @@
 
 ### 検索欄
 
-- 入力 2 文字以上で国土地理院 住所検索を呼ぶ。debounce 300 ms。飛行中リクエストは `AbortController` で中断
+出発地・到着地の入力 2 段。各欄は「現在の地点名の表示」と「住所検索」を兼ねる。経由地はここでは扱わない（地図タップ → ポップアップ）。
+
+- 未フォーカス: 地点名を表示（逆ジオ中は「…」、未設定なら placeholder「出発地を検索」）。右端の × で地点を削除（`onDelete` と同じ。削除後は空のまま）
+- フォーカス: 空欄から検索開始。入力 2 文字以上で国土地理院 住所検索を呼ぶ。debounce 300 ms。飛行中リクエストは `AbortController` で中断。検索 state はフォーカス中の欄 1 つ分だけ持つ
 - 結果は素の GeoJSON Feature 配列（FeatureCollection ではない）。`geometry.coordinates` = `[lng, lat]`、`properties.title` = 表示名。件数上限なし → 先頭 10 件のみリスト表示
-- 候補タップ → 地図をその地点へ `flyTo` → 地点ポップアップ（下記）を開く。検索欄はクリア
+- 候補タップ → その欄の役割（出発地 / 到着地）に直接セット。ポップアップ・`flyTo` はしない（探索後の `fitBounds` に任せる）。欄のフォーカスを外す
+- 出発地欄の候補リスト先頭に「現在地」行（fix あり・GPS エラーなしのとき）。選択で最新 fix を出発地に置換（地点名は逆ジオ）
 - 失敗（ネットワーク・非 2xx）→ トースト「住所検索に失敗しました」。地図タップで代替
+- blur で候補リストを閉じる。候補タップより blur が先に来るので 150 ms 遅らせる
 
 ### 地点ポップアップ
 
-地図タップ・検索候補選択の両方で開く MapLibre `Popup`。1 つだけ（開いたまま別地点タップで置換）。
+地図タップで開く MapLibre `Popup`。1 つだけ（開いたまま別地点タップで置換）。
 
 - 内容: 地点名（逆ジオ結果。取得中は「…」）+ ボタン 3 つ「出発地にする」「到着地にする」「経由地に追加」
 - 逆ジオ: 国土地理院 `LonLatToAddress`。表示は `results.lv01Nm`（町丁目）のみ。市区町村名は出さない（`muniCd` → 名前の変換表 `muni.js` が別途必要なため v1 は不採用）
@@ -71,8 +76,9 @@ MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（�
 
 - 起動時に `watchPosition` 開始（`enableHighAccuracy: true`）。アンマウントまで常時継続。ナビ終了でも止めない
 - 現在地マーカー: 青ドット + 精度円（GeoJSON `circle` layer、半径は `accuracy` をズームでメートル換算。式は [modules.md](modules.md)）。編集・ナビとも常時表示
-- 「現在地から」: 最新 fix を出発地に置換（地点名は逆ジオ）。fix なし・GPS エラー中は無効
-- 権限拒否・取得失敗 → トースト「現在地を取得できません」（`error` の立ち上がりで 1 回）。「現在地から」「案内開始」を無効化。ナビ中の失敗はトーストのみ、ナビ継続
+- 出発地の既定 = 現在地。URL に `from` がなければ初回 fix で 1 回だけ出発地にセット（地点名は逆ジオ）。以後 fix に追従しない（追従すると毎 fix 再探索。ナビ開始時に最新 fix で置換される: [nav.md](nav.md)）。× で消したら再セットしない
+- 出発地欄の候補「現在地」: 最新 fix を出発地に置換（地点名は逆ジオ）。fix なし・GPS エラー中は非表示
+- 権限拒否・取得失敗 → トースト「現在地を取得できません」（`error` の立ち上がりで 1 回）。「現在地」候補を隠し「案内開始」を無効化。ナビ中の失敗はトーストのみ、ナビ継続
 
 ## 探索
 
@@ -116,7 +122,7 @@ const [nav, setNav] = useState<NavState | null>(null); // nav.md
 const [toast, setToast] = useState<string | null>(null);
 const [fitVersion, setFitVersion] = useState(0); // fitBounds トリガ
 const [sheetExpanded, setSheetExpanded] = useState(false);
-const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null);
+const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null); // 地図タップ専用
 const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number } | null>(null);
 const [inNarrow, setInNarrow] = useState(false);
 ```

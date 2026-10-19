@@ -238,6 +238,10 @@ export function Map(props: MapProps) {
     return el;
   });
   const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
+  // 方位アイコン（押下で北上）。ナビ中は heading 追従と衝突するので外す
+  const compassRef = useRef(
+    new maplibregl.NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }),
+  );
   // style.load 時に最新データで source を作り直すため ref に持つ
   const dataRef = useRef({ route: EMPTY, alt: EMPTY, fix: EMPTY_FIX });
   const easedToFix = useRef(false);
@@ -253,6 +257,8 @@ export function Map(props: MapProps) {
       zoom: 10,
       attributionControl: { compact: true },
     });
+    map.addControl(new maplibregl.ScaleControl(), "bottom-right");
+    map.addControl(compassRef.current, "top-right");
     map.on("style.load", () => applyStyleExtras(map, dataRef.current));
     map.on("click", (e) => {
       if (cb.current.mode === "nav") return;
@@ -366,6 +372,7 @@ export function Map(props: MapProps) {
       map.touchZoomRotate.disableRotation();
       map.touchPitch.disable();
       map.dragRotate.disable();
+      map.removeControl(compassRef.current);
       const h = map.getContainer().clientHeight;
       map.jumpTo({
         pitch: NAV_PITCH,
@@ -375,6 +382,7 @@ export function Map(props: MapProps) {
       map.touchZoomRotate.enableRotation();
       map.touchPitch.enable();
       map.dragRotate.enable();
+      if (!map.hasControl(compassRef.current)) map.addControl(compassRef.current, "top-right");
       map.jumpTo({ bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
     }
     // 自宅設定モードに入ったら登録済みの自宅へ

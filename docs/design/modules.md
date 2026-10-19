@@ -296,6 +296,7 @@ export function Map(props: MapProps): JSX.Element;
 - 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `from` `to` とも null なら `easeTo(zoom 15)`（1 回だけ）
 - カメラ: `useEffect([fitVersion])` で `fitBounds`。ナビ中は `useEffect([fix, nav.heading])` で `easeTo`（nav.md「カメラ」）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
 - イベント: `click`（編集モードのみ `onTap`）、`dragstart`、`zoomend`（`originalEvent` あり）
+- コントロール: `ScaleControl`（bottom-right、帰属表示の上）、`NavigationControl`（コンパスのみ、top-right。`useEffect([mode])` でナビ中は `removeControl`、戻りで `addControl`）。位置の余白は `stylex.css` でオーバーレイを避ける
 
 ## `src/ui/SearchBox.tsx`
 

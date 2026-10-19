@@ -8,8 +8,12 @@ graphhopper:
   import.osm.ignored_highways: footway,construction,cycleway,path,steps,pedestrian,bridleway,corridor,platform
 
   # car.json（既定）が car_access, car_average_speed, road_access を要求。
-  # road_class, toll は details で返す。surface, toll は既定リストに無いので明示。
-  graph.encoded_values: car_access, car_average_speed, road_access, road_class, road_class_link, road_environment, surface, toll
+  # road_class, toll は details で返す。surface, toll, urban_density は既定リストに無いので明示。
+  graph.encoded_values: car_access, car_average_speed, road_access, road_class, road_class_link, road_environment, surface, toll, urban_density
+
+  # 市街地判定 urban_density（rural / residential / city）の計算を有効化（threads > 0）。
+  # wide.json の速度係数が参照する（docs/requirements/routing.md「所要時間」）。半径・感度は GraphHopper 既定
+  graph.urban_density.threads: 4
 
   # custom_model_files は順にマージ。car.json は jar 内蔵の既定モデル。
   custom_models.directory: /graphhopper/custom_models

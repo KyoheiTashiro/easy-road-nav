@@ -18,8 +18,23 @@ custom model の骨子（両プロファイル共通部分）:
 - `road_environment == FERRY` → `priority` 0（既定 car モデルはフェリーを通す）
 - `surface` が未舗装系（CONTEXT.md の集合）→ `priority` 0
 - 既定 car モデル（`distance_influence` 90、`!car_access` → 0、速度式）はそのまま継承
+- `speed`: `road_class == MOTORWAY` → 0.85 倍、それ以外は `urban_density` が `CITY` → 0.4 倍、`RESIDENTIAL` → 0.55 倍、`RURAL` → 0.75 倍（速度係数、CONTEXT.md 調整値）。根拠は下記「所要時間」
 
-`graph.encoded_values` に `road_class` `road_class_link` `road_environment` `surface` `toll` を明示（`surface` `toll` は既定リストに無い）。加えて内蔵 `car.json` が要求する `car_access` `car_average_speed` `road_access`（GraphHopper 11 は custom model 参照値を自動追加しない）。
+`graph.encoded_values` に `road_class` `road_class_link` `road_environment` `surface` `toll` を明示（`surface` `toll` は既定リストに無い）。加えて内蔵 `car.json` が要求する `car_access` `car_average_speed` `road_access`（GraphHopper 11 は custom model 参照値を自動追加しない）。`urban_density` も明示し、`graph.urban_density.threads: 4` で計算を有効化する（取り込み時に道路密度から求める。threads 未指定だと値が付かない。市街地判定は CONTEXT.md）。
+
+## 所要時間
+
+GraphHopper 既定の速度（`car_average_speed`）はドイツ基準で、`primary` 65 / `secondary` 60 / `tertiary` 50 / `residential` 30 km/h、OSM `maxspeed` があればその 0.9 倍。信号待ちと渋滞は入らない。関東で Google Maps と同一地点を比べると（2026-10-19 月 16:00、Google は当時の交通量込み）:
+
+| 区間                             | 距離    | GraphHopper 既定    | GraphHopper 補正後 | Google Maps | 平均速度（補正後 / Google） |
+| -------------------------------- | ------- | ------------------- | ------------------ | ----------- | --------------------------- |
+| 新宿 → 渋谷 → 品川（一般道）     | 10.6 km | 13 分               | 31 分              | 45 分       | 21 / 16 km/h                |
+| 阿佐ヶ谷 → 吉祥寺（一般道）      | 6.0 km  | 10 分               | 26 分              | 22 分       | 14 / 15 km/h                |
+| 立川 → 八王子（甲州街道）        | 11 km   | —                   | 30 分              | 37 分       | 22 / 18 km/h                |
+| 東京駅 → 横浜駅（首都高）        | 34 km   | 33 分（国道 15 号） | 44 分              | 48 分       | 46 / 44 km/h                |
+| 熊谷 → 秩父（国道 140 号、郊外） | 42 km   | —                   | 74 分              | 72 分       | 35 / 35 km/h                |
+
+既定は都内一般道で 2〜3.5 倍、郊外国道で 1.5 倍前後速い。市街地と郊外で差が違うので、道路クラスではなく市街地判定 `urban_density` で係数を分ける。補正後（速度係数の初期値）は Google の 0.7〜1.2 倍に収まり、渋滞の無い深夜より遅め・夕方より速めになる。実走で合わなければ CONTEXT.md の速度係数を変え、再インポートする。
 
 ターンコスト: 両プロファイルで `turn_costs: { vehicle_types: [motorcar, motor_vehicle], u_turn_costs: 60 }`。OSM の右左折禁止 relation を守り、経路途中の U ターンにコストを乗せる。CH は edge-based になり graph-cache が 1.5〜2 倍・インポート時間増（[infrastructure.md](infrastructure.md)）。edge-based CH でも `alternative_route` は動く（GraphHopper `AlternativeRouteEdgeCH`）。
 
@@ -53,5 +68,5 @@ custom model の骨子（両プロファイル共通部分）:
 ## v1 に含めない
 
 - 徒歩・自転車
-- 到着時刻指定、渋滞考慮
+- 到着時刻指定、渋滞考慮（速度係数は時間帯を問わない固定値）
 - 経路の保存

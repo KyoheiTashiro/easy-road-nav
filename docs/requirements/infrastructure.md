@@ -64,7 +64,7 @@ flowchart LR
 - ターンコスト有効（[routing.md](routing.md)）→ edge-based CH。graph-cache は node-based の 1.5〜2 倍、インポート時間も増える
 - VPS は配信専用。インポート・CH 再計算は常に Mac で行い、graph-cache を転送する
 - graph-cache 互換条件: 同一イメージ tag + 同一 `config.yml`（プロファイル・custom model・CH 設定）。不一致だと GraphHopper がロードを拒否する。アーキテクチャ差（Mac arm64 → VPS amd64）は問題ない（on-disk 形式は little-endian 固定）
-- `config.yml` の要点（GraphHopper 11.0 で確認済み）: pbf は `datareader.file`、`import.osm.ignored_highways` は必須キー（未指定で起動失敗）、`custom_model_files` は複数指定でき順にマージされる（共通部 + 差分の分割が可能）
+- `config.yml` の要点（GraphHopper 11.0 で確認済み）: pbf は `datareader.file`、`import.osm.ignored_highways` は必須キー（未指定で起動失敗）、`custom_model_files` は複数指定でき順にマージされる（共通部 + 差分の分割が可能）、`graph.urban_density.threads` で市街地判定を有効化（速度係数が参照。取り込み時間が増える）
 - `/gh` prefix は開発（Vite `server.proxy` の `rewrite`）・本番（`tailscale serve --set-path`）とも剥がして転送する。フロントのベース URL は環境問わず `/gh` 固定。`serve` の prefix 剥がしは未文書化の挙動（実装で確認済み）
 
 ## ファイル配置

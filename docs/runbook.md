@@ -82,7 +82,7 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
 
 ## 3. データ更新 / custom model 変更
 
-1. データ更新のみ: Geofabrik から `kanto-latest.osm.pbf` を `data/` に再取得。custom model 変更のみ: `graphhopper/custom_models/*.json` を編集（pbf 再取得不要）
+1. データ更新のみ: Geofabrik から `kanto-latest.osm.pbf` を `data/` に再取得。custom model 変更のみ（ペナルティ・速度係数とも）: `graphhopper/custom_models/*.json` を編集（pbf 再取得不要）。CH は custom model から作るので、どちらも再インポートが要る
 2. Mac でインポート（CH 2 プロファイル込み、十数分）
 
    ```sh
@@ -90,10 +90,10 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
    docker compose --profile import run --rm import
    ```
 
-3. Mac の `serve` で動作確認
+3. Mac の `serve` で動作確認。`serve` が起動中だと `up -d` は何もせず旧 graph-cache を掴んだままなので `--force-recreate` を付ける。`/info` の `import_date` が今の時刻なら新しい graph-cache
 
    ```sh
-   docker compose up -d serve
+   docker compose up -d --force-recreate serve
    ```
 
 4. `npm run deploy:graph`

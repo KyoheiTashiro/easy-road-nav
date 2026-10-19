@@ -318,12 +318,12 @@ type SearchBoxProps = {
 
 空欄候補: `active` あり かつ `query.trim() === ""` のとき、検索結果の代わりに固定行を出す。出発地欄 = 現在地 → 自宅 → 履歴、到着地欄 = 自宅 → 履歴、自宅欄 = 現在地 → 履歴。「現在地」は `fix` あり、「自宅」は `home` ありのときだけ。自宅・履歴行のタップは `onSet(role, p, p.label)`（`onPick` は呼ばない）。
 
-内部 state: `active`（フォーカス中の欄）、`query`、`gsi` / `poi`（各 `{ q, hits }`）、`inflight`（ref。直近の `AbortController`）。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のものだけ（Enter 後に入力を変えると消える）。リストは `[...poiHits, ...gsiHits]` の順。末尾の出典行は各 hits が 1 件以上のとき（「Webサービス by Yahoo! JAPAN」リンク / 「出典: 国土地理院」）。
+内部 state: `active`（フォーカス中の欄）、`query`、`searched`（最後に検索したクエリ。フォーカス・候補選択で null）、`gsi` / `poi`（各 `{ q, hits }`）、`inflight`（ref。直近の `AbortController`）。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のものだけ（Enter 後に入力を変えると消える）。リストは `[...poiHits, ...gsiHits]` の順。末尾の出典行は各 hits が 1 件以上のとき（「Webサービス by Yahoo! JAPAN」リンク / 「出典: 国土地理院」）。
 
-検索は各欄を包む `<form onSubmit={search}>` の submit（Enter / スマホの「検索」キー。入力欄は `enterKeyHint="search"`）で 1 回:
+検索は各欄を包む `<form onSubmit>` の submit（Enter / スマホの「検索」キー。入力欄は `enterKeyHint="search"`）か、候補リスト先頭の「🔍 「q」で検索」行（`q !== "" && searched !== q` のとき表示。`onMouseDown` で preventDefault し入力欄の blur を防ぐ）で `search()` を 1 回:
 
 ```
-search(e): preventDefault。q が空なら何もしない
+search(): q が空なら何もしない。searched = q
   inflight.current?.abort()、新しい AbortController を inflight に
   searchAddress(q, signal) → setGsi({ q, hits })。失敗トースト「住所検索に失敗しました」
   searchPoi(q, signal)     → setPoi({ q, hits })。失敗トースト「施設検索に失敗しました」

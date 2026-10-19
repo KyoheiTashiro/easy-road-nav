@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { type FormEvent, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { searchAddress, type SearchHit } from "../api/gsi.ts";
 import { searchPoi } from "../api/yahoo.ts";
 import type { Fix, LatLng, Point, SavedPoint } from "../model/route.ts";
@@ -94,6 +94,7 @@ export function SearchBox(props: SearchBoxProps) {
   const [query, setQuery] = useState("");
   const [gsi, setGsi] = useState<Result | null>(null); // 住所検索
   const [poi, setPoi] = useState<Result | null>(null); // 施設名検索
+  const [searched, setSearched] = useState<string | null>(null); // 最後に検索したクエリ。未検索なら「🔍 で検索」行を出す
   const q = query.trim();
   const gsiHits = active && gsi?.q === q ? gsi.hits : [];
   const poiHits = active && poi?.q === q ? poi.hits : [];
@@ -102,16 +103,22 @@ export function SearchBox(props: SearchBoxProps) {
   const empty = !!active && q === "";
   const showHome = empty && active !== "home" && home;
   const saved = empty ? history : [];
+  const showSearchRow = !!active && q !== "" && searched !== q;
   const showList =
     !!active &&
-    (showCurrent || !!showHome || saved.length > 0 || gsiHits.length > 0 || poiHits.length > 0);
+    (showCurrent ||
+      !!showHome ||
+      saved.length > 0 ||
+      showSearchRow ||
+      gsiHits.length > 0 ||
+      poiHits.length > 0);
 
   const inflight = useRef<AbortController | null>(null);
 
-  // Enter（スマホの「検索」キー）で住所検索と施設名検索を 1 回ずつ並行して呼ぶ。前回の飛行中リクエストは中断
-  function search(e: FormEvent) {
-    e.preventDefault();
+  // Enter（スマホの「検索」キー）か「🔍 で検索」行で住所検索と施設名検索を 1 回ずつ並行して呼ぶ。前回の飛行中リクエストは中断
+  function search() {
     if (!q) return;
+    setSearched(q);
     inflight.current?.abort();
     const ac = (inflight.current = new AbortController());
     searchAddress(q, ac.signal)
@@ -126,6 +133,7 @@ export function SearchBox(props: SearchBoxProps) {
 
   function pick(role: Role, p: LatLng, label: string | null) {
     setQuery("");
+    setSearched(null);
     setActive(null);
     onSet(role, p, label);
   }
@@ -133,7 +141,13 @@ export function SearchBox(props: SearchBoxProps) {
   function field(role: Role, point: Point | null, name: string) {
     const focused = active === role;
     return (
-      <form {...stylex.props(styles.row, role === "to" && styles.divider)} onSubmit={search}>
+      <form
+        {...stylex.props(styles.row, role === "to" && styles.divider)}
+        onSubmit={(e) => {
+          e.preventDefault();
+          search();
+        }}
+      >
         {role === "home" ? (
           <button
             {...stylex.props(button.base, button.icon, styles.back)}
@@ -157,6 +171,7 @@ export function SearchBox(props: SearchBoxProps) {
             onFocus={() => {
               setActive(role);
               setQuery("");
+              setSearched(null);
             }}
             // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら active は既に null
             onBlur={() => setTimeout(() => setActive((a) => (a === role ? null : a)), 150)}
@@ -226,6 +241,18 @@ export function SearchBox(props: SearchBoxProps) {
               </button>
             </li>
           ))}
+          {showSearchRow && (
+            <li>
+              <button
+                {...stylex.props(button.base, button.ghost, styles.current)}
+                // 入力欄の blur（→ リスト非表示）を防ぐ
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={search}
+              >
+                🔍 「{q}」で検索
+              </button>
+            </li>
+          )}
           {[...poiHits, ...gsiHits].map((h, i) => (
             <li key={i}>
               <button

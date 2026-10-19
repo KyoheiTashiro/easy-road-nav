@@ -60,7 +60,7 @@ React・DOM 非依存。`App` が `useEffect([fix])` で呼び、events を発�
 
 1. **精度フィルタ**: `fix.accuracy >= 進捗採用精度` なら state を返すだけ（events 空）。マーカー位置は App が fix から直接描く
 2. **最近傍点**: `nearest(route, fix)` → `{ s, distanceToRoute, segmentIndex }`（[route-model.md](route-model.md)）
-3. **経路外れ判定**: `distanceToRoute > 経路外れ距離` なら `offRouteCount++`。`>= リルート連続回数` かつ `!rerouting` なら `reroute` event、`rerouting = true`。経路外れ中は進捗更新せず、`heading` は直近 2 fix の方位（移動 ≥ 方位算出最小移動 のときのみ更新）。以降の手順は飛ばす。経路内なら `offRouteCount = 0`
+3. **経路外れ判定**: `distanceToRoute > 経路外れ距離` かつ直前 fix から 方位算出最小移動 以上動いていれば `offRouteCount++`（停車中は数えない。出発前の準備中や途中停車で連発するのを防ぐ）。`>= リルート連続回数` かつ `!rerouting` なら `reroute` event、`rerouting = true`。経路外れ中は進捗更新せず、`heading` は直近 2 fix の方位（移動 ≥ 方位算出最小移動 のときのみ更新）。以降の手順は飛ばす。経路内なら `offRouteCount = 0`
 4. **進捗更新**: `s` は単調増加。`nearest.s < state.s` なら据え置き（後戻りは無視）。`heading` = 線分 `segmentIndex` の方位
 5. **経由地通過**: `passedVia < viaIndices.length` かつ `s >= cum[viaIndices[passedVia]]` → `viaPassed`、発話「経由地を通過しました」、`passedVia++`
 6. **到着**: `cum[n-1] - s < 到着判定` → 発話「目的地に到着しました」、`arrived`。以降の手順は飛ばす

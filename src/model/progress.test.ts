@@ -284,6 +284,15 @@ describe("step: 経路外れ", () => {
     expect(c.state.heading).toBeCloseTo(segmentBearing(basic, 0), 0);
   });
 
+  it("停車中（移動 5 m 未満）は外れを数えない。出発前に経路から離れていても reroute しない", () => {
+    const parked = fixAt(basic, 0, 80);
+    const { state, all } = run(basic, [], [parked, parked, parked, parked, parked]);
+    expect(all.flat().map((e) => e.type)).not.toContain("reroute");
+    expect(state.offRouteCount).toBe(0);
+    const moved = step(basic, [], state, fixAt(basic, 10, 80));
+    expect(moved.state.offRouteCount).toBe(1);
+  });
+
   it("経路内に戻ると offRouteCount 0、heading は線分方位", () => {
     const { state } = run(
       basic,

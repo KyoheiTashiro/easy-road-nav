@@ -186,8 +186,8 @@ export function offsetOrigin(fix: Fix, heading: number | null): LatLng;
 ```
 - state は毎回新オブジェクトを返す。announced は同じ Set を使い回して add（React の比較対象にしないため問題なし）
 - 精度フィルタで弾いた fix は lastFix にも入れない
-- 経路外れ中の heading: lastFix があり haversine(lastFix, fix) >= 方位算出最小移動 なら bearing(lastFix, fix) で更新し lastFix = fix。
-  未満なら heading・lastFix とも据え置き。lastFix が null なら lastFix = fix のみ
+- 経路外れ中: lastFix があり haversine(lastFix, fix) >= 方位算出最小移動 なら offRouteCount++、heading = bearing(lastFix, fix)、lastFix = fix。
+  未満なら offRouteCount・heading・lastFix とも据え置き（停車中は外れを数えない）。lastFix が null なら lastFix = fix のみ
 - 経路内に戻った fix: offRouteCount = 0、lastFix = fix、heading = segmentBearing
 - 進捗据え置き（nearest.s < state.s）のときも heading は state.segmentIndex の方位、hud は出す
 - 経由地通過は while（1 fix で複数経由地を越えたら全部 viaPassed。発話は 1 回）

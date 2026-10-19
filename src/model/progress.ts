@@ -107,11 +107,12 @@ export function step(
   const end = cum[cum.length - 1]!;
   const near = nearest(route, fix);
 
-  // 経路外れ
+  // 経路外れ。移動中の fix だけ数える（停車中は出発前・途中停車でリルートが連発するため）
   if (near.distanceToRoute > OFF_ROUTE) {
-    const next = { ...state, offRouteCount: state.offRouteCount + 1 };
+    const next = { ...state };
     if (!state.lastFix) next.lastFix = fix;
     else if (haversine(state.lastFix, fix) >= MIN_MOVE) {
+      next.offRouteCount = state.offRouteCount + 1;
       next.heading = bearing(state.lastFix, fix);
       next.lastFix = fix;
     }

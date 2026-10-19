@@ -166,4 +166,4 @@ const [history, setHistory] = useState<SavedPoint[]>(loadHistory); // 検索履�
 
 ## 帰属表示
 
-MapLibre `AttributionControl`（compact）に「© OpenStreetMap contributors, © OpenFreeMap」。検索候補リストの末尾に出典を小さく表示（その出典の候補が出ている間のみ。両方あれば 2 行）。住所検索は「出典: 国土地理院」、施設名検索は「Webサービス by Yahoo! JAPAN」（`https://developer.yahoo.co.jp/sitemap/` へのテキストリンク。Yahoo のクレジット表示ガイドラインの公式スニペット A をそのまま使い、色・サイズを CSS で変えない）。
+MapLibre `AttributionControl`（compact）に「© OpenStreetMap contributors, © OpenFreeMap」。検索候補リストの末尾に出典を 1 行で右寄せ表示（その出典の候補が出ている間のみ。両方あれば同じ行に並べる）。住所検索は「出典: 国土地理院」（`https://www.gsi.go.jp/` へのテキストリンク）、施設名検索は「Webサービス by Yahoo! JAPAN」（`https://developer.yahoo.co.jp/sitemap/` へのテキストリンク。Yahoo のクレジット表示ガイドラインの公式スニペット A をそのまま使い、色・サイズを CSS で変えない）。国土地理院側もリンクにして同じ見た目に揃える。

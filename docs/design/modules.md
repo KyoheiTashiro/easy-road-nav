@@ -74,7 +74,7 @@ export function fetchRoute(
 ```ts
 export type SearchHit = { title: string; lat: number; lng: number };
 export function rankHits(q: string, hits: SearchHit[]): SearchHit[]; // q を title に含む候補を先頭へ（安定）
-export function searchAddress(q: string, signal: AbortSignal): Promise<SearchHit[]>; // rankHits 後の先頭 10 件
+export function searchAddress(q: string, signal: AbortSignal): Promise<SearchHit[]>; // rankHits 後の全件
 export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string | null>; // results.lv01Nm。応答 {} → null
 ```
 
@@ -84,7 +84,7 @@ export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string 
 
 ```ts
 export function normalizePoiQuery(q: string): string; // （株）(株)（有）(有) を空白に → trim
-export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Yahoo! ローカルサーチ。先頭 5 件。Name を title に
+export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Yahoo! ローカルサーチ。最大 100 件（results = API 上限）。Name を title に
 ```
 
 JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受ける。URL は `https://map.yahooapis.jp/search/local/V1/localSearch?appid=…&output=json&results=10&query=…&callback=…`。callback 名は呼び出しごとに一意（連番）。
@@ -318,16 +318,19 @@ type SearchBoxProps = {
 
 空欄候補: `active` あり かつ `query.trim() === ""` のとき、検索結果の代わりに固定行を出す。出発地欄 = 現在地 → 自宅 → 履歴、到着地欄 = 自宅 → 履歴、自宅欄 = 現在地 → 履歴。「現在地」は `fix` あり、「自宅」は `home` ありのときだけ。自宅・履歴行のタップは `onSet(role, p, p.label)`（`onPick` は呼ばない）。
 
-内部 state: `active`（フォーカス中の欄）、`query`、`composing`（IME 変換中）、`gsi` / `poi`（各 `{ q, hits }`）。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のものだけ（古い結果・2 文字未満で空）。リストは `[...poiHits, ...gsiHits]` の順。末尾の出典行は各 hits が 1 件以上のとき（「Webサービス by Yahoo! JAPAN」リンク / 「出典: 国土地理院」）。
+内部 state: `active`（フォーカス中の欄）、`query`、`gsi` / `poi`（各 `{ q, hits }`）、`inflight`（ref。直近の `AbortController`）。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のものだけ（Enter 後に入力を変えると消える）。リストは `[...poiHits, ...gsiHits]` の順。末尾の出典行は各 hits が 1 件以上のとき（「Webサービス by Yahoo! JAPAN」リンク / 「出典: 国土地理院」）。
 
-検索の effect は 2 つ。どちらも `q.length >= 2` が条件、`debounced(ms, run)` がタイマー + `AbortController` の cleanup を返す:
+検索は各欄を包む `<form onSubmit={search}>` の submit（Enter / スマホの「検索」キー。入力欄は `enterKeyHint="search"`）で 1 回:
 
 ```
-[q]            → 300 ms → searchAddress(q) → setGsi。失敗トースト「住所検索に失敗しました」
-[q, composing] → composing なら何もしない。500 ms → searchPoi(q) → setPoi。失敗トースト「施設検索に失敗しました」
+search(e): preventDefault。q が空なら何もしない
+  inflight.current?.abort()、新しい AbortController を inflight に
+  searchAddress(q, signal) → setGsi({ q, hits })。失敗トースト「住所検索に失敗しました」
+  searchPoi(q, signal)     → setPoi({ q, hits })。失敗トースト「施設検索に失敗しました」
+  （AbortError は無視）
 ```
 
-`composing` は入力欄の `onCompositionStart` / `onCompositionEnd`。変換確定で false に戻り effect が再実行される。Enter のハンドラはない。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
+IME 変換確定の Enter は入力欄の `onKeyDown` で `e.nativeEvent.isComposing || e.keyCode === 229` なら `preventDefault`（Safari は確定 Enter の `isComposing` が false）。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
 
 ## `src/ui/PointPopup.tsx`
 

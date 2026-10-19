@@ -2,6 +2,7 @@ import type { SearchHit } from "./gsi.ts";
 
 const SEARCH = "https://map.yahooapis.jp/search/local/V1/localSearch";
 const TIMEOUT = 10_000;
+const RESULTS = 100; // API の上限
 
 let seq = 0;
 
@@ -17,7 +18,7 @@ type Response = {
 
 /**
  * Yahoo! ローカルサーチで施設名検索。API が CORS ヘッダを返さないため JSONP。
- * 先頭 5 件。失敗（script error・10 秒・Status != 200・appid 未設定）は reject。abort は AbortError
+ * 最大 100 件（API 上限）。失敗（script error・10 秒・Status != 200・appid 未設定）は reject。abort は AbortError
  */
 export async function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]> {
   const appid = import.meta.env.VITE_YAHOO_APPID as string | undefined;
@@ -55,7 +56,7 @@ export async function searchPoi(q: string, signal: AbortSignal): Promise<SearchH
     const params = new URLSearchParams({
       appid,
       output: "json",
-      results: "5",
+      results: String(RESULTS),
       query: normalizePoiQuery(q),
       callback: cb,
     });

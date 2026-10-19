@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { useEffect, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { searchAddress, type SearchHit } from "../api/gsi.ts";
 import { searchPoi } from "../api/yahoo.ts";
 import type { Fix, LatLng, Point, SavedPoint } from "../model/route.ts";
@@ -74,16 +74,6 @@ const skipAbort = (e: unknown) => {
   throw e;
 };
 
-/** ms 後に run。戻り値は effect の cleanup（タイマー解除 + 中断） */
-function debounced(ms: number, run: (signal: AbortSignal) => unknown): () => void {
-  const ac = new AbortController();
-  const t = setTimeout(() => run(ac.signal), ms);
-  return () => {
-    clearTimeout(t);
-    ac.abort();
-  };
-}
-
 type SearchBoxProps = {
   mode: "edit" | "home"; // edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ
   from: Point | null;
@@ -102,7 +92,6 @@ export function SearchBox(props: SearchBoxProps) {
   const { mode, from, to, fix, home, history, onSet, onPick, onClear, onBack, onError } = props;
   const [active, setActive] = useState<Role | null>(null); // フォーカス中の欄
   const [query, setQuery] = useState("");
-  const [composing, setComposing] = useState(false); // IME 変換中は施設検索を呼ばない
   const [gsi, setGsi] = useState<Result | null>(null); // 住所検索
   const [poi, setPoi] = useState<Result | null>(null); // 施設名検索
   const q = query.trim();
@@ -117,26 +106,23 @@ export function SearchBox(props: SearchBoxProps) {
     !!active &&
     (showCurrent || !!showHome || saved.length > 0 || gsiHits.length > 0 || poiHits.length > 0);
 
-  // 2 文字以上で住所検索（debounce 300 ms）と施設名検索（同 500 ms、IME 変換中は待つ）を並行して呼ぶ。
-  // q が変わると cleanup で飛行中リクエストを中断
-  useEffect(() => {
-    if (q.length < 2) return;
-    return debounced(300, (signal) =>
-      searchAddress(q, signal)
-        .then((hits) => setGsi({ q, hits }))
-        .catch(skipAbort)
-        .catch(() => onError("住所検索に失敗しました")),
-    );
-  }, [q, onError]);
-  useEffect(() => {
-    if (q.length < 2 || composing) return;
-    return debounced(500, (signal) =>
-      searchPoi(q, signal)
-        .then((hits) => setPoi({ q, hits }))
-        .catch(skipAbort)
-        .catch(() => onError("施設検索に失敗しました")),
-    );
-  }, [q, composing, onError]);
+  const inflight = useRef<AbortController | null>(null);
+
+  // Enter（スマホの「検索」キー）で住所検索と施設名検索を 1 回ずつ並行して呼ぶ。前回の飛行中リクエストは中断
+  function search(e: FormEvent) {
+    e.preventDefault();
+    if (!q) return;
+    inflight.current?.abort();
+    const ac = (inflight.current = new AbortController());
+    searchAddress(q, ac.signal)
+      .then((hits) => setGsi({ q, hits }))
+      .catch(skipAbort)
+      .catch(() => onError("住所検索に失敗しました"));
+    searchPoi(q, ac.signal)
+      .then((hits) => setPoi({ q, hits }))
+      .catch(skipAbort)
+      .catch(() => onError("施設検索に失敗しました"));
+  }
 
   function pick(role: Role, p: LatLng, label: string | null) {
     setQuery("");
@@ -147,7 +133,7 @@ export function SearchBox(props: SearchBoxProps) {
   function field(role: Role, point: Point | null, name: string) {
     const focused = active === role;
     return (
-      <div {...stylex.props(styles.row, role === "to" && styles.divider)}>
+      <form {...stylex.props(styles.row, role === "to" && styles.divider)} onSubmit={search}>
         {role === "home" ? (
           <button
             {...stylex.props(button.base, button.icon, styles.back)}
@@ -165,6 +151,7 @@ export function SearchBox(props: SearchBoxProps) {
           <input
             {...stylex.props(styles.input)}
             type="search"
+            enterKeyHint="search"
             placeholder={`${name}を検索`}
             value={focused ? query : (point && (point.label ?? "…")) || ""}
             onFocus={() => {
@@ -174,8 +161,11 @@ export function SearchBox(props: SearchBoxProps) {
             // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら active は既に null
             onBlur={() => setTimeout(() => setActive((a) => (a === role ? null : a)), 150)}
             onChange={(e) => setQuery(e.target.value)}
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={() => setComposing(false)}
+            // IME 変換確定の Enter で submit しない（Safari は isComposing が false なので keyCode 229 も見る）
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.nativeEvent.isComposing || e.keyCode === 229))
+                e.preventDefault();
+            }}
             aria-label={name}
           />
           {!focused && point && role !== "home" && (
@@ -188,7 +178,7 @@ export function SearchBox(props: SearchBoxProps) {
             </button>
           )}
         </div>
-      </div>
+      </form>
     );
   }
 

@@ -20,7 +20,7 @@ export function rankHits(q: string, hits: SearchHit[]): SearchHit[] {
   return [...hits].sort((a, b) => has(a) - has(b));
 }
 
-/** 国土地理院 住所検索。応答は素の Feature 配列（coordinates = [lng, lat]）。全文一致を優先し先頭 10 件。失敗は throw */
+/** 国土地理院 住所検索。応答は素の Feature 配列（coordinates = [lng, lat]）。全文一致を優先。件数制限なし。失敗は throw */
 export async function searchAddress(q: string, signal: AbortSignal): Promise<SearchHit[]> {
   const res = await fetch(`${SEARCH}?q=${encodeURIComponent(q)}`, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -33,5 +33,5 @@ export async function searchAddress(q: string, signal: AbortSignal): Promise<Sea
     lng: f.geometry.coordinates[0],
     lat: f.geometry.coordinates[1],
   }));
-  return rankHits(q, hits).slice(0, 10);
+  return rankHits(q, hits);
 }

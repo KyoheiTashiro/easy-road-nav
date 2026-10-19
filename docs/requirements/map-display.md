@@ -34,7 +34,7 @@
 
 ## URL 共有
 
-- 形式: `?from=lat,lng&to=lat,lng&via=lat,lng|lat,lng&notoll=1`。座標は小数 5 桁
+- 形式: `?from=lat,lng&to=lat,lng&via=lat,lng|lat,lng&notoll=0`。座標は小数 5 桁。`notoll` 省略は避ける（既定）、`0` のみ高速・有料を使う
 - 地点名・選択中の代替経路は含めない（地点名は逆ジオで再取得、代替経路はデータ更新で変わる）
 - URL を開くと経路探索まで自動実行
 - 不正な値（形式違い・緯度経度範囲外）はその地点だけ無視。`via` は先頭 5 件

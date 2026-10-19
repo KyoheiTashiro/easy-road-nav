@@ -61,7 +61,7 @@ GraphHopper 既定の速度（`car_average_speed`）はドイツ基準で、`pri
 
 ## 有料道路
 
-- 「高速・有料を避ける」トグル1個。OFF が既定（`car`）、ON で `car_notoll`
+- 「高速・有料を避ける」トグル1個。ON が既定（`car_notoll`）、OFF で `car`
 - リルート時も同じトグル状態を使う
 - 回避 ON でも到達に必要なら有料区間を通る。通った場合はサマリに「有料区間 x.x km」を表示（`details=toll` の `all` 区間合計（応答値は小文字））
 

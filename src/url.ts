@@ -27,7 +27,7 @@ export function parseQuery(search: string): Query {
       .map(parseLatLng)
       .filter((p): p is LatLng => p !== null)
       .slice(0, MAX_VIAS),
-    notoll: params.get("notoll") === "1",
+    notoll: params.get("notoll") !== "0", // 既定は避ける
   };
 }
 
@@ -35,12 +35,12 @@ function fmt(p: LatLng): string {
   return `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
 }
 
-/** "?from=..&to=..&via=..|..&notoll=1"。地点なし・notoll false は省略。全部なしなら "" */
+/** "?from=..&to=..&via=..|..&notoll=0"。地点なし・notoll true（既定）は省略。全部なしなら "" */
 export function buildQuery(q: Query): string {
   const parts: string[] = [];
   if (q.from) parts.push(`from=${fmt(q.from)}`);
   if (q.to) parts.push(`to=${fmt(q.to)}`);
   if (q.vias.length) parts.push(`via=${q.vias.map(fmt).join("|")}`);
-  if (q.notoll) parts.push("notoll=1");
+  if (!q.notoll) parts.push("notoll=0");
   return parts.length ? `?${parts.join("&")}` : "";
 }

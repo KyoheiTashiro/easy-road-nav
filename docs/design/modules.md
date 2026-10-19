@@ -20,7 +20,7 @@ export type SavedPoint = LatLng & { label: string }; // 自宅・検索履歴。
 ```ts
 export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
 export function parseQuery(search: string): Query; // location.search
-export function buildQuery(q: Query): string; // "?from=..&to=..&via=..|..&notoll=1"。地点なし・notoll false は省略。全部なしなら ""
+export function buildQuery(q: Query): string; // "?from=..&to=..&via=..|..&notoll=0"。地点なし・notoll true（既定）は省略。全部なしなら ""
 ```
 
 parse:
@@ -33,7 +33,7 @@ parseLatLng(s) =
 from  = parseLatLng(params.get("from"))
 to    = parseLatLng(params.get("to"))
 vias  = (params.get("via") ?? "").split("|").filter(Boolean).map(parseLatLng).filter(非 null).slice(0, 5)
-notoll = params.get("notoll") === "1"
+notoll = params.get("notoll") !== "0"  // 既定は避ける
 ```
 
 不正な地点はその地点だけ無視（全クエリ破棄しない）。build は `toFixed(5)`。

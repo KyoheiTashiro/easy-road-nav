@@ -51,7 +51,14 @@ const styles = stylex.create({
   back: { marginRight: 4 },
   sub: { marginLeft: 8, fontSize: 13, opacity: 0.6 },
   // 出典行。Yahoo のクレジットは色・サイズを変えられない（ガイドライン）ので国土地理院側も同じ見た目に揃える
-  credit: { display: "flex", justifyContent: "flex-end", gap: 12, padding: "4px 12px 6px" },
+  credit: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 4,
+    marginTop: 4,
+    padding: "8px 12px 6px",
+  },
   current: { color: colors.accent },
   list: {
     listStyle: "none",
@@ -267,7 +274,7 @@ export function SearchBox(props: SearchBoxProps) {
             </li>
           ))}
           {(gsiHits.length > 0 || poiHits.length > 0) && (
-            <li {...stylex.props(styles.credit)}>
+            <li {...stylex.props(styles.divider, styles.credit)}>
               {gsiHits.length > 0 && <a href="https://www.gsi.go.jp/">出典: 国土地理院</a>}
               {poiHits.length > 0 && (
                 <a href="https://developer.yahoo.co.jp/sitemap/">Webサービス by Yahoo! JAPAN</a>

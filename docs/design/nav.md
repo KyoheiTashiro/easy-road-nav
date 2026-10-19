@@ -40,7 +40,7 @@ type NavState = {
 ```ts
 type NavEvent =
   | { type: "speak"; text: string }
-  | { type: "hud"; instruction: Instruction | null; remaining: number }
+  | { type: "hud"; instruction: Instruction | null; remaining: number; next: NextNext | null }
   | { type: "narrow"; segment: NarrowSegment | null } // 走行中バナー用。null = 細い道でない
   | { type: "viaPassed"; index: number }
   | { type: "arrived" }
@@ -67,7 +67,7 @@ React・DOM 非依存。`App` が `useEffect([fix])` で呼び、events を発�
 7. **次の案内地点**: `instructions` のうち `sign != 0`（直進は案内地点にしない）かつ `cum[from] > s` の最初のもの。残り `r = cum[from] - s`
    - `r <= 50` かつ `"instr:i:50"` 未発火 → 直前案内。`"instr:i:300"` も発火済みにする（1 fix で両方飛び越えたら直前のみ）
    - それ以外で `r <= 300` かつ `"instr:i:300"` 未発火 → 予告。ただし直前の案内地点との間隔が 300 m 未満なら予告しない（直前案内だけ）
-   - `hud` event は毎 fix
+   - `hud` event は毎 fix。`next` = `idx` より後で `sign != 0` の最初の指示。次の案内地点からの距離 `cum[next.from] - cum[ins.from]` が「次の次表示上限」以内のときだけ、超えたら null
 8. **細い道**: `narrow` 区間 j で `cum[seg.from] - s` が `(0, 細い道警告距離]` かつ `"narrow:j"` 未発火 → 警告発話。先頭区間（出発地に接する）は警告しない。末尾区間（到着地に接する）は「この先細い道、目的地付近です」。走行中判定: `cum[seg.from] <= s < cum[seg.to]` の区間を `narrow` event で通知
 9. 同一 fix で 7 と 8 が両方発火したら発話順は 案内 → 細い道警告
 
@@ -107,6 +107,7 @@ React・DOM 非依存。`App` が `useEffect([fix])` で呼び、events を発�
 - 方向アイコン: インライン SVG 11 種（直進・斜め右・右・鋭角右・斜め左・左・鋭角左・右寄り・左寄り・U ターン・ラウンドアバウト）。`sign` で選ぶ。経由地・目的地はピンアイコン
 - 残り距離: 1 km 以上「1.2 km」（0.1 km 単位）、未満「340 m」（10 m 単位）
 - 道路名: `street_name`（空なら非表示）
+- 次の次行: 本体直下、高さ固定 32px、`surface` 色。`next` があれば「その先」+ 小アイコン 20px + `formatDistance(distance)` + 語（`signWord`）。null なら空のまま（高さは変えない。Toast の位置を固定するため）
 - 細い道走行中: HUD 直下にオレンジのバナー「細い道を走行中」
 - リルート要求中: バナー「再探索中…」。経路外れカウント中（1〜2 回目）は何も出さない
 

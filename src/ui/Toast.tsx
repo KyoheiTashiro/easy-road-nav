@@ -16,8 +16,8 @@ const styles = stylex.create({
     boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
     zIndex: 10,
   },
-  // 88 = NavHud の HUD_HEIGHT。stylex.create 内では .stylex.* 以外の import 値を使えないため直書き
-  nav: { top: "calc(env(safe-area-inset-top) + 104px)" },
+  // 120 = NavHud の HUD_HEIGHT + NEXT_HEIGHT。stylex.create 内では .stylex.* 以外の import 値を使えないため直書き
+  nav: { top: "calc(env(safe-area-inset-top) + 136px)" },
 });
 
 /** 1 つだけ。消去タイマーは App（4 秒）。navMode で HUD の下に出す */

@@ -164,6 +164,23 @@ describe("step: 案内地点", () => {
     expect(hud.remaining).toBeCloseTo(900, 0);
   });
 
+  it("次の次: 次の案内地点から 1 km 以内なら next、超えたら null", () => {
+    const h = step(basic, [], initNav(16), fixAt(basic, 100)).events.find((e) => e.type === "hud")!;
+    expect(h.next?.instruction.sign).toBe(-2);
+    expect(h.next?.distance).toBeCloseTo(1000, 0);
+    const far = make(
+      [500, 2000, 500],
+      [
+        [2, 1, 2],
+        [-2, 2, 3],
+        [4, 3, 3],
+      ],
+    );
+    const f = step(far, [], initNav(16), fixAt(far, 100)).events.find((e) => e.type === "hud")!;
+    expect(f.instruction?.sign).toBe(2);
+    expect(f.next).toBeNull();
+  });
+
   it("案内地点が残っていなければ instruction null", () => {
     const r = make([1000], [[0, 0, 1]]);
     const e = step(r, [], initNav(16), fixAt(r, 100)).events.find((e) => e.type === "hud")!;

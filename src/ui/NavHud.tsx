@@ -1,11 +1,13 @@
 import * as stylex from "@stylexjs/stylex";
 import { formatDistance } from "../model/format.ts";
+import { signWord, type NextNext } from "../model/progress.ts";
 import type { Instruction } from "../model/route.ts";
 import { DirectionIcon } from "./icons.tsx";
 import { colors } from "./tokens.stylex.ts";
 
-/** HUD 本体の高さ（px、バナー除く）。Toast.tsx のナビ時 top と揃える */
+/** HUD 本体・次の次行の高さ（px、バナー除く）。合計を Toast.tsx のナビ時 top と揃える */
 const HUD_HEIGHT = 88;
+const NEXT_HEIGHT = 32;
 
 const styles = stylex.create({
   hud: {
@@ -36,6 +38,17 @@ const styles = stylex.create({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+  next: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    height: NEXT_HEIGHT,
+    padding: "0 16px",
+    fontSize: 14,
+    backgroundColor: colors.surface,
+    color: colors.fg,
+    opacity: 0.85,
+  },
   banner: { padding: "8px 16px", fontSize: 15, fontWeight: 600, textAlign: "center" },
   narrow: { backgroundColor: colors.narrow, color: "#fff" },
   reroute: { backgroundColor: colors.surface, color: colors.fg },
@@ -44,11 +57,12 @@ const styles = stylex.create({
 type NavHudProps = {
   instruction: Instruction | null; // null = 案内地点が残っていない → 「目的地まで」
   remaining: number; // m
+  next: NextNext | null; // 次の次。null なら行は空のまま（高さ固定）
   inNarrow: boolean;
   rerouting: boolean;
 };
 
-export function NavHud({ instruction, remaining, inNarrow, rerouting }: NavHudProps) {
+export function NavHud({ instruction, remaining, next, inNarrow, rerouting }: NavHudProps) {
   return (
     <div {...stylex.props(styles.hud)}>
       <div {...stylex.props(styles.main)}>
@@ -65,6 +79,17 @@ export function NavHud({ instruction, remaining, inNarrow, rerouting }: NavHudPr
             <span {...stylex.props(styles.name)}>目的地まで</span>
           )}
         </div>
+      </div>
+      <div {...stylex.props(styles.next)}>
+        {next && (
+          <>
+            <span>その先</span>
+            <DirectionIcon sign={next.instruction.sign} size={20} />
+            <span>
+              {formatDistance(next.distance)} {signWord(next.instruction)}
+            </span>
+          </>
+        )}
       </div>
       {inNarrow && <div {...stylex.props(styles.banner, styles.narrow)}>細い道を走行中</div>}
       {rerouting && <div {...stylex.props(styles.banner, styles.reroute)}>再探索中…</div>}

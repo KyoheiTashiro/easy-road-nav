@@ -10,6 +10,7 @@ import {
   step,
   type NavEvent,
   type NavState,
+  type NextNext,
 } from "./model/progress.ts";
 import type {
   Fix,
@@ -72,9 +73,11 @@ export default function App() {
   const [mode, setMode] = useState<"edit" | "nav" | "home">("edit");
   const [nav, setNav] = useState<NavState | null>(null);
   const [muted, setMuted] = useState(false); // セッション内のみ
-  const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number } | null>(
-    null,
-  );
+  const [hud, setHud] = useState<{
+    instruction: Instruction | null;
+    remaining: number;
+    next: NextNext | null;
+  } | null>(null);
   const [inNarrow, setInNarrow] = useState(false);
   const [starting, setStarting] = useState(false); // 「案内開始」の再探索中
   // 現在の経路より前に通過した経由地数（リルートで加算）。通過済 表示 = これ + nav.passedVia
@@ -184,7 +187,7 @@ export default function App() {
           speech.speak(ev.text);
           break;
         case "hud":
-          setHud({ instruction: ev.instruction, remaining: ev.remaining });
+          setHud({ instruction: ev.instruction, remaining: ev.remaining, next: ev.next });
           break;
         case "narrow":
           setInNarrow(ev.segment !== null);
@@ -385,6 +388,7 @@ export default function App() {
           <NavHud
             instruction={hud?.instruction ?? null}
             remaining={hud?.remaining ?? route.distance - nav.s}
+            next={hud?.next ?? null}
             inNarrow={inNarrow}
             rerouting={nav.rerouting}
           />

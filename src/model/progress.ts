@@ -20,6 +20,7 @@ const ANNOUNCE_FAR = 300; // 案内トリガー距離（予告）
 const ANNOUNCE_NEAR = 50; // 案内トリガー距離（直前）
 const NARROW_WARN = 300; // 細い道警告距離
 const MIN_MOVE = 5; // 方位算出最小移動
+const NEXT_NEXT_MAX = 1000; // 次の次表示上限
 
 export type NavState = {
   s: number;
@@ -36,11 +37,19 @@ export type NavState = {
 
 export type NavEvent =
   | { type: "speak"; text: string }
-  | { type: "hud"; instruction: Instruction | null; remaining: number }
+  | {
+      type: "hud";
+      instruction: Instruction | null;
+      remaining: number;
+      next: NextNext | null; // 次の次。次の案内地点から 次の次表示上限 以内のときだけ
+    }
   | { type: "narrow"; segment: NarrowSegment | null }
   | { type: "viaPassed"; index: number }
   | { type: "arrived" }
   | { type: "reroute" };
+
+/** 次の次の案内地点。distance = 次の案内地点からの距離 m */
+export type NextNext = { instruction: Instruction; distance: number };
 
 export function initNav(zoom: number, follow = true): NavState {
   return {
@@ -155,7 +164,7 @@ export function step(
   // 次の案内地点
   const idx = nextInstruction(route, s);
   if (idx < 0) {
-    events.push({ type: "hud", instruction: null, remaining: end - s });
+    events.push({ type: "hud", instruction: null, remaining: end - s, next: null });
   } else {
     const ins = route.instructions[idx]!;
     const r = cum[ins.from]! - s;
@@ -172,7 +181,10 @@ export function step(
         events.push({ type: "speak", text: `${ANNOUNCE_FAR} メートル先、${signWord(ins)}です` });
       }
     }
-    events.push({ type: "hud", instruction: ins, remaining: r });
+    const nn = route.instructions.find((i, k) => k > idx && i.sign !== 0);
+    const nd = nn ? cum[nn.from]! - cum[ins.from]! : Infinity;
+    const next = nn && nd <= NEXT_NEXT_MAX ? { instruction: nn, distance: nd } : null;
+    events.push({ type: "hud", instruction: ins, remaining: r, next });
   }
 
   // 細い道

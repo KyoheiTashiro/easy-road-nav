@@ -171,6 +171,7 @@ return merged
 ```ts
 export type NavState = { ... };   // nav.md
 export type NavEvent = ...;       // nav.md
+export type NextNext = { instruction: Instruction; distance: number }; // 次の次。distance = 次の案内地点からの距離 m
 
 export function initNav(zoom: number, follow?: boolean): NavState;
   // s 0、segmentIndex 0、heading null、lastFix null、announced 空、passedVia 0、offRouteCount 0、rerouting false
@@ -191,7 +192,8 @@ export function offsetOrigin(fix: Fix, heading: number | null): LatLng;
 - 経路内に戻った fix: offRouteCount = 0、lastFix = fix、heading = segmentBearing
 - 進捗据え置き（nearest.s < state.s）のときも heading は state.segmentIndex の方位、hud は出す
 - 経由地通過は while（1 fix で複数経由地を越えたら全部 viaPassed。発話は 1 回）
-- 次の案内地点が見つからない（到着直前で sign != 0 の指示が残っていない）→ hud { instruction: null, remaining: cum[n−1] − s }
+- 次の案内地点が見つからない（到着直前で sign != 0 の指示が残っていない）→ hud { instruction: null, remaining: cum[n−1] − s, next: null }
+- hud.next: 次の案内地点より後の sign != 0 の最初の指示。cum[next.from] − cum[ins.from] が 次の次表示上限 以内のときだけ { instruction, distance }、超えたら null
 - 案内予告の「直前の案内地点との間隔」= cum[この指示.from] − cum[直前の sign != 0 指示.from]。先頭の案内地点は出発地からの距離
 - narrow event は毎 fix（null 含む）。hud と同じく App が state に載せる
 - rerouting 中（true）でも精度・最近傍・経路外れ判定は続ける。再発火はしない
@@ -402,6 +404,7 @@ type StepListProps = { route: RouteModel; narrow: NarrowSegment[] };
 type NavHudProps = {
   instruction: Instruction | null;
   remaining: number;
+  next: NextNext | null; // 次の次。null なら行は空（高さ固定）
   inNarrow: boolean;
   rerouting: boolean;
 };
@@ -455,7 +458,7 @@ state は ui.md。追加で:
 const [fitVersion, setFitVersion] = useState(0);
 const [sheetExpanded, setSheetExpanded] = useState(false);
 const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null);
-const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number } | null>(null);
+const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number; next: NextNext | null } | null>(null);
 const [inNarrow, setInNarrow] = useState(false);
 const [passedVia, setPassedVia] = useState(0); // 現在の経路より前に通過した経由地数。リルートで加算、終了時に nav.passedVia を畳む、地点変更・開始で 0
 ```

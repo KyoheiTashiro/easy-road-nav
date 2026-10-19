@@ -17,9 +17,9 @@ type Response = {
 
 /**
  * Yahoo! ローカルサーチで施設名検索。API が CORS ヘッダを返さないため JSONP。
- * 失敗（script error・10 秒・Status != 200・appid 未設定）は throw。abort は AbortError
+ * 先頭 5 件。失敗（script error・10 秒・Status != 200・appid 未設定）は reject。abort は AbortError
  */
-export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]> {
+export async function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]> {
   const appid = import.meta.env.VITE_YAHOO_APPID as string | undefined;
   if (!appid) throw new Error("VITE_YAHOO_APPID is not set");
   signal.throwIfAborted();
@@ -55,7 +55,7 @@ export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]> 
     const params = new URLSearchParams({
       appid,
       output: "json",
-      results: "10",
+      results: "5",
       query: normalizePoiQuery(q),
       callback: cb,
     });

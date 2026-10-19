@@ -67,7 +67,22 @@ const styles = stylex.create({
 });
 
 type Role = "from" | "to" | "home";
-type Source = "gsi" | "yahoo";
+type Result = { q: string; hits: SearchHit[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
+
+const skipAbort = (e: unknown) => {
+  if (e instanceof DOMException && e.name === "AbortError") return;
+  throw e;
+};
+
+/** ms 後に run。戻り値は effect の cleanup（タイマー解除 + 中断） */
+function debounced(ms: number, run: (signal: AbortSignal) => unknown): () => void {
+  const ac = new AbortController();
+  const t = setTimeout(() => run(ac.signal), ms);
+  return () => {
+    clearTimeout(t);
+    ac.abort();
+  };
+}
 
 type SearchBoxProps = {
   mode: "edit" | "home"; // edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ
@@ -87,53 +102,41 @@ export function SearchBox(props: SearchBoxProps) {
   const { mode, from, to, fix, home, history, onSet, onPick, onClear, onBack, onError } = props;
   const [active, setActive] = useState<Role | null>(null); // フォーカス中の欄
   const [query, setQuery] = useState("");
-  // 結果はクエリ付き。表示は現在のクエリと一致するものだけ（古い結果・短いクエリで空）
-  const [result, setResult] = useState<{ q: string; hits: SearchHit[]; source: Source } | null>(
-    null,
-  );
-  const [poiQ, setPoiQ] = useState<string | null>(null); // Enter 確定したクエリ。q と一致する間だけ施設検索
+  const [composing, setComposing] = useState(false); // IME 変換中は施設検索を呼ばない
+  const [gsi, setGsi] = useState<Result | null>(null); // 住所検索
+  const [poi, setPoi] = useState<Result | null>(null); // 施設名検索
   const q = query.trim();
-  const hits = active && result?.q === q ? result.hits : [];
+  const gsiHits = active && gsi?.q === q ? gsi.hits : [];
+  const poiHits = active && poi?.q === q ? poi.hits : [];
   const showCurrent = (active === "from" || active === "home") && !!fix;
   // 入力が空のときだけ出す固定候補: 自宅（edit のみ）→ 履歴
   const empty = !!active && q === "";
   const showHome = empty && active !== "home" && home;
   const saved = empty ? history : [];
-  // 入力中は末尾に「"q" を施設名で検索」行を常時出す（Enter と同じ）。施設検索を実行済みのクエリでは出さない
-  const showPoiRow = !!active && q !== "" && poiQ !== q;
   const showList =
-    !!active && (showCurrent || !!showHome || saved.length > 0 || hits.length > 0 || showPoiRow);
+    !!active &&
+    (showCurrent || !!showHome || saved.length > 0 || gsiHits.length > 0 || poiHits.length > 0);
 
-  // Enter 確定 → 施設検索（Yahoo! ローカルサーチ）。それ以外は 2 文字以上で debounce 300 ms の住所検索。
-  // q が変わると cleanup で前回リクエストを中断し、施設検索結果は住所検索で置き換わる
+  // 2 文字以上で住所検索（debounce 300 ms）と施設名検索（同 500 ms、IME 変換中は待つ）を並行して呼ぶ。
+  // q が変わると cleanup で飛行中リクエストを中断
   useEffect(() => {
-    const ac = new AbortController();
-    const skipAbort = (e: unknown) => {
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      throw e;
-    };
-    if (poiQ === q) {
-      searchPoi(q, ac.signal)
-        .then((hits) => {
-          setResult({ q, hits, source: "yahoo" });
-          if (hits.length === 0) onError("施設が見つかりません");
-        })
-        .catch(skipAbort)
-        .catch(() => onError("施設検索に失敗しました"));
-      return () => ac.abort();
-    }
     if (q.length < 2) return;
-    const t = setTimeout(() => {
-      searchAddress(q, ac.signal)
-        .then((hits) => setResult({ q, hits, source: "gsi" }))
+    return debounced(300, (signal) =>
+      searchAddress(q, signal)
+        .then((hits) => setGsi({ q, hits }))
         .catch(skipAbort)
-        .catch(() => onError("住所検索に失敗しました"));
-    }, 300);
-    return () => {
-      clearTimeout(t);
-      ac.abort();
-    };
-  }, [q, poiQ, onError]);
+        .catch(() => onError("住所検索に失敗しました")),
+    );
+  }, [q, onError]);
+  useEffect(() => {
+    if (q.length < 2 || composing) return;
+    return debounced(500, (signal) =>
+      searchPoi(q, signal)
+        .then((hits) => setPoi({ q, hits }))
+        .catch(skipAbort)
+        .catch(() => onError("施設検索に失敗しました")),
+    );
+  }, [q, composing, onError]);
 
   function pick(role: Role, p: LatLng, label: string | null) {
     setQuery("");
@@ -162,21 +165,17 @@ export function SearchBox(props: SearchBoxProps) {
           <input
             {...stylex.props(styles.input)}
             type="search"
-            enterKeyHint="search"
             placeholder={`${name}を検索`}
             value={focused ? query : (point && (point.label ?? "…")) || ""}
             onFocus={() => {
               setActive(role);
               setQuery("");
-              setPoiQ(null);
             }}
             // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら active は既に null
             onBlur={() => setTimeout(() => setActive((a) => (a === role ? null : a)), 150)}
             onChange={(e) => setQuery(e.target.value)}
-            // IME 変換確定の Enter（isComposing）は無視
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing && q) setPoiQ(q);
-            }}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
             aria-label={name}
           />
           {!focused && point && role !== "home" && (
@@ -237,7 +236,7 @@ export function SearchBox(props: SearchBoxProps) {
               </button>
             </li>
           ))}
-          {hits.map((h, i) => (
+          {[...poiHits, ...gsiHits].map((h, i) => (
             <li key={i}>
               <button
                 {...stylex.props(button.base, button.ghost)}
@@ -250,26 +249,12 @@ export function SearchBox(props: SearchBoxProps) {
               </button>
             </li>
           ))}
-          {showPoiRow && (
-            <li>
-              <button
-                {...stylex.props(button.base, button.ghost, styles.current)}
-                // 入力欄の blur（→ リスト非表示）を防ぐ
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setPoiQ(q)}
-              >
-                🔍 「{q}」で検索
-              </button>
+          {poiHits.length > 0 && (
+            <li {...stylex.props(styles.credit)}>
+              <a href="https://developer.yahoo.co.jp/sitemap/">Webサービス by Yahoo! JAPAN</a>
             </li>
           )}
-          {hits.length > 0 &&
-            (result!.source === "gsi" ? (
-              <li {...stylex.props(styles.source)}>出典: 国土地理院</li>
-            ) : (
-              <li {...stylex.props(styles.credit)}>
-                <a href="https://developer.yahoo.co.jp/sitemap/">Webサービス by Yahoo! JAPAN</a>
-              </li>
-            ))}
+          {gsiHits.length > 0 && <li {...stylex.props(styles.source)}>出典: 国土地理院</li>}
         </ul>
       )}
     </div>

@@ -84,7 +84,7 @@ export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string 
 
 ```ts
 export function normalizePoiQuery(q: string): string; // （株）(株)（有）(有) を空白に → trim
-export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Yahoo! ローカルサーチ。Name を title に
+export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Yahoo! ローカルサーチ。先頭 5 件。Name を title に
 ```
 
 JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受ける。URL は `https://map.yahooapis.jp/search/local/V1/localSearch?appid=…&output=json&results=10&query=…&callback=…`。callback 名は呼び出しごとに一意（連番）。
@@ -318,17 +318,16 @@ type SearchBoxProps = {
 
 空欄候補: `active` あり かつ `query.trim() === ""` のとき、検索結果の代わりに固定行を出す。出発地欄 = 現在地 → 自宅 → 履歴、到着地欄 = 自宅 → 履歴、自宅欄 = 現在地 → 履歴。「現在地」は `fix` あり、「自宅」は `home` ありのときだけ。自宅・履歴行のタップは `onSet(role, p, p.label)`（`onPick` は呼ばない）。
 
-内部 state: `active`（フォーカス中の欄）、`query`、`poiQ`（Enter 確定したクエリ）、`result = { q, hits, source: "gsi" | "yahoo" }`。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のときだけ（古い結果・2 文字未満で空）。候補リスト末尾の出典行は `source` で切替（「出典: 国土地理院」/ 「Webサービス by Yahoo! JAPAN」リンク）。
+内部 state: `active`（フォーカス中の欄）、`query`、`composing`（IME 変換中）、`gsi` / `poi`（各 `{ q, hits }`）。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.q === query.trim()` のものだけ（古い結果・2 文字未満で空）。リストは `[...poiHits, ...gsiHits]` の順。末尾の出典行は各 hits が 1 件以上のとき（「Webサービス by Yahoo! JAPAN」リンク / 「出典: 国土地理院」）。
 
-検索の effect は `[q, poiQ]` 依存 1 つ:
+検索の effect は 2 つ。どちらも `q.length >= 2` が条件、`debounced(ms, run)` がタイマー + `AbortController` の cleanup を返す:
 
 ```
-if (poiQ === q)   → searchPoi(q)（即時）。0 件ならトースト「施設が見つかりません」
-else if (q.length >= 2) → 300 ms debounce → searchAddress(q)
-cleanup → AbortController で中断
+[q]            → 300 ms → searchAddress(q) → setGsi。失敗トースト「住所検索に失敗しました」
+[q, composing] → composing なら何もしない。500 ms → searchPoi(q) → setPoi。失敗トースト「施設検索に失敗しました」
 ```
 
-Enter または候補末尾の「施設名で検索」行（`q !== "" && poiQ !== q` のとき表示。`onMouseDown` で preventDefault し入力欄の blur を防ぐ）で `poiQ = q`。入力が変わると `poiQ !== q` になり住所検索へ戻る（施設検索中なら cleanup で中断）。フォーカス時に `poiQ` を null に戻す（同じ文字列を再入力しただけで施設検索が走らないように）。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
+`composing` は入力欄の `onCompositionStart` / `onCompositionEnd`。変換確定で false に戻り effect が再実行される。Enter のハンドラはない。候補選択で `query` クリア・`active` null・`onSet`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
 
 ## `src/ui/PointPopup.tsx`
 

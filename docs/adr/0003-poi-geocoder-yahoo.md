@@ -23,6 +23,7 @@ Yahoo! ローカルサーチ API を使う。Nominatim は外す。
 - 呼び出しは JSONP（`callback` パラメータ + `<script>` 挿入）。API は CORS ヘッダを返さないため `fetch` できない（2026-10-18 に `Origin` 付きで確認。`Access-Control-Allow-Origin` なし）。VPS にプロキシは置かない
 - appid はビルド時に埋め込む（Vite の `VITE_YAHOO_APPID`、`.env.local`）。ブラウザから呼ぶ以上 URL に載るので秘匿はしない。YOLP の JavaScript 地図 API も同じ前提で appid を公開している
 - 施設検索を呼ぶのは Enter 確定時のまま。Nominatim の規約による制約はなくなったが、「入力中は住所、Enter で施設」の 2 経路は変えない。1 日 5 万件の上限には届かないので、入力中にも呼ぶ変更は後からできる
+  - 追記（2026-10-19）: 入力中にも呼ぶ形に変更した。住所と施設を 1 リストに並べ、Enter は廃止。IME 変換中は呼ばない。詳細は [search.md](../requirements/search.md)
 - クエリの法人格略号 `（株）` `(株)` `（有）` `(有)` は空白に置き換えて送る。上の事業所で確認: 「○○（株）△△事業所」は 0 件、「○○ △△事業所」は 1 件。削除にすると「○○△△事業所」になり、これも 0 件
 - 帰属表示は候補リスト末尾に「Webサービス by Yahoo! JAPAN」（公式スニペット A。`https://developer.yahoo.co.jp/sitemap/` へのリンク）
 

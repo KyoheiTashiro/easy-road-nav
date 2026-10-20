@@ -27,7 +27,7 @@ import {
   routeFeatures,
 } from "@/ui/map/mapLayers.ts";
 import { PointPopup } from "@/ui/map/PointPopup.tsx";
-import { HomeIcon } from "@/ui/icons.tsx";
+import { HomeIcon } from "@/ui/icons/index.tsx";
 
 /** ナビ中のカメラ pitch（nav.md「カメラ」節。zoom は store/nav.ts の NAV_ZOOM） */
 export const NAV_PITCH = 50;

@@ -2,7 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 import { formatDistance } from "@/model/format.ts";
 import { entersNarrow, type NarrowSegment } from "@/model/narrow.ts";
 import type { RouteModel } from "@/model/route.ts";
-import { DirectionIcon } from "@/ui/icons.tsx";
+import { DirectionIcon } from "@/ui/icons/index.tsx";
 import { colors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({

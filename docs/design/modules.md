@@ -370,7 +370,7 @@ export function Map(): JSX.Element;
 
 `Map` の React 非依存部分。タイルスタイル URL（light / dark）、マーカー色、マーカー DOM（`markerElement` `homeMarkerElement`）、GeoJSON 生成（`fixFeatures` `routeFeatures` `altFeatures`）、`bounds`、`applyStyleExtras`（ラベルの `name:ja` 上書き + 経路・代替・現在地の source / layer。`style.load` のたびに呼ぶ）。`maplibre-gl` を import するので vitest の対象外。
 
-同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置、コンパス画像 `compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
+同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置、コンパス画像 `ui/icons/compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
 
 ## `src/ui/edit/SearchBox.tsx`
 
@@ -442,14 +442,18 @@ props なし。nav store の `nav` `hud` `inNarrow`、trip store の `selectRout
 
 props なし。nav store の `nav` `muted`、trip store の `selectRoute` `fix` を購読。`remainingMs = remainingTime(route, nav.s)`、到着予想 = `formatClock(new Date(fix.t + remainingMs))`（render 内で `Date.now` を呼ばない）。ボタン: 「現在地」→ `navActions.setFollow(true)`、ミュート → `toggleMute`、「終了」→ `end(true)`。
 
-## `src/ui/icons.tsx`
+## `src/ui/icons/index.tsx`
 
 ```ts
-export function DirectionIcon(props: { sign: number; exitNumber?: number }): JSX.Element;
-export function HomeIcon(): JSX.Element; // 自宅マーカー・ボトムシート自宅行
+export function FromIcon(props: { size?: number }): JSX.Element; // 出発地 = 丸
+export function ToIcon(props: { size?: number }): JSX.Element; // 到着地 = ピン
+export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・ボトムシート自宅行
+export function DirectionIcon(props: { sign: number; size?: number }): JSX.Element;
 ```
 
-sign → 11 種（nav.md）。`4` `5` はピン。未知の sign は直進アイコン。
+同じディレクトリの `*.svg` を `import` し、`<span>` の `mask-image` に置いて `background-color: currentColor` で塗る。SVG 側は色を持たず、親の `color` に従う（ダークモード対応はトークン側）。
+
+`DirectionIcon` の sign → 11 種（nav.md）。矢印 `arrow.svg` 1 本を `rotate()` で回し、左向きは `scaleX(-1)`。`4` `5` は `pin-dot.svg`、`6` は `roundabout.svg`、`±8` `-98` は `uturn.svg`、`±7` は `keep.svg`。未知の sign は直進。
 
 ## `src/ui/Toast.tsx`
 

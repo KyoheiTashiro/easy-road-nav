@@ -7,7 +7,7 @@ import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from
 import { RouteSummary } from "@/ui/edit/RouteSummary.tsx";
 import { StepList } from "@/ui/edit/StepList.tsx";
 import { button } from "@/ui/button.stylex.ts";
-import { HomeIcon } from "@/ui/icons.tsx";
+import { HomeIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
 /** スワイプ判定の最小移動量（px） */

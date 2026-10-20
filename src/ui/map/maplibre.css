@@ -23,5 +23,5 @@
 }
 /* コンパス: 赤い北針の円形アイコン。針は MapLibre が bearing に合わせて回す */
 .maplibregl-ctrl.maplibregl-ctrl-group button.maplibregl-ctrl-compass .maplibregl-ctrl-icon {
-  background-image: url("./compass.svg");
+  background-image: url("../icons/compass.svg");
 }

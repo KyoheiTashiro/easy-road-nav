@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { searchAddress } from "@/api/gsi.ts";
 import { searchPoi } from "@/api/yahoo.ts";
 import { ROLE, type LatLng, type PickRole, type Point, type SavedPoint } from "@/model/point.ts";
@@ -7,7 +7,7 @@ import { savedActions, useSaved } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
 import { MODE, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
-import { PointIcon } from "@/ui/icons.tsx";
+import { FromIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { colors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
@@ -140,7 +140,7 @@ export function SearchBox() {
     tripActions.searchPicked(role, p, label);
   }
 
-  function field(role: PickRole, point: Point | null, name: string) {
+  function field(role: PickRole, point: Point | null, name: string, icon: ReactNode) {
     const focused = active === role;
     return (
       <form
@@ -160,7 +160,7 @@ export function SearchBox() {
           </button>
         ) : (
           <span {...stylex.props(styles.role)}>
-            <PointIcon role={role} size={20} />
+            {icon}
           </span>
         )}
         <div {...stylex.props(styles.inputWrap)}>
@@ -203,11 +203,11 @@ export function SearchBox() {
     <div {...stylex.props(styles.box)}>
       <div {...stylex.props(styles.card)}>
         {mode === MODE.HOME ? (
-          field(ROLE.HOME, null, "自宅")
+          field(ROLE.HOME, null, "自宅", null)
         ) : (
           <>
-            {field(ROLE.FROM, from, "出発地")}
-            {field(ROLE.TO, to, "到着地")}
+            {field(ROLE.FROM, from, "出発地", <FromIcon size={20} />)}
+            {field(ROLE.TO, to, "到着地", <ToIcon size={20} />)}
           </>
         )}
       </div>

@@ -71,14 +71,16 @@ src/
     tokens.stylex.ts        # 色トークン（ライト / ダーク）
     button.stylex.ts        # ボタンの共通スタイル
     layout.stylex.ts        # 部品の高さ（peek / navbar / hud / next）
-    icons.tsx               # 地点・自宅・方向アイコン（inline SVG）
+    icons/                  # アイコン。SVG は形だけ持ち、index.tsx が mask + currentColor で着色
+      index.tsx             # FromIcon / ToIcon / HomeIcon / DirectionIcon
+      *.svg                 # arrow / uturn / keep / pin / pin-dot / roundabout / home / circle（viewBox 24、stroke 2）
+      compass.svg           # コンパス（maplibre.css が background-image で参照。独自の色を持つ）
     Toast.tsx
     map/                    # 全モードに出る地図
       Map.tsx               # MapLibre の購読と Effect（スタイル切替、マーカー、追従・回転、fitBounds）
       mapLayers.ts          # React 非依存: GeoJSON 生成、source / layer、マーカー DOM
       PointPopup.tsx        # 出発地 / 到着地 / 経由地に追加。自宅設定モードでは「自宅にする」（Map が portal で描く）
       maplibre.css          # MapLibre 既定 UI の上書き（Map.tsx が maplibre-gl.css の次に読む）
-      compass.svg           # コンパスのアイコン（maplibre.css から参照）
     edit/                   # 経路編集モード
       SearchBox.tsx         # 出発地 / 到着地 検索欄。自宅設定モードでは自宅欄 1 つ
       BottomSheet.tsx       # 2 段、地点リスト・トグル・自宅行・代替カード・StepList を内包

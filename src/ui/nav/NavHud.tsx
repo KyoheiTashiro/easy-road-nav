@@ -3,7 +3,7 @@ import { formatDistance } from "@/model/format.ts";
 import { signWord } from "@/model/progress.ts";
 import { useNav } from "@/store/nav.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
-import { DirectionIcon } from "@/ui/icons.tsx";
+import { DirectionIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
 

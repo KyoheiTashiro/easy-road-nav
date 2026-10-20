@@ -5,6 +5,7 @@
 - 状態は zustand の store（`src/store/`）に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。Effect は `src/hooks/`（外部システムとの同期）にだけ書く。ルーター不使用。状態の一覧は [design/ui.md](../design/ui.md)
 - URL クエリ（[map-display.md](map-display.md)）が地点 + notoll の正。編集で `history.replaceState`、読み込み時に復元して探索
 - 依存方向は `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` と `model/` は React・DOM 非依存
+- `src/` 内の import は `@/` からの絶対パス（`@/store/trip.ts`）。相対パスは書かない
 - Vitest は `src/model/` `src/store/` `src/url.ts` のみ。UI・API 呼び出しは手動確認
 - ライブラリは React / Vite / TypeScript / MapLibre GL JS / Vitest + StyleX（CSS）+ zustand（状態）+ React Compiler（babel plugin）のみ。追加しない（turf 不採用: 必要な計算は `geo.ts` 数十行）
 - CSS: StyleX。`@stylexjs/postcss-plugin` + `@vitejs/plugin-react`（5 系、`babel.configFile: true`）が共通の `babel.config.js` から `@stylexjs/babel-plugin` を読む。色トークンは `src/ui/tokens.stylex.ts`（`defineVars`、ダーク値は `@media (prefers-color-scheme: dark)`）

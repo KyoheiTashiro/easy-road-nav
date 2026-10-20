@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { button } from "./button.stylex.ts";
+import { button } from "@/ui/button.stylex.ts";
 
 const styles = stylex.create({
   box: { display: "flex", flexDirection: "column", gap: 8, minWidth: 180, color: "#1a1a1a" },

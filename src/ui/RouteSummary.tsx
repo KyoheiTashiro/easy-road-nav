@@ -1,7 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
-import { formatDuration, formatKm } from "../model/format.ts";
-import { tollDistance, type RouteModel } from "../model/route.ts";
-import { colors } from "./tokens.stylex.ts";
+import { formatDuration, formatKm } from "@/model/format.ts";
+import { tollDistance, type RouteModel } from "@/model/route.ts";
+import { colors } from "@/ui/tokens.stylex.ts";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 
@@ -53,23 +53,13 @@ type RouteSummaryProps = {
   compact: boolean; // true = ピーク行（選択経路 1 行）、false = 代替カード
 };
 
-export function RouteSummary({
-  routes,
-  selected,
-  onSelect,
-  loading,
-  compact,
-}: RouteSummaryProps) {
+export function RouteSummary({ routes, selected, onSelect, loading, compact }: RouteSummaryProps) {
   if (compact) {
     const route = routes[selected];
     return (
       <div {...stylex.props(styles.compact)}>
         {loading && <div {...stylex.props(styles.spinner)} />}
-        {loading
-          ? "探索中…"
-          : route
-            ? summaryText(route)
-            : "出発地と到着地を設定してください"}
+        {loading ? "探索中…" : route ? summaryText(route) : "出発地と到着地を設定してください"}
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import type { SearchHit } from "./gsi.ts";
+import type { SearchHit } from "@/api/gsi.ts";
 
 const SEARCH = "https://map.yahooapis.jp/search/local/V1/localSearch";
 const TIMEOUT = 10_000;

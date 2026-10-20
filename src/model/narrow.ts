@@ -1,4 +1,4 @@
-import type { Instruction, RouteModel } from "./route.ts";
+import type { Instruction, RouteModel } from "@/model/route.ts";
 
 export type NarrowSegment = {
   from: number;

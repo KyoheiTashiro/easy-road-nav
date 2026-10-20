@@ -1,4 +1,4 @@
-import { fromGhPath, type GhPath, type LatLng, type RouteModel } from "../model/route.ts";
+import { fromGhPath, type GhPath, type LatLng, type RouteModel } from "@/model/route.ts";
 
 export type Profile = "car" | "car_notoll";
 

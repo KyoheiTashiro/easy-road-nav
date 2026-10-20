@@ -1,4 +1,4 @@
-import { bearing, haversine, projectToSegment } from "./geo.ts";
+import { bearing, haversine, projectToSegment } from "@/model/geo.ts";
 
 export type LatLng = { lat: number; lng: number };
 export type Fix = LatLng & { accuracy: number; t: number }; // t = position.timestamp

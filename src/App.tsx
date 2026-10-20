@@ -1,16 +1,16 @@
-import { useGeolocation } from "./hooks/useGeolocation.ts";
-import { useReverseGeocode } from "./hooks/useReverseGeocode.ts";
-import { useRouteSearch } from "./hooks/useRouteSearch.ts";
-import { useUpdateCheck } from "./hooks/useUpdateCheck.ts";
-import { useUrlSync } from "./hooks/useUrlSync.ts";
-import { useWakeLock } from "./hooks/useWakeLock.ts";
-import { useTrip } from "./store/trip.ts";
-import { BottomSheet } from "./ui/BottomSheet.tsx";
-import { Map } from "./ui/Map.tsx";
-import { NavBar } from "./ui/NavBar.tsx";
-import { NavHud } from "./ui/NavHud.tsx";
-import { SearchBox } from "./ui/SearchBox.tsx";
-import { Toast } from "./ui/Toast.tsx";
+import { useGeolocation } from "@/hooks/useGeolocation.ts";
+import { useReverseGeocode } from "@/hooks/useReverseGeocode.ts";
+import { useRouteSearch } from "@/hooks/useRouteSearch.ts";
+import { useUpdateCheck } from "@/hooks/useUpdateCheck.ts";
+import { useUrlSync } from "@/hooks/useUrlSync.ts";
+import { useWakeLock } from "@/hooks/useWakeLock.ts";
+import { useTrip } from "@/store/trip.ts";
+import { BottomSheet } from "@/ui/BottomSheet.tsx";
+import { Map } from "@/ui/Map.tsx";
+import { NavBar } from "@/ui/NavBar.tsx";
+import { NavHud } from "@/ui/NavHud.tsx";
+import { SearchBox } from "@/ui/SearchBox.tsx";
+import { Toast } from "@/ui/Toast.tsx";
 
 /** 外部システムとの同期（hooks/）とレイアウトだけ。状態は store/、各部品が自分で購読する */
 export default function App() {

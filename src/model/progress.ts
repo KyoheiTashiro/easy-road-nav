@@ -1,7 +1,7 @@
 // ナビ純ロジック。処理順は docs/design/nav.md、境界条件は docs/design/modules.md。調整値は docs/CONTEXT.md
-import { formatSpokenDistance } from "./format.ts";
-import { bearing, destination, haversine } from "./geo.ts";
-import type { NarrowSegment } from "./narrow.ts";
+import { formatSpokenDistance } from "@/model/format.ts";
+import { bearing, destination, haversine } from "@/model/geo.ts";
+import type { NarrowSegment } from "@/model/narrow.ts";
 import {
   nearest,
   segmentBearing,
@@ -9,7 +9,7 @@ import {
   type Instruction,
   type LatLng,
   type RouteModel,
-} from "./route.ts";
+} from "@/model/route.ts";
 
 const ACCURACY_MAX = 50; // 進捗採用精度
 const OFF_ROUTE = 50; // 経路外れ距離

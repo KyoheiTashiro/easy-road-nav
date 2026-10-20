@@ -1,10 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
-import { formatClock, formatDuration } from "../model/format.ts";
-import { remainingTime } from "../model/progress.ts";
-import { navActions, useNav } from "../store/nav.ts";
-import { selectRoute, useTrip } from "../store/trip.ts";
-import { button } from "./button.stylex.ts";
-import { colors } from "./tokens.stylex.ts";
+import { formatClock, formatDuration } from "@/model/format.ts";
+import { remainingTime } from "@/model/progress.ts";
+import { navActions, useNav } from "@/store/nav.ts";
+import { selectRoute, useTrip } from "@/store/trip.ts";
+import { button } from "@/ui/button.stylex.ts";
+import { colors } from "@/ui/tokens.stylex.ts";
 
 /** 下部バーの高さ（px、safe area 除く）。Map のナビ時パディングに使う */
 export const NAVBAR_HEIGHT = 64;

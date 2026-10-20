@@ -1,4 +1,4 @@
-import type { LatLng } from "./model/route.ts";
+import type { LatLng } from "@/model/route.ts";
 
 export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
 

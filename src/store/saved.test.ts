@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HISTORY_MAX, pushHistory } from "./saved.ts";
+import { HISTORY_MAX, pushHistory } from "@/store/saved.ts";
 
 const pt = (n: number, label = `p${n}`) => ({ lat: n, lng: n, label });
 

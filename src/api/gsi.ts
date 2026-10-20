@@ -1,4 +1,4 @@
-import type { LatLng } from "../model/route.ts";
+import type { LatLng } from "@/model/route.ts";
 
 const REVERSE = "https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress";
 

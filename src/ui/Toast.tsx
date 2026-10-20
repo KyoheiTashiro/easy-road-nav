@@ -1,8 +1,8 @@
 import * as stylex from "@stylexjs/stylex";
 import { useEffect } from "react";
-import { clearToast, useToast } from "../store/toast.ts";
-import { useTrip } from "../store/trip.ts";
-import { colors } from "./tokens.stylex.ts";
+import { clearToast, useToast } from "@/store/toast.ts";
+import { useTrip } from "@/store/trip.ts";
+import { colors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
   toast: {

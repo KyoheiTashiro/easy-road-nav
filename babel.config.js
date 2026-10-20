@@ -12,6 +12,7 @@ export default {
         dev: process.env.NODE_ENV !== "production",
         runtimeInjection: false,
         unstable_moduleResolution: { type: "commonJS", rootDir: import.meta.dirname },
+        aliases: { "@/*": [`${import.meta.dirname}/src/*`] },
       },
     ],
   ],

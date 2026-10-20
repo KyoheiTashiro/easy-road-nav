@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import narrowFx from "./__fixtures__/narrow.json";
-import tollFx from "./__fixtures__/toll.json";
-import viaFx from "./__fixtures__/via.json";
-import { haversine } from "./geo.ts";
+import narrowFx from "@/model/__fixtures__/narrow.json";
+import tollFx from "@/model/__fixtures__/toll.json";
+import viaFx from "@/model/__fixtures__/via.json";
+import { haversine } from "@/model/geo.ts";
 import {
   forkSign,
   fromGhPath,
@@ -10,7 +10,7 @@ import {
   segmentBearing,
   tollDistance,
   type GhPath,
-} from "./route.ts";
+} from "@/model/route.ts";
 
 // JSON 推論型（number[][]）はタプルと互換がないので unknown 経由で変換
 const gh = (fx: unknown, i: number) => (fx as { paths: GhPath[] }).paths[i]!;

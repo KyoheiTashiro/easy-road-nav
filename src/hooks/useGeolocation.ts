@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { navActions } from "../store/nav.ts";
-import { tripActions } from "../store/trip.ts";
+import { navActions } from "@/store/nav.ts";
+import { tripActions } from "@/store/trip.ts";
 
 /**
  * 起動時から常時 watchPosition。fix は trip store へ、続けてナビの step へ（ナビ中でなければ no-op）。

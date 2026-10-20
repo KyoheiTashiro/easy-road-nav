@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { rankHits } from "./gsi.ts";
+import { rankHits } from "@/api/gsi.ts";
 
 test("rankHits: クエリ全文を含む候補が先頭、各群内は元の順序", () => {
   const h = (title: string) => ({ title, lat: 0, lng: 0 });

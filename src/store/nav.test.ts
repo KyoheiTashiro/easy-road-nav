@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchRoute } from "../api/graphhopper.ts";
-import { destination } from "../model/geo.ts";
-import type { Fix, RouteModel } from "../model/route.ts";
-import { getNav, navActions } from "./nav.ts";
-import { getTrip, tripActions } from "./trip.ts";
+import { fetchRoute } from "@/api/graphhopper.ts";
+import { destination } from "@/model/geo.ts";
+import type { Fix, RouteModel } from "@/model/route.ts";
+import { getNav, navActions } from "@/store/nav.ts";
+import { getTrip, tripActions } from "@/store/trip.ts";
 
-vi.mock("../api/graphhopper.ts", () => ({ fetchRoute: vi.fn() }));
+vi.mock("@/api/graphhopper.ts", () => ({ fetchRoute: vi.fn() }));
 const fetchMock = vi.mocked(fetchRoute);
 
 /** 東西 1 km の直線経路（緯度 35、経度 1 度 ≈ 91.3 km）。案内地点は末尾の到着のみ */

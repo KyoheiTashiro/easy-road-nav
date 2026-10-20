@@ -5,7 +5,7 @@ import {
   formatDuration,
   formatKm,
   formatSpokenDistance,
-} from "./format.ts";
+} from "@/model/format.ts";
 
 describe("formatDuration", () => {
   it.each([

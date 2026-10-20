@@ -1,14 +1,14 @@
 import * as stylex from "@stylexjs/stylex";
 import { useRef } from "react";
-import type { Point } from "../model/route.ts";
-import { navActions, useNav } from "../store/nav.ts";
-import { useSaved } from "../store/saved.ts";
-import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "../store/trip.ts";
-import { RouteSummary } from "./RouteSummary.tsx";
-import { StepList } from "./StepList.tsx";
-import { button } from "./button.stylex.ts";
-import { HomeIcon } from "./icons.tsx";
-import { colors } from "./tokens.stylex.ts";
+import type { Point } from "@/model/route.ts";
+import { navActions, useNav } from "@/store/nav.ts";
+import { useSaved } from "@/store/saved.ts";
+import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
+import { RouteSummary } from "@/ui/RouteSummary.tsx";
+import { StepList } from "@/ui/StepList.tsx";
+import { button } from "@/ui/button.stylex.ts";
+import { HomeIcon } from "@/ui/icons.tsx";
+import { colors } from "@/ui/tokens.stylex.ts";
 
 /** ピーク時の高さ（px）。Map の fitBounds 下パディングに使う */
 export const PEEK_HEIGHT = 80;

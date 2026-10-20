@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import narrowFx from "./__fixtures__/narrow.json";
-import { entersNarrow, narrowSegments } from "./narrow.ts";
-import { fromGhPath, type GhPath, type RouteModel } from "./route.ts";
+import narrowFx from "@/model/__fixtures__/narrow.json";
+import { entersNarrow, narrowSegments } from "@/model/narrow.ts";
+import { fromGhPath, type GhPath, type RouteModel } from "@/model/route.ts";
 
 /** 頂点間隔を指定して直線経路を作る。kinds[i] は線分 i の種別 */
 function make(gaps: number[], kinds: ("wide" | "narrow" | "forbidden")[]): RouteModel {

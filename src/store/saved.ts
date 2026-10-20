@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { SavedPoint } from "../model/route.ts";
+import type { SavedPoint } from "@/model/route.ts";
 
 /** 検索履歴件数（docs/CONTEXT.md） */
 export const HISTORY_MAX = 5;

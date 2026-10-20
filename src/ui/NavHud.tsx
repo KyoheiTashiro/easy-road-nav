@@ -1,10 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
-import { formatDistance } from "../model/format.ts";
-import { signWord } from "../model/progress.ts";
-import { useNav } from "../store/nav.ts";
-import { selectRoute, useTrip } from "../store/trip.ts";
-import { DirectionIcon } from "./icons.tsx";
-import { colors } from "./tokens.stylex.ts";
+import { formatDistance } from "@/model/format.ts";
+import { signWord } from "@/model/progress.ts";
+import { useNav } from "@/store/nav.ts";
+import { selectRoute, useTrip } from "@/store/trip.ts";
+import { DirectionIcon } from "@/ui/icons.tsx";
+import { colors } from "@/ui/tokens.stylex.ts";
 
 /** HUD 本体・次の次行の高さ（px、バナー除く）。合計を Toast.tsx のナビ時 top と揃える */
 const HUD_HEIGHT = 88;

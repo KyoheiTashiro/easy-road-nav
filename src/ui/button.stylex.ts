@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import { colors } from "./tokens.stylex.ts";
+import { colors } from "@/ui/tokens.stylex.ts";
 
 /** ボタン共通スタイル。`stylex.props(button.base, button.primary)` のように合成して使う */
 export const button = stylex.create({

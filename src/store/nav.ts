@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { fetchRoute } from "../api/graphhopper.ts";
-import { narrowSegments } from "../model/narrow.ts";
+import { fetchRoute } from "@/api/graphhopper.ts";
+import { narrowSegments } from "@/model/narrow.ts";
 import {
   initNav,
   offsetOrigin,
@@ -9,11 +9,11 @@ import {
   type NavEvent,
   type NavState,
   type NextNext,
-} from "../model/progress.ts";
-import type { Fix, Instruction, Point, RouteModel } from "../model/route.ts";
-import * as speech from "../nav/speech.ts";
-import { showToast } from "./toast.ts";
-import { getTrip, selectNarrow, selectProfile, selectRoute, tripActions } from "./trip.ts";
+} from "@/model/progress.ts";
+import type { Fix, Instruction, Point, RouteModel } from "@/model/route.ts";
+import * as speech from "@/nav/speech.ts";
+import { showToast } from "@/store/toast.ts";
+import { getTrip, selectNarrow, selectProfile, selectRoute, tripActions } from "@/store/trip.ts";
 
 /** ナビ開始時の zoom（nav.md「カメラ」） */
 export const NAV_ZOOM = 17;

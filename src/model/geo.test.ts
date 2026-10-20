@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bearing, destination, haversine, projectToSegment } from "./geo.ts";
+import { bearing, destination, haversine, projectToSegment } from "@/model/geo.ts";
 
 const tokyo = { lat: 35.6812, lng: 139.7671 }; // 東京駅
 const osaka = { lat: 34.7025, lng: 135.4959 }; // 大阪駅

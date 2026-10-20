@@ -4,16 +4,16 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { NavState } from "../model/progress.ts";
-import type { Fix, LatLng, Point, PointRole, RouteModel } from "../model/route.ts";
-import { navActions, useNav } from "../store/nav.ts";
-import { useSaved } from "../store/saved.ts";
-import { MAX_VIAS, URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "../store/trip.ts";
-import { PEEK_HEIGHT } from "./BottomSheet.tsx";
-import { NAVBAR_HEIGHT } from "./NavBar.tsx";
-import { button } from "./button.stylex.ts";
-import { PointPopup } from "./PointPopup.tsx";
-import { HomeIcon } from "./icons.tsx";
+import type { NavState } from "@/model/progress.ts";
+import type { Fix, LatLng, Point, PointRole, RouteModel } from "@/model/route.ts";
+import { navActions, useNav } from "@/store/nav.ts";
+import { useSaved } from "@/store/saved.ts";
+import { MAX_VIAS, URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
+import { PEEK_HEIGHT } from "@/ui/BottomSheet.tsx";
+import { NAVBAR_HEIGHT } from "@/ui/NavBar.tsx";
+import { button } from "@/ui/button.stylex.ts";
+import { PointPopup } from "@/ui/PointPopup.tsx";
+import { HomeIcon } from "@/ui/icons.tsx";
 
 /** ナビ中のカメラ pitch（nav.md「カメラ」節。zoom は store/nav.ts の NAV_ZOOM） */
 export const NAV_PITCH = 50;

@@ -3,7 +3,7 @@
 `src/` 各ファイルの export（型・シグネチャ）。分岐のある箇所だけ擬似コード。
 画面・状態は [ui.md](ui.md)、ナビの処理順は [nav.md](nav.md)、経路構造は [route-model.md](route-model.md)。ディレクトリは [frontend.md](../requirements/frontend.md)。
 
-依存方向: `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` `model/` は React・DOM 非依存（`store/` は fetch を呼ぶ）。
+依存方向: `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` `model/` は React・DOM 非依存（`store/` は fetch を呼ぶ）。`src/` 内の import は `@/` からの絶対パス（`tsconfig.json` の `paths`、`vite.config.ts` の `resolve.alias`、`babel.config.js` の StyleX `aliases` で同じ対応を持つ）。
 
 ## 共通型（`src/model/route.ts` に置く）
 
@@ -468,13 +468,13 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ）を購
 
 ## `src/main.tsx`
 
-`createRoot` + `StrictMode` + `<App />`。`import "./stylex.css"`（StyleX の出力先）。
+`createRoot` + `StrictMode` + `<App />`。`import "@/stylex.css"`（StyleX の出力先）。
 
 ## 設定ファイル
 
-- `babel.config.js`: `babel-plugin-react-compiler`（先頭。公式指定）+ `@stylexjs/babel-plugin`（`runtimeInjection: false`、`unstable_moduleResolution`）+ `parserOpts.plugins: ["typescript", "jsx"]`。`@vitejs/plugin-react` と `@stylexjs/postcss-plugin` の両方がこれを読む（StyleX 設定の単一ソース）
-- `vite.config.ts`: `@vitejs/plugin-react` **5 系**（`react({ babel: { configFile: true } })`。6 系は `babel` オプション廃止のため使わない）、`server.proxy["/gh"]`（`rewrite` で prefix 除去）、`server.allowedHosts: [".ts.net"]`（実機検証、frontend.md）、`test.passWithNoTests`（`vitest/config` の `defineConfig`）
+- `babel.config.js`: `babel-plugin-react-compiler`（先頭。公式指定）+ `@stylexjs/babel-plugin`（`runtimeInjection: false`、`unstable_moduleResolution`、`aliases: { "@/*": ["<root>/src/*"] }`）+ `parserOpts.plugins: ["typescript", "jsx"]`。`@vitejs/plugin-react` と `@stylexjs/postcss-plugin` の両方がこれを読む（StyleX 設定の単一ソース）
+- `vite.config.ts`: `@vitejs/plugin-react` **5 系**（`react({ babel: { configFile: true } })`。6 系は `babel` オプション廃止のため使わない）、`resolve.alias: { "@": "<root>/src" }`、`server.proxy["/gh"]`（`rewrite` で prefix 除去）、`server.allowedHosts: [".ts.net"]`（実機検証、frontend.md）、`test.passWithNoTests`（`vitest/config` の `defineConfig`）
 - `postcss.config.js`: `@stylexjs/postcss-plugin`（`include: ["src/**/*.{ts,tsx}"]`）。`src/stylex.css` に `@stylex;`
-- `tsconfig.json`: 単一ファイル（project references なし）。`strict: true`、`noUncheckedIndexedAccess: true`、`include: ["src", "vite.config.ts"]`
+- `tsconfig.json`: 単一ファイル（project references なし）。`strict: true`、`noUncheckedIndexedAccess: true`、`include: ["src", "vite.config.ts"]`、`paths: { "@/*": ["./src/*"] }`
 - `.oxlintrc.json`: `react` プラグインの `rules-of-hooks`（error）`exhaustive-deps`（warn）。`.oxfmtrc.json`: `printWidth: 100`
 - `package.json` scripts: `dev` `build` `preview` `test`（vitest）`typecheck`（`tsc --noEmit`）`lint`（oxlint）`fmt`（oxfmt）`deploy` `deploy:graph`

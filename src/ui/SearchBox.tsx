@@ -1,14 +1,14 @@
 import * as stylex from "@stylexjs/stylex";
 import { useRef, useState } from "react";
-import { searchAddress, type SearchHit } from "../api/gsi.ts";
-import { searchPoi } from "../api/yahoo.ts";
-import type { LatLng, Point } from "../model/route.ts";
-import { savedActions, useSaved } from "../store/saved.ts";
-import { showToast } from "../store/toast.ts";
-import { tripActions, useTrip } from "../store/trip.ts";
-import { button } from "./button.stylex.ts";
-import { PointIcon } from "./icons.tsx";
-import { colors } from "./tokens.stylex.ts";
+import { searchAddress, type SearchHit } from "@/api/gsi.ts";
+import { searchPoi } from "@/api/yahoo.ts";
+import type { LatLng, Point } from "@/model/route.ts";
+import { savedActions, useSaved } from "@/store/saved.ts";
+import { showToast } from "@/store/toast.ts";
+import { tripActions, useTrip } from "@/store/trip.ts";
+import { button } from "@/ui/button.stylex.ts";
+import { PointIcon } from "@/ui/icons.tsx";
+import { colors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
   box: {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import narrowFx from "./__fixtures__/narrow.json";
-import viaFx from "./__fixtures__/via.json";
-import { destination, haversine } from "./geo.ts";
-import { narrowSegments, type NarrowSegment } from "./narrow.ts";
+import narrowFx from "@/model/__fixtures__/narrow.json";
+import viaFx from "@/model/__fixtures__/via.json";
+import { destination, haversine } from "@/model/geo.ts";
+import { narrowSegments, type NarrowSegment } from "@/model/narrow.ts";
 import {
   initNav,
   offsetOrigin,
@@ -11,8 +11,14 @@ import {
   step,
   type NavEvent,
   type NavState,
-} from "./progress.ts";
-import { fromGhPath, segmentBearing, type Fix, type GhPath, type RouteModel } from "./route.ts";
+} from "@/model/progress.ts";
+import {
+  fromGhPath,
+  segmentBearing,
+  type Fix,
+  type GhPath,
+  type RouteModel,
+} from "@/model/route.ts";
 
 const gh = (fx: unknown, i: number) => (fx as { paths: GhPath[] }).paths[i]!;
 const narrowRoute = fromGhPath(gh(narrowFx, 0));

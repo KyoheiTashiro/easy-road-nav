@@ -1,9 +1,11 @@
-// StyleX のコンパイル設定。@vitejs/plugin-react（configFile: true）と @stylexjs/postcss-plugin の両方が読む
+// StyleX と React Compiler のコンパイル設定。@vitejs/plugin-react（configFile: true）と @stylexjs/postcss-plugin の両方が読む
 import styleX from "@stylexjs/babel-plugin";
+import reactCompiler from "babel-plugin-react-compiler";
 
 export default {
   parserOpts: { plugins: ["typescript", "jsx"] },
   plugins: [
+    reactCompiler, // 公式指定: 他のプラグインより先に実行する
     [
       styleX,
       {

@@ -10,37 +10,29 @@ import { button } from "@/ui/button.stylex.ts";
 import { FromIcon, HomeIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors, marker } from "@/ui/tokens.stylex.ts";
+const SWIPE_PX = 30;
+const DRAG_START_PX = 10; // iOS のタップ判定の揺れより大きく
 const DOT = 24;
 
 const styles = stylex.create({
-  // 開閉はスクロールスナップ。spacer（透過）と sheet の 2 点に止まり、指追従・慣性・アニメはブラウザ任せ。
-  // JS でシートの高さを触ると iOS がタップやスクロールを取りこぼすので、タッチは一切扱わない
-  outer: {
+  sheet: {
     position: "fixed",
     left: 0,
     right: 0,
     bottom: 0,
-    height: `${layout.half}dvh`,
-    overflowY: "auto",
-    scrollSnapType: "y mandatory",
-    overscrollBehavior: "none", // 地図への連鎖・Android の pull-to-refresh を防ぐ
-    scrollbarWidth: "none",
-    pointerEvents: "none", // spacer 越しに地図を操作できるように。sheet で戻す
-    zIndex: 5,
-  },
-  spacer: { height: `calc(${layout.half}dvh - ${layout.peek}px)`, scrollSnapAlign: "start" },
-  sheet: {
-    height: `${layout.half}dvh`,
-    scrollSnapAlign: "start",
-    pointerEvents: "auto",
+    maxHeight: `${layout.peek}px`,
+    overflow: "hidden",
     display: "flex",
     flexDirection: "column",
     backgroundColor: colors.bg,
     color: colors.fg,
     borderRadius: "16px 16px 0 0",
     boxShadow: "0 -2px 12px rgba(0,0,0,0.2)",
+    transition: "max-height 0.25s ease",
+    zIndex: 5,
   },
-  // ピーク時に見える高さ。ホームインジケータ分は空けず、ボタンをその直上に置く
+  expanded: { maxHeight: `${layout.half}dvh` }, // vh だと Safari のツールバー表示中に innerHeight とずれ、指追従の終わりで跳ねる
+  // ピーク時に body が覗かないよう高さを揃える。ホームインジケータ分は空けず、ボタンをその直上に置く
   header: { flexShrink: 0, minHeight: `${layout.peek}px` },
   handle: {
     display: "block",
@@ -54,11 +46,12 @@ const styles = stylex.create({
   summary: { display: "flex", alignItems: "center", gap: 12, padding: "0 16px 12px" },
   summaryText: { flex: 1, minWidth: 0, cursor: "pointer" },
   start: { flexShrink: 0, height: 52, padding: "0 20px", fontSize: 16 },
-  // overscroll は既定のまま: リスト先頭で始めた下スワイプが outer へ連鎖してシートが閉じる（途中から始めたものは iOS が body にラッチして閉じない）
+  // スクロールは常に body。overflow を切り替えると iOS がタッチ開始時にスクロール対象を取り違える
   body: {
     flex: 1,
     minHeight: 0,
     overflowY: "auto",
+    overscrollBehavior: "contain", // 地図への連鎖・Android の pull-to-refresh を防ぐ
     padding: "0 16px calc(16px + env(safe-area-inset-bottom))", // 末尾までスクロールしたときだけホームインジケータを避ける
     display: "flex",
     flexDirection: "column",
@@ -182,146 +175,156 @@ export function BottomSheet() {
   const loading = useTrip(selectLoading) || starting;
   const route = routes[selected];
   const summaryProps = { routes, narrows, selected, onSelect: tripActions.routeSelected, loading };
-  const outer = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
+  const touchY = useRef(0);
+  const touchScrollTop = useRef(0);
+  const startHeight = useRef(0);
   const toggle = () => tripActions.setSheet(!expanded);
 
-  // store → スクロール位置。再展開は先頭から（前回のスクロール位置を残さない）。収納時に戻すと縮む途中で飛ぶ
+  // 再展開は先頭から（前回のスクロール位置を残さない）。収納時に戻すと縮む途中で飛ぶ
   useEffect(() => {
-    const el = outer.current;
-    if (!el) return;
-    const top = expanded ? el.scrollHeight - el.clientHeight : 0;
-    if (Math.abs(el.scrollTop - top) > 1) el.scrollTo({ top, behavior: "smooth" });
     if (expanded && body.current) body.current.scrollTop = 0;
   }, [expanded]);
 
-  // スクロール位置 → store。スナップ点に止まったときだけ反映し、指追従中は触らない（store 変更で scrollTo が走ると指の下で跳ねる）
-  useEffect(() => {
-    const el = outer.current;
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    touchY.current = e.touches[0]?.clientY ?? 0;
+    // ハンドル上の下スワイプはリストがスクロール済みでも閉じる
+    touchScrollTop.current = body.current?.contains(e.target as Node) ? body.current.scrollTop : 0;
+    startHeight.current = sheet.current?.getBoundingClientRect().height ?? 0;
+  };
+  // 指に追従。途中からのスクロールで先頭に戻っても閉じない。先頭にいる状態で始めた下スワイプだけ閉じる
+  const dragAllowed = (dy: number) => !(dy > 0 && touchScrollTop.current > 0);
+  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const el = sheet.current;
+    const dy = (e.touches[0]?.clientY ?? touchY.current) - touchY.current;
+    if (!el || !dragAllowed(dy)) return;
+    // 展開済みはリストのスクロールが主。シートの高さを触ると iOS がスクロールもタップも取りこぼす（先頭でタップ時の数 px の揺れでも起きる）ので、閉じ方向へ明確に動くまで触らない（追従開始後の反転は追従を続ける）
+    if (expanded && dy < DRAG_START_PX && !el.style.maxHeight) return;
+    const max = (window.innerHeight * layout.half) / 100;
+    const h = Math.min(max, Math.max(layout.peek, startHeight.current - dy));
+    el.style.transition = "none";
+    el.style.maxHeight = `${h}px`;
+  };
+  // 以降は class の max-height へアニメーション。touchcancel（画面端のシステムジェスチャ等）でも戻さないと固着する
+  const resetStyle = () => {
+    const el = sheet.current;
     if (!el) return;
-    const sync = () => {
-      const max = el.scrollHeight - el.clientHeight;
-      if (el.scrollTop <= 1) tripActions.setSheet(false);
-      else if (el.scrollTop >= max - 1) tripActions.setSheet(true);
-    };
-    if (typeof el.onscrollend !== "undefined") {
-      el.addEventListener("scrollend", sync);
-      return () => el.removeEventListener("scrollend", sync);
-    }
-    // scrollend 未対応（Safari 26 未満）は scroll の静止で代用
-    let timer = 0;
-    const onScroll = () => {
-      clearTimeout(timer);
-      timer = window.setTimeout(sync, 150);
-    };
-    el.addEventListener("scroll", onScroll);
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      clearTimeout(timer);
-    };
-  }, []);
+    el.style.transition = "";
+    el.style.maxHeight = "";
+  };
+  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    resetStyle();
+    const dy = (e.changedTouches[0]?.clientY ?? touchY.current) - touchY.current;
+    if (Math.abs(dy) < SWIPE_PX || !dragAllowed(dy)) return;
+    tripActions.setSheet(dy < 0);
+  };
   return (
-    <div ref={outer} {...stylex.props(styles.outer)}>
-      <div {...stylex.props(styles.spacer)} />
-      <div {...stylex.props(styles.sheet)}>
-        <div {...stylex.props(styles.header)}>
-          <button
-            {...stylex.props(styles.handle)}
-            onClick={toggle}
-            aria-expanded={expanded}
-            aria-label={expanded ? "経路の詳細を閉じる" : "経路の詳細を開く"}
-          >
-            <div {...stylex.props(styles.bar)} />
-          </button>
-          <div {...stylex.props(styles.summary)}>
-            <div {...stylex.props(styles.summaryText)} onClick={toggle}>
-              <RouteSummary {...summaryProps} compact />
-            </div>
-            {routes.length > 0 && (
+    <div
+      ref={sheet}
+      {...stylex.props(styles.sheet, expanded && styles.expanded)}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={resetStyle}
+    >
+      <div {...stylex.props(styles.header)}>
+        <button
+          {...stylex.props(styles.handle)}
+          onClick={toggle}
+          aria-expanded={expanded}
+          aria-label={expanded ? "経路の詳細を閉じる" : "経路の詳細を開く"}
+        >
+          <div {...stylex.props(styles.bar)} />
+        </button>
+        <div {...stylex.props(styles.summary)}>
+          <div {...stylex.props(styles.summaryText)} onClick={toggle}>
+            <RouteSummary {...summaryProps} compact />
+          </div>
+          {routes.length > 0 && (
+            <button
+              {...stylex.props(button.base, button.primary, styles.start)}
+              disabled={!gpsOk || starting}
+              onClick={navActions.start}
+            >
+              {gpsOk ? "案内開始" : "GPS 待ち"}
+            </button>
+          )}
+        </div>
+      </div>
+      <div ref={body} {...stylex.props(styles.body)}>
+        <ul {...stylex.props(styles.timeline)}>
+          <Row
+            role="出発地"
+            dot="from"
+            p={from}
+            onDelete={() => tripActions.pointDeleted(ROLE.FROM)}
+          />
+          {vias.map((v, i) => (
+            <Row
+              key={i}
+              role={`経由地 ${i + 1}`}
+              dot="via"
+              text={String(i + 1)}
+              p={v}
+              passed={i < passedVia}
+              onDelete={() => tripActions.viaDeleted(i)}
+            >
               <button
-                {...stylex.props(button.base, button.primary, styles.start)}
-                disabled={!gpsOk || starting}
-                onClick={navActions.start}
+                {...stylex.props(button.base, button.icon)}
+                disabled={i === 0}
+                onClick={() => tripActions.viaMoved(i, -1)}
+                aria-label="上へ"
               >
-                {gpsOk ? "案内開始" : "GPS 待ち"}
+                ▲
+              </button>
+              <button
+                {...stylex.props(button.base, button.icon)}
+                disabled={i === vias.length - 1}
+                onClick={() => tripActions.viaMoved(i, 1)}
+                aria-label="下へ"
+              >
+                ▼
+              </button>
+            </Row>
+          ))}
+          <Row role="到着地" dot="to" p={to} onDelete={() => tripActions.pointDeleted(ROLE.TO)} />
+        </ul>
+        <div {...stylex.props(styles.section)}>
+          <label {...stylex.props(styles.toggle)}>
+            <input
+              type="checkbox"
+              checked={notoll}
+              onChange={(e) => tripActions.notollToggled(e.target.checked)}
+            />
+            高速・有料を避ける
+          </label>
+          <div {...stylex.props(styles.row)}>
+            <HomeIcon size={20} />
+            {home ? (
+              <>
+                <span {...stylex.props(styles.name)}>{home.label}</span>
+                <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
+                  変更
+                </button>
+              </>
+            ) : (
+              <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
+                自宅を設定
               </button>
             )}
           </div>
         </div>
-        <div ref={body} {...stylex.props(styles.body)}>
-          <ul {...stylex.props(styles.timeline)}>
-            <Row
-              role="出発地"
-              dot="from"
-              p={from}
-              onDelete={() => tripActions.pointDeleted(ROLE.FROM)}
-            />
-            {vias.map((v, i) => (
-              <Row
-                key={i}
-                role={`経由地 ${i + 1}`}
-                dot="via"
-                text={String(i + 1)}
-                p={v}
-                passed={i < passedVia}
-                onDelete={() => tripActions.viaDeleted(i)}
-              >
-                <button
-                  {...stylex.props(button.base, button.icon)}
-                  disabled={i === 0}
-                  onClick={() => tripActions.viaMoved(i, -1)}
-                  aria-label="上へ"
-                >
-                  ▲
-                </button>
-                <button
-                  {...stylex.props(button.base, button.icon)}
-                  disabled={i === vias.length - 1}
-                  onClick={() => tripActions.viaMoved(i, 1)}
-                  aria-label="下へ"
-                >
-                  ▼
-                </button>
-              </Row>
-            ))}
-            <Row role="到着地" dot="to" p={to} onDelete={() => tripActions.pointDeleted(ROLE.TO)} />
-          </ul>
+        {routes.length > 1 && (
           <div {...stylex.props(styles.section)}>
-            <label {...stylex.props(styles.toggle)}>
-              <input
-                type="checkbox"
-                checked={notoll}
-                onChange={(e) => tripActions.notollToggled(e.target.checked)}
-              />
-              高速・有料を避ける
-            </label>
-            <div {...stylex.props(styles.row)}>
-              <HomeIcon size={20} />
-              {home ? (
-                <>
-                  <span {...stylex.props(styles.name)}>{home.label}</span>
-                  <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
-                    変更
-                  </button>
-                </>
-              ) : (
-                <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
-                  自宅を設定
-                </button>
-              )}
-            </div>
+            <RouteSummary {...summaryProps} compact={false} />
           </div>
-          {routes.length > 1 && (
-            <div {...stylex.props(styles.section)}>
-              <RouteSummary {...summaryProps} compact={false} />
-            </div>
-          )}
-          {route && (
-            <div {...stylex.props(styles.section)}>
-              <StepList route={route} narrow={narrows[selected] ?? []} />
-            </div>
-          )}
-        </div>
+        )}
+        {route && (
+          <div {...stylex.props(styles.section)}>
+            <StepList route={route} narrow={narrows[selected] ?? []} />
+          </div>
+        )}
       </div>
     </div>
   );

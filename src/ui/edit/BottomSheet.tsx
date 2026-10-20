@@ -18,7 +18,7 @@ const styles = stylex.create({
     left: 0,
     right: 0,
     bottom: 0,
-    maxHeight: layout.peek,
+    maxHeight: `${layout.peek}px`,
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
@@ -31,7 +31,7 @@ const styles = stylex.create({
     zIndex: 5,
   },
   expanded: { maxHeight: "70vh" },
-  header: { flexShrink: 0, minHeight: layout.peek }, // ピーク時に body が覗かないよう高さを揃える
+  header: { flexShrink: 0, minHeight: `${layout.peek}px` }, // ピーク時に body が覗かないよう高さを揃える
   handle: { padding: "10px 0 6px" },
   bar: { width: 40, height: 4, borderRadius: 2, margin: "0 auto", backgroundColor: colors.border },
   summary: {

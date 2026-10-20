@@ -14,7 +14,7 @@ const styles = stylex.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: layout.navbar,
+    height: `${layout.navbar}px`,
     paddingBottom: "env(safe-area-inset-bottom)",
     display: "flex",
     alignItems: "center",

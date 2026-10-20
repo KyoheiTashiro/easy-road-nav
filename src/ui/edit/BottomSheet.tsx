@@ -129,7 +129,7 @@ export function BottomSheet() {
   const loading = useTrip(selectLoading) || starting;
   const canStart = useTrip((s) => s.fix !== null && !s.gpsError) && routes.length > 0 && !starting;
   const route = routes[selected];
-  const summaryProps = { routes, selected, onSelect: tripActions.routeSelected, loading };
+  const summaryProps = { routes, narrows, selected, onSelect: tripActions.routeSelected, loading };
   const body = useRef<HTMLDivElement>(null);
   const touchY = useRef(0);
   const touchScrollTop = useRef(0);

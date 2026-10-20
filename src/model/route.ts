@@ -171,6 +171,11 @@ export function segmentBearing(route: RouteModel, i: number): number {
   return bearing(vertex(route, i), vertex(route, i + 1));
 }
 
+/** 右左折の回数。直進（0）・経由地（5）・目的地（4）・分岐の寄り（±7）は数えない */
+export function turnCount(route: RouteModel): number {
+  return route.instructions.filter((i) => [1, 2, 3, 6, 8, 98].includes(Math.abs(i.sign))).length;
+}
+
 export function tollDistance(route: RouteModel): number {
   return route.toll
     .filter((t) => t.value === TOLL.ALL)

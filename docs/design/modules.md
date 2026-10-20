@@ -129,6 +129,7 @@ export function nearest(route: RouteModel, p: LatLng): { s: number; distanceToRo
   // 全線分に projectToSegment、dist 最小を採用。s = cum[i] + t × (cum[i+1] − cum[i])
 export function segmentBearing(route: RouteModel, i: number): number;  // bearing(P[i], P[i+1])
 export function tollDistance(route: RouteModel): number;               // toll.value == "all" の合計 m
+export function turnCount(route: RouteModel): number;                  // 右左折の回数。sign 0 / 4 / 5 / ±7 は数えない
 ```
 
 変換を `model/` に置くのは fixture JSON でテストするため。`api/graphhopper.ts` は fetch と例外変換だけ。
@@ -417,6 +418,7 @@ props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過�
 ```ts
 type RouteSummaryProps = {
   routes: RouteModel[];
+  narrows: NarrowSegment[][];
   selected: number;
   onSelect(i: number): void;
   loading: boolean;
@@ -424,7 +426,7 @@ type RouteSummaryProps = {
 };
 ```
 
-`compact` = ピーク行（選択経路 1 行）。展開時は代替カード（最大 3 枚）。表示は `format.ts`。
+`compact` = ピーク行（選択経路 1 行）。展開時は代替カード（最大 3 枚）。表示は `format.ts`。各行 = 距離 / 時間 / 有料区間（あれば）/ 細い道 x.x km（0 なら「細い道なし」）/ 右左折 n 回。
 
 ## `src/ui/edit/StepList.tsx`
 

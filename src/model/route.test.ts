@@ -9,6 +9,7 @@ import {
   nearest,
   segmentBearing,
   tollDistance,
+  turnCount,
   type GhPath,
 } from "@/model/route.ts";
 
@@ -107,6 +108,17 @@ describe("segmentBearing", () => {
     expect(lng1).toBeGreaterThan(lng0);
     expect(b).toBeGreaterThan(0);
     expect(b).toBeLessThan(90);
+  });
+});
+
+describe("turnCount", () => {
+  it("直進・経由地・目的地・寄りを除いた案内地点の数", () => {
+    const expected = via.instructions.filter(
+      (i) => i.sign !== 0 && i.sign !== 4 && i.sign !== 5 && Math.abs(i.sign) !== 7,
+    ).length;
+    expect(expected).toBeGreaterThan(0);
+    expect(via.instructions.some((i) => i.sign === 5)).toBe(true);
+    expect(turnCount(via)).toBe(expected);
   });
 });
 

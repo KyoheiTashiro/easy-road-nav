@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { formatDuration, formatKm } from "@/model/format.ts";
-import { tollDistance, type RouteModel } from "@/model/route.ts";
+import type { NarrowSegment } from "@/model/narrow.ts";
+import { tollDistance, turnCount, type RouteModel } from "@/model/route.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
@@ -37,27 +38,38 @@ const styles = stylex.create({
   selected: { borderColor: colors.accent, boxShadow: `inset 0 0 0 1px ${colors.accent}` },
 });
 
-function summaryText(route: RouteModel): string {
+function summaryText(route: RouteModel, narrow: NarrowSegment[]): string {
   const parts = [formatKm(route.distance), formatDuration(route.time)];
   const toll = tollDistance(route);
   if (toll > 0) parts.push(`有料区間 ${formatKm(toll)}`);
+  const narrowM = narrow.reduce((sum, s) => sum + s.length, 0);
+  parts.push(narrowM > 0 ? `細い道 ${formatKm(narrowM)}` : "細い道なし");
+  parts.push(`右左折 ${turnCount(route)} 回`);
   return parts.join(" / ");
 }
 
 type RouteSummaryProps = {
   routes: RouteModel[];
+  narrows: NarrowSegment[][]; // routes と同じ index
   selected: number;
   onSelect(i: number): void;
   loading: boolean;
   compact: boolean; // true = ピーク行（選択経路 1 行）、false = 代替カード
 };
 
-export function RouteSummary({ routes, selected, onSelect, loading, compact }: RouteSummaryProps) {
+export function RouteSummary({
+  routes,
+  narrows,
+  selected,
+  onSelect,
+  loading,
+  compact,
+}: RouteSummaryProps) {
   if (compact) {
     const route = routes[selected];
     let text = "出発地と到着地を設定してください";
     if (loading) text = "探索中…";
-    else if (route) text = summaryText(route);
+    else if (route) text = summaryText(route, narrows[selected] ?? []);
     return (
       <div {...stylex.props(styles.compact)}>
         {loading && <div {...stylex.props(styles.spinner)} />}
@@ -76,7 +88,7 @@ export function RouteSummary({ routes, selected, onSelect, loading, compact }: R
           aria-pressed={i === selected}
         >
           {i === 0 ? "推奨: " : `代替 ${i}: `}
-          {summaryText(r)}
+          {summaryText(r, narrows[i] ?? [])}
         </button>
       ))}
     </div>

@@ -496,7 +496,7 @@ export const layout = stylex.defineConsts({ peek: 80, half: 70, navbar: 64, hud:
 
 ## `src/main.tsx`
 
-`createRoot` + `StrictMode` + `<App />`。`import "@/stylex.css"`（`button` のリセット + StyleX の出力先）。
+`createRoot` + `StrictMode` + `<App />`。`import "@/stylex.css"`（`button` のリセット + StyleX の出力先）。`import.meta.env.PROD` のときだけ `navigator.serviceWorker.register("/sw.js")`（dev は HMR と干渉）。SW 本体は `public/sw.js`（map-display.md）。
 
 ## 設定ファイル
 

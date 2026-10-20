@@ -6,7 +6,7 @@
 
 - スマホ・タブレットの縦画面前提。PC ブラウザでも動くが最適化しない
 - 地図がフルスクリーン、操作 UI はオーバーレイ
-- PWA: `manifest.json`（standalone、アイコン1枚）のみ。ホーム画面追加で全画面起動。Service Worker・オフラインは無し。起動 splash（アイコン + サービス名）は `index.html` の `#root` 内に静的 HTML で置き、React の初回 render で消える
+- PWA: `manifest.json`（standalone、アイコン1枚）のみ。ホーム画面追加で全画面起動。起動 splash（アイコン + サービス名）は `index.html` の `#root` 内に静的 HTML で置き、React の初回 render で消える。Service Worker（`public/sw.js`）が app shell（`/` `/assets/*` `/icon.png` `/manifest.json`）を Cache Storage から即返す（iOS standalone 起動時の HTML 到着待ちで白画面が数秒出るのを防ぐ）。`/assets/*` は cache-first、それ以外は stale-while-revalidate（デプロイ後の初回起動は旧版、次回起動から新版）。`/gh/*` と外部オリジンは素通し。オフライン対応は目的外
 
 ## タイル
 

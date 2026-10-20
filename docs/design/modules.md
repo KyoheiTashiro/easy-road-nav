@@ -3,40 +3,20 @@
 `src/` 各ファイルの export（型・シグネチャ）。分岐のある箇所だけ擬似コード。
 画面・状態は [ui.md](ui.md)、ナビの処理順は [nav.md](nav.md)、経路構造は [route-model.md](route-model.md)。ディレクトリは [frontend.md](../requirements/frontend.md)。
 
-依存方向: `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` `model/` は React・DOM 非依存（`store/` は fetch を呼ぶ）。`src/` 内の import は `@/` からの絶対パス（`tsconfig.json` の `paths`、`vite.config.ts` の `resolve.alias`、`babel.config.js` の StyleX `aliases` で同じ対応を持つ）。
+依存方向: `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` `model/` は React・DOM 非依存（`store/` は fetch を呼ぶ）。`ui/` の下は `map/` `edit/` `nav/` に分け、3 つは互いに import しない（共有するものは `ui/` 直下）。`src/` 内の import は `@/` からの絶対パス（`tsconfig.json` の `paths`、`vite.config.ts` の `resolve.alias`、`babel.config.js` の StyleX `aliases` で同じ対応を持つ）。
 
-## 共通型（`src/model/route.ts` に置く）
+## `src/model/point.ts`
+
+地点の共通型。経路の構造（`route.ts`）とは独立。
 
 ```ts
 export type LatLng = { lat: number; lng: number };
 export type Fix = LatLng & { accuracy: number; t: number }; // t = position.timestamp
 export type Point = LatLng & { label: string | null }; // label null = 逆ジオ中
 export type PointRole = "from" | "to" | { via: number }; // マーカー削除・地点リスト操作の対象
-export type SavedPoint = LatLng & { label: string }; // 自宅・検索履歴。label 確定済みのみ保存
+export type SavedPoint = LatLng & { label: string }; // 自宅・検索履歴・検索候補。label 確定済みのみ
+export const MAX_VIAS = 5; // 経由地の上限（CONTEXT.md）
 ```
-
-## `src/url.ts`
-
-```ts
-export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
-export function parseQuery(search: string): Query; // location.search
-export function buildQuery(q: Query): string; // "?from=..&to=..&via=..|..&notoll=0"。地点なし・notoll true（既定）は省略。全部なしなら ""
-```
-
-parse:
-
-```
-parseLatLng(s) =
-  s を "," で分割、2 要素でなければ null。空要素があれば null（Number("") は 0 になるため）
-  lat, lng = Number()。Number.isFinite でなければ null
-  lat ∉ [-90, 90] または lng ∉ [-180, 180] なら null
-from  = parseLatLng(params.get("from"))
-to    = parseLatLng(params.get("to"))
-vias  = (params.get("via") ?? "").split("|").filter(Boolean).map(parseLatLng).filter(非 null).slice(0, 5)
-notoll = params.get("notoll") !== "0"  // 既定は避ける
-```
-
-不正な地点はその地点だけ無視（全クエリ破棄しない）。build は `toFixed(5)`。
 
 ## `src/store/saved.ts`
 
@@ -74,9 +54,8 @@ export function fetchRoute(
 ## `src/api/gsi.ts`
 
 ```ts
-export type SearchHit = { title: string; lat: number; lng: number };
-export function rankHits(q: string, hits: SearchHit[]): SearchHit[]; // q を title に含む候補を先頭へ（安定）
-export function searchAddress(q: string, signal: AbortSignal): Promise<SearchHit[]>; // rankHits 後の全件
+export function rankHits(q: string, hits: SavedPoint[]): SavedPoint[]; // q を label に含む候補を先頭へ（安定）
+export function searchAddress(q: string, signal: AbortSignal): Promise<SavedPoint[]>; // rankHits 後の全件。title を label に
 export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string | null>; // results.lv01Nm。応答 {} → null
 ```
 
@@ -86,13 +65,13 @@ export function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<string 
 
 ```ts
 export function normalizePoiQuery(q: string): string; // （株）(株)（有）(有) を空白に → trim
-export function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]>; // Yahoo! ローカルサーチ。最大 100 件（results = API 上限）。Name を title に
+export function searchPoi(q: string, signal: AbortSignal): Promise<SavedPoint[]>; // Yahoo! ローカルサーチ。最大 100 件（results = API 上限）。Name を label に
 ```
 
 JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受ける。URL は `https://map.yahooapis.jp/search/local/V1/localSearch?appid=…&output=json&results=10&query=…&callback=…`。callback 名は呼び出しごとに一意（連番）。
 
 - appid は `import.meta.env.VITE_YAHOO_APPID`。未設定なら即 throw（トースト「施設検索に失敗しました」になる）
-- 応答 `Feature[]` の `Name` を title、`Geometry.Coordinates`（`"lon,lat"` 文字列）を split して lng / lat。`Feature` が無ければ空配列
+- 応答 `Feature[]` の `Name` を label、`Geometry.Coordinates`（`"lon,lat"` 文字列）を split して lng / lat。`Feature` が無ければ空配列
 - 失敗は throw: script の `error` イベント（非 2xx・ネットワーク断）、10 秒タイムアウト、`ResultInfo.Status !== 200`
 - `signal` の abort は `AbortError`（`DOMException`）で reject。呼び出し側は fetch と同じ扱いで握りつぶせる
 - 終了理由を問わず script 要素と `window[callback]` を削除する
@@ -101,6 +80,22 @@ JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受�
 normalizePoiQuery: q.replace(/[（(][株有][）)]/g, " ").trim()
   「○○（株）△△事業所」 → 「○○ △△事業所」（削除して「○○△△事業所」にすると 0 件、空白なら 1 件。ADR-0003）
 ```
+
+## `src/api/speech.ts`
+
+```ts
+export function speak(text: string): void;
+export function cancel(): void;
+export function unlock(): void;
+```
+
+- キュー: `speechSynthesis` 内蔵のキューをそのまま使う（`speak` は順に再生される）。自前キューは持たない
+- ミュートはここでは見ない。nav store の `say` が `muted` なら `speak` を呼ばない。ミュート ON で再生中・待機中は `cancel`
+- 直前の文字列がまだ再生・待機中（`onend` / `onerror` 前）で同一なら捨てる。再生し終えた後の同一文字列は再発話する
+- `lang = "ja-JP"`、`rate = 1`。voice は指定しない（既定）
+- `cancel`: `speechSynthesis.cancel()`。「終了」・リルート成功時に呼ぶ（到着時は呼ばない。「目的地に到着しました」を言い切る）
+- `unlock`: 空文字の発話。iOS Safari はユーザー操作内の `speak` が必要なため `navActions.start` の先頭（click ハンドラ内）で呼ぶ（再探索の await 後では操作文脈が切れる）
+- `speechSynthesis` 非対応環境では全て no-op
 
 ## `src/model/geo.ts`
 
@@ -215,21 +210,28 @@ export function formatSpokenDistance(m: number): string; // "1.2 キロ" / "300 
 export function formatClock(d: Date): string; // "HH:MM"
 ```
 
-## `src/nav/speech.ts`
+## `src/model/url.ts`
 
 ```ts
-export function speak(text: string): void;
-export function cancel(): void;
-export function unlock(): void;
+export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
+export function parseQuery(search: string): Query; // location.search
+export function buildQuery(q: Query): string; // "?from=..&to=..&via=..|..&notoll=0"。地点なし・notoll true（既定）は省略。全部なしなら ""
 ```
 
-- キュー: `speechSynthesis` 内蔵のキューをそのまま使う（`speak` は順に再生される）。自前キューは持たない
-- ミュートはここでは見ない。nav store の `say` が `muted` なら `speak` を呼ばない。ミュート ON で再生中・待機中は `cancel`
-- 直前の文字列がまだ再生・待機中（`onend` / `onerror` 前）で同一なら捨てる。再生し終えた後の同一文字列は再発話する
-- `lang = "ja-JP"`、`rate = 1`。voice は指定しない（既定）
-- `cancel`: `speechSynthesis.cancel()`。「終了」・リルート成功時に呼ぶ（到着時は呼ばない。「目的地に到着しました」を言い切る）
-- `unlock`: 空文字の発話。iOS Safari はユーザー操作内の `speak` が必要なため `navActions.start` の先頭（click ハンドラ内）で呼ぶ（再探索の await 後では操作文脈が切れる）
-- `speechSynthesis` 非対応環境では全て no-op
+parse:
+
+```
+parseLatLng(s) =
+  s を "," で分割、2 要素でなければ null。空要素があれば null（Number("") は 0 になるため）
+  lat, lng = Number()。Number.isFinite でなければ null
+  lat ∉ [-90, 90] または lng ∉ [-180, 180] なら null
+from  = parseLatLng(params.get("from"))
+to    = parseLatLng(params.get("to"))
+vias  = (params.get("via") ?? "").split("|").filter(Boolean).map(parseLatLng).filter(非 null).slice(0, 5)
+notoll = params.get("notoll") !== "0"  // 既定は避ける
+```
+
+不正な地点はその地点だけ無視（全クエリ破棄しない）。build は `toFixed(5)`。
 
 ## `src/store/toast.ts`
 
@@ -244,7 +246,6 @@ export function clearToast(): void; // Toast.tsx の 4 秒タイマーが呼ぶ
 地点・探索結果・画面モード・GPS fix。フィールドは ui.md「状態」。
 
 ```ts
-export const MAX_VIAS = 5;
 export const URL_HAD_POINTS: boolean; // 起動時の URL に from か to があった。Map の初回 fix easeTo を抑止
 export function useTrip<T>(selector: (s: TripState) => T): T;
 export const getTrip: () => TripState; // async 関数・Effect 内の最新値読み
@@ -335,7 +336,7 @@ Effect はここにだけ書く。いずれも引数なし・戻り値なしで�
 - `useWakeLock(active)`: `active` 中 `navigator.wakeLock?.request("screen")`。非対応なら何もしない。`visibilitychange` で `visible` に戻ったら再取得。`active` が false になったら・アンマウントで `release`
 - `useUpdateCheck(blocked)`: standalone PWA は再表示時にページを再読込しない（`tailscale serve` はヘッダ制御不可で `index.html` の heuristic cache も効く）ため自前で更新検知する。`visibilitychange` で `visible` に戻ったら `fetch("/", { cache: "no-store" })`。現在の `<script type="module">` の `src`（hash 付き bundle）が応答に含まれなければ古い → `location.reload()`。`blocked`（ナビ中）なら reload を保留し、false になった時点で実行。fetch 失敗は無視（次回 visible で再試行）。`import.meta.env.DEV` では何もしない
 
-## `src/ui/Map.tsx`
+## `src/ui/map/Map.tsx`
 
 props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup`、nav store から `nav`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `pointDeleted` `viaAdded`）と `navActions`（`setFollow` `setZoom`）。
 
@@ -357,9 +358,15 @@ export function Map(): JSX.Element;
 - 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `URL_HAD_POINTS` が false なら `easeTo(zoom 15)`（1 回だけ。`fixUpdated` が `from` と `fix` を同時に入れるので `from` の null では判定できない）
 - カメラ: `useEffect([fitVersion])` で `fitBounds`（`fitVersion > 0` のみ。routes / selected は `useEffectEvent` で読む）。ナビ中は `useEffect([nav])` で `easeTo`（nav.md「カメラ」。fix は `useEffectEvent` で読む）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
 - イベント: `click` `dragstart` `zoomend`（`originalEvent` あり）は map 生成時に 1 回登録し、ハンドラは `useEffectEvent`（`mode` を見て edit / home なら `popupOpened`、`setFollow(false)`、`setZoom`）
-- コントロール: `ScaleControl`（bottom-right、帰属表示の上）、`NavigationControl`（コンパスのみ、top-right。`useEffect([mode])` でナビ中は `removeControl`、戻りで `addControl`）。位置の余白は `stylex.css` でオーバーレイを避ける
+- コントロール: `ScaleControl`（bottom-right、帰属表示の上）、`NavigationControl`（コンパスのみ、top-right。`useEffect([mode])` でナビ中は `removeControl`、戻りで `addControl`）。位置の余白は `ui/map/maplibre.css` でオーバーレイを避ける
 
-## `src/ui/SearchBox.tsx`
+## `src/ui/map/mapLayers.ts`
+
+`Map` の React 非依存部分。タイルスタイル URL（light / dark）、マーカー色、マーカー DOM（`markerElement` `homeMarkerElement`）、GeoJSON 生成（`fixFeatures` `routeFeatures` `altFeatures`）、`bounds`、`applyStyleExtras`（ラベルの `name:ja` 上書き + 経路・代替・現在地の source / layer。`style.load` のたびに呼ぶ）。`maplibre-gl` を import するので vitest の対象外。
+
+同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置、コンパス画像 `compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
+
+## `src/ui/edit/SearchBox.tsx`
 
 props なし。`App` が `key={mode}` で入力 state を捨てる。購読: `mode`（`home` なら「戻る」+ 自宅欄 1 つ、それ以外は出発地 / 到着地の 2 欄）、`from` `to`、`fix`（`gpsError` 中は null。候補「現在地」の表示条件）、saved store の `home` `history`。操作: 候補選択 → `tripActions.searchPicked(role, p, label)`（label null = 逆ジオへ）、× → `pointDeleted(role)`、「戻る」→ `editReturned`、住所 / 施設名の候補タップ → `savedActions.historyPushed` の直後に `searchPicked`、失敗 → `showToast`。
 
@@ -379,7 +386,7 @@ search(): q が空なら何もしない。searched = q
 
 IME 変換確定の Enter は入力欄の `onKeyDown` で `e.nativeEvent.isComposing || e.keyCode === 229` なら `preventDefault`（Safari は確定 Enter の `isComposing` が false）。候補選択で `query` クリア・`active` null・`searchPicked`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
 
-## `src/ui/PointPopup.tsx`
+## `src/ui/map/PointPopup.tsx`
 
 ```ts
 type PointPopupProps = {
@@ -392,17 +399,13 @@ type PointPopupProps = {
 
 `home` モードはボタン「自宅にする」1 つ。`label === null` の間は disabled（保存する label が要る）。
 
-## `src/ui/BottomSheet.tsx`
+## `src/ui/edit/BottomSheet.tsx`
 
 props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、nav store の `starting`、saved store の `home`。`loading` = `selectLoading || starting`、`canStart` = fix あり かつ gpsError でない かつ routes あり かつ `!starting`。操作: スワイプ → `setSheet`、× → `pointDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、「自宅を設定」/「変更」→ `homeSetupEntered`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
 
-```ts
-export const PEEK_HEIGHT = 80; // Map の fitBounds 下パディング
-```
-
 内部に地点リスト（別ファイルにしない）。ピーク = `RouteSummary` + 「案内開始」。展開 = 地点リスト → トグル → 自宅行 → 代替カード → `StepList`。
 
-## `src/ui/RouteSummary.tsx`
+## `src/ui/edit/RouteSummary.tsx`
 
 ```ts
 type RouteSummaryProps = {
@@ -416,7 +419,7 @@ type RouteSummaryProps = {
 
 `compact` = ピーク行（選択経路 1 行）。展開時は代替カード（最大 3 枚）。表示は `format.ts`。
 
-## `src/ui/StepList.tsx`
+## `src/ui/edit/StepList.tsx`
 
 ```ts
 type StepListProps = { route: RouteModel; narrow: NarrowSegment[] };
@@ -424,17 +427,13 @@ type StepListProps = { route: RouteModel; narrow: NarrowSegment[] };
 
 `instructions` を全部表示（`sign 0` 含む）。各行: `DirectionIcon` / `formatDistance(distance)` / `text` / `streetName`。`entersNarrow` が真なら先頭に「⚠ 細い道」。
 
-## `src/ui/NavHud.tsx`
+## `src/ui/nav/NavHud.tsx`
 
 props なし。nav store の `nav` `hud` `inNarrow`、trip store の `selectRoute` を購読。`nav` か経路が無ければ描画しない。残り距離は `hud.remaining`、hud 未着なら `route.distance − nav.s`。`hud.instruction` null → 「目的地まで」+ 残り距離。`hud.next` null なら「その先」行は空（高さ固定）。`nav.rerouting` で「再探索中」。
 
-## `src/ui/NavBar.tsx`
+## `src/ui/nav/NavBar.tsx`
 
 props なし。nav store の `nav` `muted`、trip store の `selectRoute` `fix` を購読。`remainingMs = remainingTime(route, nav.s)`、到着予想 = `formatClock(new Date(fix.t + remainingMs))`（render 内で `Date.now` を呼ばない）。ボタン: 「現在地」→ `navActions.setFollow(true)`、ミュート → `toggleMute`、「終了」→ `end(true)`。
-
-```ts
-export const NAVBAR_HEIGHT = 64; // Map のナビ時 padding.bottom
-```
 
 ## `src/ui/icons.tsx`
 
@@ -447,11 +446,19 @@ sign → 11 種（nav.md）。`4` `5` はピン。未知の sign は直進アイ
 
 ## `src/ui/Toast.tsx`
 
-props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ）を購読。`useEffect([message])` で 4 秒後に `clearToast()`（新しいメッセージでタイマーを張り直す）。
+props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ。`layout.hud + layout.next + 16px`）を購読。`useEffect([message])` で 4 秒後に `clearToast()`（新しいメッセージでタイマーを張り直す）。
 
 ## `src/ui/tokens.stylex.ts`
 
 `defineVars` で色トークン。ライト値 + `@media (prefers-color-scheme: dark)` のダーク値。経路線の色（青・オレンジ）は MapLibre 側なのでここに置かない。
+
+## `src/ui/layout.stylex.ts`
+
+```ts
+export const layout = stylex.defineConsts({ peek: 80, navbar: 64, hud: 88, next: 32 }); // px
+```
+
+画面部品の高さ。`BottomSheet` `NavBar` `NavHud` が自分の高さに使い、`Map` が fitBounds / ナビ時の padding、`Toast` がナビ時の `top` に使う。`defineConsts` の値はコンパイル時に文字列で埋まるので、`stylex.create` 内では JS で足さず `calc()` に並べる。JS からは数値として読める。
 
 ## `src/App.tsx`
 
@@ -468,7 +475,7 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ）を購
 
 ## `src/main.tsx`
 
-`createRoot` + `StrictMode` + `<App />`。`import "@/stylex.css"`（StyleX の出力先）。
+`createRoot` + `StrictMode` + `<App />`。`import "@/stylex.css"`（`button` のリセット + StyleX の出力先）。
 
 ## 設定ファイル
 

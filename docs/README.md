@@ -36,7 +36,3 @@ Web で使える Google Maps ライクな地図・ナビアプリ。日本国内
 
 - [runbook.md](runbook.md) — VPS 初期構築、デプロイ、データ更新、バージョン更新
 - [vps-shared.md](vps-shared.md) — 同じ VPS に別アプリを載せるときの変更点（入口・メモリ・初期構築スクリプト）
-
-## 未決事項
-
-[TODO.md](TODO.md)

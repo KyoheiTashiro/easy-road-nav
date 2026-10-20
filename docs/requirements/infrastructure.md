@@ -140,7 +140,7 @@ VPS:
 
 ## テスト
 
-- 純ロジック（`src/model/`、`src/url.ts`）のみ Vitest。UI・GraphHopper 呼び出しは手動確認。詳細は [frontend.md](frontend.md)
+- 純ロジック（`src/model/`、`src/store/`、`src/api/gsi.ts` の純関数）のみ Vitest。UI・GraphHopper 呼び出しは手動確認。詳細は [frontend.md](frontend.md)
 
 ## ライセンス・帰属
 

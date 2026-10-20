@@ -71,7 +71,7 @@ React・DOM 非依存。nav store の `onFix` が fix ごとに呼び、events �
 8. **細い道**: `narrow` 区間 j で `cum[seg.from] - s` が `(0, 細い道警告距離]` かつ `"narrow:j"` 未発火 → 警告発話。先頭区間（出発地に接する）は警告しない。末尾区間（到着地に接する）は「この先細い道、目的地付近です」。走行中判定: `cum[seg.from] <= s < cum[seg.to]` の区間を `narrow` event で通知
 9. 同一 fix で 7 と 8 が両方発火したら発話順は 案内 → 細い道警告
 
-## 発話（`src/nav/speech.ts`）
+## 発話（`src/api/speech.ts`）
 
 `speechSynthesis`、`lang = "ja-JP"`、rate 1。キューは `speechSynthesis` 内蔵のもの（発話中は待って順に全部言う）。直前の文字列がまだ再生・待機中なら同一文字列は捨てる。ミュート中は nav store が `speak` event を捨てる（キューにも入れない）。iOS 向けに「案内開始」の click 内で空発話（`unlock`）してから再探索する。
 

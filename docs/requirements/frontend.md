@@ -4,11 +4,12 @@
 
 - 状態は zustand の store（`src/store/`）に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。Effect は `src/hooks/`（外部システムとの同期）にだけ書く。ルーター不使用。状態の一覧は [design/ui.md](../design/ui.md)
 - URL クエリ（[map-display.md](map-display.md)）が地点 + notoll の正。編集で `history.replaceState`、読み込み時に復元して探索
-- 依存方向は `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` と `model/` は React・DOM 非依存
+- 依存方向は `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` と `model/` は React・DOM 非依存。`api/` は外部システムへの出口（HTTP・JSONP・speechSynthesis）
+- `ui/` は画面モードで `map/` `edit/` `nav/` に分ける。3 つは互いに import しない。共有するもの（stylex トークン・アイコン・Toast）は `ui/` 直下
 - `src/` 内の import は `@/` からの絶対パス（`@/store/trip.ts`）。相対パスは書かない
-- Vitest は `src/model/` `src/store/` `src/url.ts` のみ。UI・API 呼び出しは手動確認
+- Vitest は `src/model/` `src/store/` と `src/api/gsi.ts` の純関数のみ。UI・API 呼び出しは手動確認
 - ライブラリは React / Vite / TypeScript / MapLibre GL JS / Vitest + StyleX（CSS）+ zustand（状態）+ React Compiler（babel plugin）のみ。追加しない（turf 不採用: 必要な計算は `geo.ts` 数十行）
-- CSS: StyleX。`@stylexjs/postcss-plugin` + `@vitejs/plugin-react`（5 系、`babel.configFile: true`）が共通の `babel.config.js` から `@stylexjs/babel-plugin` を読む。色トークンは `src/ui/tokens.stylex.ts`（`defineVars`、ダーク値は `@media (prefers-color-scheme: dark)`）
+- CSS: StyleX。`@stylexjs/postcss-plugin` + `@vitejs/plugin-react`（5 系、`babel.configFile: true`）が共通の `babel.config.js` から `@stylexjs/babel-plugin` を読む。色トークンは `src/ui/tokens.stylex.ts`（`defineVars`、ダーク値は `@media (prefers-color-scheme: dark)`）、部品の高さは `src/ui/layout.stylex.ts`（`defineConsts`）
 - StyleX は `border` `background` 等のショートハンドを**黙って捨てる**（CSS に出ない → ブラウザ既定の枠が見える）。`borderWidth` / `borderStyle` / `borderColor`、`backgroundColor` の longhand で書く
 - 各ファイルの export・シグネチャは [design/modules.md](../design/modules.md)
 
@@ -38,8 +39,7 @@ postcss.config.js           # @stylexjs/postcss-plugin
 src/
   main.tsx
   App.tsx                   # hooks の呼び出しと画面モード別のレイアウトだけ
-  url.ts                    # クエリ ↔ 地点・notoll
-  stylex.css                # @stylex; のみ（StyleX 出力先）
+  stylex.css                # button リセット + @stylex;（StyleX 出力先）
   store/                    # zustand。React 非依存、セレクタとアクションだけ export
     trip.ts                 # 地点・notoll・探索結果・mode・popup・fix
     nav.ts                  # NavState・hud。start / onFix / end（design/nav.md）
@@ -52,36 +52,45 @@ src/
     useGeolocation.ts       # watchPosition（起動時から常時）→ trip.fixUpdated + nav.onFix
     useWakeLock.ts
     useUpdateCheck.ts       # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
-  api/
+  api/                      # 外部システムへの出口
     graphhopper.ts          # fetch + 例外変換（契約は design/route-model.md）
     gsi.ts                  # 住所検索・逆ジオ（search.md）
     yahoo.ts                # 施設名検索（search.md。JSONP）
+    speech.ts               # speechSynthesis の薄いラッパ（関数）
   model/
+    point.ts                # 地点の共通型（LatLng / Fix / Point / PointRole / SavedPoint）、MAX_VIAS
     geo.ts                  # haversine・方位・線分射影
-    route.ts                # 共通型、RouteModel、GraphHopper 応答 → RouteModel、累積距離、最近傍点
+    route.ts                # RouteModel、GraphHopper 応答 → RouteModel、累積距離、最近傍点
     narrow.ts               # 細い道区間の生成
     progress.ts             # step(state, fix) → {state, events}（design/nav.md）
     format.ts               # 距離・時間・時刻の表示文字列
+    url.ts                  # クエリ ↔ 地点・notoll
     __fixtures__/           # GraphHopper 実応答 JSON
     *.test.ts               # 実装と同居
-  nav/
-    speech.ts               # speechSynthesis の薄いラッパ（関数）
-  ui/
+  ui/                       # 直下は map/ edit/ nav/ が共有するものだけ
     tokens.stylex.ts        # 色トークン（ライト / ダーク）
-    Map.tsx                 # MapLibre、スタイル切替・ラベル上書き、経路レイヤー、マーカー、追従・回転
-    SearchBox.tsx           # 出発地 / 到着地 検索欄。自宅設定モードでは自宅欄 1 つ
-    PointPopup.tsx          # 出発地 / 到着地 / 経由地に追加。自宅設定モードでは「自宅にする」
-    BottomSheet.tsx         # 2 段、地点リスト・トグル・自宅行・代替カード・StepList を内包
-    RouteSummary.tsx        # 距離 / 時間 / 細い道 / 有料、代替経路の切替
-    StepList.tsx
-    NavHud.tsx              # 次の指示・残り距離・細い道バナー
-    NavBar.tsx              # 残り時間・到着予想・ミュート・終了・現在地
-    icons.tsx               # 方向アイコン SVG 11 種
+    button.stylex.ts        # ボタンの共通スタイル
+    layout.stylex.ts        # 部品の高さ（peek / navbar / hud / next）
+    icons.tsx               # 地点・自宅・方向アイコン（inline SVG）
     Toast.tsx
+    map/                    # 全モードに出る地図
+      Map.tsx               # MapLibre の購読と Effect（スタイル切替、マーカー、追従・回転、fitBounds）
+      mapLayers.ts          # React 非依存: GeoJSON 生成、source / layer、マーカー DOM
+      PointPopup.tsx        # 出発地 / 到着地 / 経由地に追加。自宅設定モードでは「自宅にする」（Map が portal で描く）
+      maplibre.css          # MapLibre 既定 UI の上書き（Map.tsx が maplibre-gl.css の次に読む）
+      compass.svg           # コンパスのアイコン（maplibre.css から参照）
+    edit/                   # 経路編集モード
+      SearchBox.tsx         # 出発地 / 到着地 検索欄。自宅設定モードでは自宅欄 1 つ
+      BottomSheet.tsx       # 2 段、地点リスト・トグル・自宅行・代替カード・StepList を内包
+      RouteSummary.tsx      # 距離 / 時間 / 細い道 / 有料、代替経路の切替
+      StepList.tsx
+    nav/                    # ナビモード
+      NavHud.tsx            # 次の指示・残り距離・細い道バナー
+      NavBar.tsx            # 残り時間・到着予想・ミュート・終了・現在地
 ```
 
 ## テスト
 
 - `*.test.ts` を実装ファイルの隣に置く
 - fixture は `src/model/__fixtures__/`（[route-model.md](../design/route-model.md)）
-- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`store/saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）、`store/nav.ts`（`fetchRoute` を差し替え、開始 → 経路外れ 3 回 → リルート → 到着）
+- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`api/gsi.ts`（`rankHits` の全文一致優先・安定ソート）、`store/saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）、`store/nav.ts`（`fetchRoute` を差し替え、開始 → 経路外れ 3 回 → リルート → 到着）

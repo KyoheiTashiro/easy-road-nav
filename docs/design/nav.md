@@ -24,7 +24,7 @@ type NavState = {
   segmentIndex: number; // 進捗点が乗る線分
   heading: number | null; // 進行方向 deg。経路線の方位、経路外れ中は fix 方位
   lastFix: Fix | null; // 方位算出用
-  announced: Set<string>; // 発火済みトリガ。key = `${種別}:${index}:${段階}` 例 "instr:12:300" "narrow:3" "via:1"
+  announced: Set<string>; // 発火済みトリガ。key = `${種別}:${index}:${段階}` 例 "instr:12:far" "narrow:3" "via:1"
   passedVia: number; // 通過済み経由地数
   offRouteCount: number; // 経路外れ連続回数
   rerouting: boolean; // リルート要求中
@@ -65,8 +65,8 @@ React・DOM 非依存。nav store の `onFix` が fix ごとに呼び、events �
 5. **経由地通過**: `passedVia < viaIndices.length` かつ `s >= cum[viaIndices[passedVia]]` → `viaPassed`、発話「経由地を通過しました」、`passedVia++`
 6. **到着**: `cum[n-1] - s < 到着判定` → 発話「目的地に到着しました」、`arrived`。以降の手順は飛ばす
 7. **次の案内地点**: `instructions` のうち `sign != 0`（直進は案内地点にしない）かつ `cum[from] > s` の最初のもの。残り `r = cum[from] - s`
-   - `r <= 50` かつ `"instr:i:50"` 未発火 → 直前案内。`"instr:i:300"` も発火済みにする（1 fix で両方飛び越えたら直前のみ）
-   - それ以外で `r <= 300` かつ `"instr:i:300"` 未発火 → 予告。ただし直前の案内地点との間隔が 300 m 未満なら予告しない（直前案内だけ）
+   - `r <= 50` かつ `"instr:i:near"` 未発火 → 直前案内。`"instr:i:far"` も発火済みにする（1 fix で両方飛び越えたら直前のみ）
+   - それ以外で `r <= 300` かつ `"instr:i:far"` 未発火 → 予告。ただし直前の案内地点との間隔が 300 m 未満なら予告しない（直前案内だけ）
    - `hud` event は毎 fix。`next` = `idx` より後で `sign != 0` の最初の指示。次の案内地点からの距離 `cum[next.from] - cum[ins.from]` が「次の次表示上限」以内のときだけ、超えたら null
 8. **細い道**: `narrow` 区間 j で `cum[seg.from] - s` が `(0, 細い道警告距離]` かつ `"narrow:j"` 未発火 → 警告発話。先頭区間（出発地に接する）は警告しない。末尾区間（到着地に接する）は「この先細い道、目的地付近です」。走行中判定: `cum[seg.from] <= s < cum[seg.to]` の区間を `narrow` event で通知
 9. 同一 fix で 7 と 8 が両方発火したら発話順は 案内 → 細い道警告

@@ -3,7 +3,13 @@ import { formatSpokenDistance } from "@/model/format.ts";
 import { bearing, destination, haversine } from "@/model/geo.ts";
 import type { NarrowSegment } from "@/model/narrow.ts";
 import type { Fix, LatLng } from "@/model/point.ts";
-import { nearest, segmentBearing, type Instruction, type RouteModel } from "@/model/route.ts";
+import {
+  nearest,
+  segmentBearing,
+  timeWithin,
+  type Instruction,
+  type RouteModel,
+} from "@/model/route.ts";
 
 const ACCURACY_MAX = 50; // 進捗採用精度
 const OFF_ROUTE = 50; // 経路外れ距離
@@ -92,9 +98,12 @@ export function signWord(ins: Instruction): string {
   }
 }
 
-/** s より先にある最初の案内地点（sign != 0）の index。無ければ -1 */
+const isGuidePoint = (i: Instruction) => i.sign !== 0; // 案内地点（sign 0 = 直進の区間境界）
+type StepResult = { state: NavState; events: NavEvent[] };
+
+/** s より先にある最初の案内地点の index。無ければ -1 */
 function nextInstruction(route: RouteModel, s: number): number {
-  return route.instructions.findIndex((i) => i.sign !== 0 && route.cum[i.from]! > s);
+  return route.instructions.findIndex((i) => isGuidePoint(i) && route.cum[i.from]! > s);
 }
 
 export function step(
@@ -102,87 +111,119 @@ export function step(
   narrow: NarrowSegment[],
   state: NavState,
   fix: Fix,
-): { state: NavState; events: NavEvent[] } {
-  const events: NavEvent[] = [];
-  if (fix.accuracy >= ACCURACY_MAX) return { state: { ...state }, events };
-
-  const { cum } = route;
-  const end = cum[cum.length - 1]!;
+): StepResult {
+  if (fix.accuracy >= ACCURACY_MAX) return { state: { ...state }, events: [] };
   const near = nearest(route, fix);
+  if (near.distanceToRoute > OFF_ROUTE) return offRoute(state, fix);
 
-  // 経路外れ。移動中の fix だけ数える（停車中は出発前・途中停車でリルートが連発するため）
-  if (near.distanceToRoute > OFF_ROUTE) {
-    const next = { ...state };
-    if (!state.lastFix) next.lastFix = fix;
-    else if (haversine(state.lastFix, fix) >= MIN_MOVE) {
-      next.offRouteCount = state.offRouteCount + 1;
-      next.heading = bearing(state.lastFix, fix);
-      next.lastFix = fix;
-    }
-    if (next.offRouteCount >= REROUTE_COUNT && !state.rerouting) {
-      next.rerouting = true;
-      events.push({ type: "reroute" });
-    }
+  const events: NavEvent[] = [];
+  const next = advance(route, state, fix, near);
+  passVias(route, next, events);
+  if (route.cum.at(-1)! - next.s < ARRIVE) {
+    events.push({ type: "speak", text: "目的地に到着しました" }, { type: "arrived" });
     return { state: next, events };
   }
+  guide(route, next, events);
+  warnNarrow(route, narrow, next, events);
+  return { state: next, events };
+}
 
-  // 進捗（単調増加）
+/** 経路外れ。移動中の fix だけ数える（停車中は出発前・途中停車でリルートが連発するため） */
+function offRoute(state: NavState, fix: Fix): StepResult {
+  const next = { ...state };
+  if (!state.lastFix) next.lastFix = fix;
+  else if (haversine(state.lastFix, fix) >= MIN_MOVE) {
+    next.offRouteCount = state.offRouteCount + 1;
+    next.heading = bearing(state.lastFix, fix);
+    next.lastFix = fix;
+  }
+  const events: NavEvent[] = [];
+  if (next.offRouteCount >= REROUTE_COUNT && !state.rerouting) {
+    next.rerouting = true;
+    events.push({ type: "reroute" });
+  }
+  return { state: next, events };
+}
+
+/** 進捗（単調増加）を反映した新 state。入力 state は変異させない */
+function advance(
+  route: RouteModel,
+  state: NavState,
+  fix: Fix,
+  near: ReturnType<typeof nearest>,
+): NavState {
   const advanced = near.s >= state.s;
-  const s = advanced ? near.s : state.s;
   const segmentIndex = advanced ? near.segmentIndex : state.segmentIndex;
-  const next: NavState = {
+  return {
     ...state,
-    s,
+    s: advanced ? near.s : state.s,
     segmentIndex,
     heading: segmentBearing(route, segmentIndex),
     lastFix: fix,
     offRouteCount: 0,
-    announced: new Set(state.announced), // 入力 state を変異させない
+    announced: new Set(state.announced),
   };
-  const { announced } = next;
+}
 
-  // 経由地通過（1 fix で複数越えたら全部 viaPassed、発話は 1 回）
-  let viaPassed = false;
-  while (next.passedVia < route.viaIndices.length && s >= cum[route.viaIndices[next.passedVia]!]!) {
-    events.push({ type: "viaPassed", index: next.passedVia });
-    next.passedVia++;
-    viaPassed = true;
+/** 経由地通過（1 fix で複数越えたら全部 viaPassed、発話は 1 回） */
+function passVias(route: RouteModel, st: NavState, events: NavEvent[]): void {
+  const before = st.passedVia;
+  while (
+    st.passedVia < route.viaIndices.length &&
+    st.s >= route.cum[route.viaIndices[st.passedVia]!]!
+  ) {
+    events.push({ type: "viaPassed", index: st.passedVia });
+    st.passedVia++;
   }
-  if (viaPassed) events.push({ type: "speak", text: "経由地を通過しました" });
+  if (st.passedVia > before) events.push({ type: "speak", text: "経由地を通過しました" });
+}
 
-  // 到着
-  if (end - s < ARRIVE) {
-    events.push({ type: "speak", text: "目的地に到着しました" }, { type: "arrived" });
-    return { state: next, events };
-  }
-
-  // 次の案内地点
+/** 次の案内地点: 予告・直前の発話と hud */
+function guide(route: RouteModel, st: NavState, events: NavEvent[]): void {
+  const { cum, instructions } = route;
+  const { s, announced } = st;
   const idx = nextInstruction(route, s);
   if (idx < 0) {
-    events.push({ type: "hud", instruction: null, remaining: end - s, next: null });
-  } else {
-    const ins = route.instructions[idx]!;
-    const r = cum[ins.from]! - s;
-    const near50 = `instr:${idx}:${ANNOUNCE_NEAR}`;
-    const far300 = `instr:${idx}:${ANNOUNCE_FAR}`;
-    if (r <= ANNOUNCE_NEAR && !announced.has(near50)) {
-      announced.add(near50).add(far300);
-      events.push({ type: "speak", text: `まもなく${signWord(ins)}です` });
-    } else if (r <= ANNOUNCE_FAR && !announced.has(far300)) {
-      announced.add(far300);
-      const prev = route.instructions.slice(0, idx).findLast((i) => i.sign !== 0);
-      const gap = cum[ins.from]! - (prev ? cum[prev.from]! : 0);
-      if (gap >= ANNOUNCE_FAR) {
-        events.push({ type: "speak", text: `${ANNOUNCE_FAR} メートル先、${signWord(ins)}です` });
-      }
-    }
-    const nn = route.instructions.find((i, k) => k > idx && i.sign !== 0);
-    const nd = nn ? cum[nn.from]! - cum[ins.from]! : Infinity;
-    const next = nn && nd <= NEXT_NEXT_MAX ? { instruction: nn, distance: nd } : null;
-    events.push({ type: "hud", instruction: ins, remaining: r, next });
+    events.push({ type: "hud", instruction: null, remaining: cum.at(-1)! - s, next: null });
+    return;
   }
+  const ins = instructions[idx]!;
+  const remaining = cum[ins.from]! - s;
+  const nearKey = `instr:${idx}:near`;
+  const farKey = `instr:${idx}:far`;
+  if (remaining <= ANNOUNCE_NEAR && !announced.has(nearKey)) {
+    announced.add(nearKey).add(farKey);
+    events.push({ type: "speak", text: `まもなく${signWord(ins)}です` });
+  } else if (remaining <= ANNOUNCE_FAR && !announced.has(farKey)) {
+    announced.add(farKey);
+    // 前の案内地点が予告距離より近ければ予告は省く（直前案内と連続する）
+    const prev = instructions.slice(0, idx).findLast(isGuidePoint);
+    const gap = cum[ins.from]! - (prev ? cum[prev.from]! : 0);
+    if (gap >= ANNOUNCE_FAR) {
+      events.push({ type: "speak", text: `${ANNOUNCE_FAR} メートル先、${signWord(ins)}です` });
+    }
+  }
+  events.push({ type: "hud", instruction: ins, remaining, next: nextNext(route, idx) });
+}
 
-  // 細い道
+/** idx の次の案内地点。idx から 次の次表示上限 以内のときだけ */
+function nextNext(route: RouteModel, idx: number): NextNext | null {
+  const { cum, instructions } = route;
+  const nn = instructions.find((i, k) => k > idx && isGuidePoint(i));
+  if (!nn) return null;
+  const distance = cum[nn.from]! - cum[instructions[idx]!.from]!;
+  return distance <= NEXT_NEXT_MAX ? { instruction: nn, distance } : null;
+}
+
+/** 細い道: 手前で警告、走行中の区間を narrow event で出す */
+function warnNarrow(
+  route: RouteModel,
+  narrow: NarrowSegment[],
+  st: NavState,
+  events: NavEvent[],
+): void {
+  const { cum } = route;
+  const { s, announced } = st;
   let current: NarrowSegment | null = null;
   narrow.forEach((seg, j) => {
     const d = cum[seg.from]! - s;
@@ -197,8 +238,6 @@ export function step(
     if (cum[seg.from]! <= s && s < cum[seg.to]!) current = seg;
   });
   events.push({ type: "narrow", segment: current });
-
-  return { state: next, events };
 }
 
 /** 残り時間 ms。現在位置が乗る指示の残り比例分 + 以降の指示の time 合計 */
@@ -207,8 +246,7 @@ export function remainingTime(route: RouteModel, s: number): number {
   const k = instructions.findIndex((i) => cum[i.from]! <= s && s < cum[i.to]!);
   if (k < 0) return 0;
   const ins = instructions[k]!;
-  const len = cum[ins.to]! - cum[ins.from]!;
-  let t = len > 0 ? (ins.time * (cum[ins.to]! - s)) / len : 0;
+  let t = ins.time - timeWithin(cum, ins, s);
   for (let i = k + 1; i < instructions.length; i++) t += instructions[i]!.time;
   return t;
 }

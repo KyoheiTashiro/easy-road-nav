@@ -134,11 +134,16 @@ function addFork(instructions: Instruction[], cum: number[], k: number, sign: nu
     if (ins.sign === 0) Object.assign(ins, { sign, text });
     return;
   }
-  const len = cum[ins.to]! - cum[ins.from]!;
-  const t = len > 0 ? (ins.time * (cum[k]! - cum[ins.from]!)) / len : 0;
+  const t = timeWithin(cum, ins, cum[k]!);
   const tail = { ...ins, sign, text, from: k, time: ins.time - t };
   delete tail.exitNumber;
   instructions.splice(idx, 1, { ...ins, to: k, time: t }, tail);
+}
+
+/** 指示 ins の始点から累積距離 s までの所要時間 ms（距離に比例配分） */
+export function timeWithin(cum: number[], ins: Instruction, s: number): number {
+  const len = cum[ins.to]! - cum[ins.from]!;
+  return len > 0 ? (ins.time * (s - cum[ins.from]!)) / len : 0;
 }
 
 function vertex(route: RouteModel, i: number): LatLng {

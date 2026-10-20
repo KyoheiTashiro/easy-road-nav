@@ -19,7 +19,7 @@ button {
 .maplibregl-ctrl-top-right {
   margin-top: calc(env(safe-area-inset-top) + 113px);
 }
-.maplibregl-ctrl-bottom-right {
+.maplibregl-ctrl-bottom-left {
   margin-bottom: calc(env(safe-area-inset-bottom) + 92px);
 }
 .maplibregl-ctrl-group button {

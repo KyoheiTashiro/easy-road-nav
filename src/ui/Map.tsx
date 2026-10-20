@@ -255,9 +255,10 @@ export function Map(props: MapProps) {
       style: mq.matches ? STYLE.dark : STYLE.light,
       center: TOKYO_STATION,
       zoom: 10,
-      attributionControl: { compact: true },
+      attributionControl: false,
     });
-    map.addControl(new maplibregl.ScaleControl(), "bottom-right");
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
+    map.addControl(new maplibregl.ScaleControl(), "bottom-left"); // 出典と縦積み。右下だと展開した出典と重なる
     map.addControl(compassRef.current, "top-right");
     map.on("style.load", () => applyStyleExtras(map, dataRef.current));
     map.on("click", (e) => {

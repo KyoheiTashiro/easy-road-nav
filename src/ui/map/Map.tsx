@@ -1,8 +1,8 @@
 import * as stylex from "@stylexjs/stylex";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/ui/map/maplibre.css";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { NavState } from "@/model/progress.ts";
 import { MAX_VIAS, ROLE, type LatLng, type Point } from "@/model/point.ts";
@@ -25,6 +25,7 @@ import {
   homeMarkerElement,
   markerElement,
   routeFeatures,
+  setSourceData,
 } from "@/ui/map/mapLayers.ts";
 import { PointPopup } from "@/ui/map/PointPopup.tsx";
 import { HomeIcon } from "@/ui/icons/index.tsx";
@@ -119,9 +120,8 @@ export function Map() {
       alt: altFeatures(routes, selected),
     };
     dataRef.current = { ...dataRef.current, ...data };
-    const map = mapRef.current;
-    (map?.getSource("route") as GeoJSONSource | undefined)?.setData(data.route);
-    (map?.getSource("alt") as GeoJSONSource | undefined)?.setData(data.alt);
+    setSourceData(mapRef.current, "route", data.route);
+    setSourceData(mapRef.current, "alt", data.alt);
   }, [routes, selected]);
 
   // 現在地。初回 fix で URL に地点が無ければ easeTo（あれば探索後の fitBounds が優先）
@@ -129,7 +129,7 @@ export function Map() {
     const data = fixFeatures(fix);
     dataRef.current = { ...dataRef.current, fix: data };
     const map = mapRef.current;
-    (map?.getSource("fix") as GeoJSONSource | undefined)?.setData(data);
+    setSourceData(map, "fix", data);
     if (map && fix && !easedToFix.current) {
       easedToFix.current = true;
       if (!URL_HAD_POINTS) map.easeTo({ center: fix, zoom: 15 });
@@ -264,25 +264,30 @@ export function Map() {
     if (fitVersion > 0) fitSelected();
   }, [fitVersion]);
 
-  const popupContent = popup ? (
-    <PointPopup
-      mode={mode === MODE.HOME ? MODE.HOME : MODE.EDIT}
-      label={popup.label}
-      canAddVia={vias.length < MAX_VIAS}
-      onAction={tripActions.popupActionTaken}
-      onHome={tripActions.popupHomeTaken}
-    />
-  ) : markerPopup ? (
-    <button
-      {...stylex.props(button.base, button.danger)}
-      onClick={() => {
-        setMarkerPopup(null);
-        markerPopup.onDelete();
-      }}
-    >
-      削除
-    </button>
-  ) : null;
+  let popupContent: ReactNode = null;
+  if (popup) {
+    popupContent = (
+      <PointPopup
+        mode={mode === MODE.HOME ? MODE.HOME : MODE.EDIT}
+        label={popup.label}
+        canAddVia={vias.length < MAX_VIAS}
+        onAction={tripActions.popupActionTaken}
+        onHome={tripActions.popupHomeTaken}
+      />
+    );
+  } else if (markerPopup) {
+    popupContent = (
+      <button
+        {...stylex.props(button.base, button.danger)}
+        onClick={() => {
+          setMarkerPopup(null);
+          markerPopup.onDelete();
+        }}
+      >
+        削除
+      </button>
+    );
+  }
 
   return (
     <>

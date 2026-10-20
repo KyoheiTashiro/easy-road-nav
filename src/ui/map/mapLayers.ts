@@ -1,6 +1,6 @@
 // Map の React 非依存部分: タイルスタイル、マーカー DOM、GeoJSON 生成、source / layer 定義
 import * as stylex from "@stylexjs/stylex";
-import maplibregl, { type LngLatBoundsLike } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-gl";
 import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
 import type { Fix } from "@/model/point.ts";
 import { ROAD_KIND, type RouteModel } from "@/model/route.ts";
@@ -102,6 +102,11 @@ export function altFeatures(routes: RouteModel[], selected: number): FC {
   };
 }
 
+/** geojson source のデータ差し替え。map 未生成・source 未作成なら何もしない */
+export function setSourceData(map: maplibregl.Map | null, id: string, data: FC | FixFC): void {
+  (map?.getSource(id) as GeoJSONSource | undefined)?.setData(data);
+}
+
 export function bounds(route: RouteModel): LngLatBoundsLike {
   const b = new maplibregl.LngLatBounds();
   for (const p of route.points) b.extend(p);
@@ -113,6 +118,7 @@ export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC
   const layers = map.getStyle().layers;
   for (const l of layers) {
     const tf = l.type === "symbol" ? l.layout?.["text-field"] : undefined;
+    // ref（道路番号）を出す層は地名ではないので触らない
     if (tf === undefined || JSON.stringify(tf).includes('"ref"')) continue;
     map.setLayoutProperty(l.id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]]);
   }

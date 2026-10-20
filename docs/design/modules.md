@@ -369,7 +369,7 @@ export function Map(): JSX.Element;
 
 ## `src/ui/map/mapLayers.ts`
 
-`Map` の React 非依存部分。タイルスタイル URL（light / dark）、マーカー色、マーカー DOM（`markerElement` `homeMarkerElement`）、GeoJSON 生成（`fixFeatures` `routeFeatures` `altFeatures`）、`bounds`、`applyStyleExtras`（ラベルの `name:ja` 上書き + 経路・代替・現在地の source / layer。`style.load` のたびに呼ぶ）。`maplibre-gl` を import するので vitest の対象外。
+`Map` の React 非依存部分。タイルスタイル URL（light / dark）、マーカー DOM（色は `tokens.stylex.ts` の `marker`）（`markerElement` `homeMarkerElement`）、GeoJSON 生成（`fixFeatures` `routeFeatures` `altFeatures`）、`bounds`、`applyStyleExtras`（ラベルの `name:ja` 上書き + 経路・代替・現在地の source / layer。`style.load` のたびに呼ぶ）。`maplibre-gl` を import するので vitest の対象外。
 
 同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置、コンパス画像 `ui/icons/compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
 
@@ -468,6 +468,8 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ。`layou
 ## `src/ui/tokens.stylex.ts`
 
 `defineVars` で色トークン。ライト値 + `@media (prefers-color-scheme: dark)` のダーク値。経路線の色（青・オレンジ）は MapLibre 側なのでここに置かない。
+
+`defineConsts` で `marker`（`from` 緑 / `via` 青 / `to` 赤。ライト / ダーク共通）。地図の DOM マーカーとボトムシートの地点リストで共有。
 
 ## `src/ui/layout.stylex.ts`
 

@@ -11,8 +11,6 @@ export const STYLE = {
 export const DARK_MQ = "(prefers-color-scheme: dark)";
 export const TOKYO_STATION: [number, number] = [139.7671, 35.6812];
 
-export const MARKER_COLOR = { from: "#188038", to: "#d93025", via: "#1a73e8" };
-
 const styles = stylex.create({
   marker: {
     width: 26,

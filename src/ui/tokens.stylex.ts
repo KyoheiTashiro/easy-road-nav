@@ -11,3 +11,6 @@ export const colors = stylex.defineVars({
   narrow: { default: "#e8710a", [DARK]: "#f5a04a" },
   danger: { default: "#d93025", [DARK]: "#f28b82" },
 });
+
+/** 地点マーカーと地点リストで共有する役割色。ライト / ダーク共通 */
+export const marker = stylex.defineConsts({ from: "#188038", to: "#d93025", via: "#1a73e8" });

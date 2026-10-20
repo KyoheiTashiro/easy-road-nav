@@ -11,11 +11,11 @@ import { useSaved } from "@/store/saved.ts";
 import { MODE, URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { layout } from "@/ui/layout.stylex.ts";
+import { marker } from "@/ui/tokens.stylex.ts";
 import {
   DARK_MQ,
   EMPTY,
   EMPTY_FIX,
-  MARKER_COLOR,
   STYLE,
   TOKYO_STATION,
   altFeatures,
@@ -143,14 +143,14 @@ export function Map() {
     if (from)
       specs.push({
         p: from,
-        color: MARKER_COLOR.from,
+        color: marker.from,
         text: "",
         onDelete: () => tripActions.pointDeleted(ROLE.FROM),
       });
     vias.forEach((p, i) =>
       specs.push({
         p,
-        color: MARKER_COLOR.via,
+        color: marker.via,
         text: String(i + 1),
         onDelete: () => tripActions.viaDeleted(i),
       }),
@@ -158,7 +158,7 @@ export function Map() {
     if (to)
       specs.push({
         p: to,
-        color: MARKER_COLOR.to,
+        color: marker.to,
         text: "",
         onDelete: () => tripActions.pointDeleted(ROLE.TO),
       });

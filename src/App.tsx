@@ -4,7 +4,7 @@ import { useRouteSearch } from "@/hooks/useRouteSearch.ts";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck.ts";
 import { useUrlSync } from "@/hooks/useUrlSync.ts";
 import { useWakeLock } from "@/hooks/useWakeLock.ts";
-import { useTrip } from "@/store/trip.ts";
+import { MODE, useTrip } from "@/store/trip.ts";
 import { BottomSheet } from "@/ui/edit/BottomSheet.tsx";
 import { Map } from "@/ui/map/Map.tsx";
 import { NavBar } from "@/ui/nav/NavBar.tsx";
@@ -19,13 +19,13 @@ export default function App() {
   useReverseGeocode();
   useUrlSync();
   const mode = useTrip((s) => s.mode);
-  useWakeLock(mode === "nav");
-  useUpdateCheck(mode === "nav");
+  useWakeLock(mode === MODE.NAV);
+  useUpdateCheck(mode === MODE.NAV);
 
   return (
     <>
       <Map />
-      {mode === "nav" ? (
+      {mode === MODE.NAV ? (
         <>
           <NavHud />
           <NavBar />
@@ -33,7 +33,7 @@ export default function App() {
       ) : (
         <>
           <SearchBox key={mode} /> {/* モード切替で入力 state を捨てる */}
-          {mode === "edit" && <BottomSheet />}
+          {mode === MODE.EDIT && <BottomSheet />}
         </>
       )}
       <Toast />

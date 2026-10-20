@@ -5,10 +5,10 @@ import "@/ui/map/maplibre.css";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NavState } from "@/model/progress.ts";
-import { MAX_VIAS, type LatLng, type Point, type PointRole } from "@/model/point.ts";
+import { MAX_VIAS, ROLE, type LatLng, type Point } from "@/model/point.ts";
 import { navActions, useNav } from "@/store/nav.ts";
 import { useSaved } from "@/store/saved.ts";
-import { URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
+import { MODE, URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { layout } from "@/ui/layout.stylex.ts";
 import {
@@ -49,7 +49,7 @@ export function Map() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   // マーカータップで開く「削除」ポップアップ（地点ポップアップとは排他）
-  const [markerPopup, setMarkerPopup] = useState<{ p: LatLng; role: PointRole } | null>(null);
+  const [markerPopup, setMarkerPopup] = useState<{ p: LatLng; onDelete: () => void } | null>(null);
   const [popupDiv] = useState(() => document.createElement("div"));
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -66,15 +66,15 @@ export function Map() {
 
   // 一度だけ登録する map イベントから最新の mode を読む
   const onMapClick = useEffectEvent((p: LatLng) => {
-    if (mode === "nav") return;
+    if (mode === MODE.NAV) return;
     setMarkerPopup(null);
     tripActions.popupOpened(p);
   });
   const onMapDragStart = useEffectEvent(() => {
-    if (mode === "nav") navActions.setFollow(false);
+    if (mode === MODE.NAV) navActions.setFollow(false);
   });
   const onMapZoomEnd = useEffectEvent((zoom: number) => {
-    if (mode === "nav") navActions.setZoom(zoom);
+    if (mode === MODE.NAV) navActions.setZoom(zoom);
   });
 
   useEffect(() => {
@@ -141,17 +141,34 @@ export function Map() {
     const map = mapRef.current;
     if (!map) return;
     for (const m of markersRef.current) m.remove();
-    const specs: { p: Point; color: string; text: string; role: PointRole }[] = [];
-    if (from) specs.push({ p: from, color: MARKER_COLOR.from, text: "", role: "from" });
+    const specs: { p: Point; color: string; text: string; onDelete: () => void }[] = [];
+    if (from)
+      specs.push({
+        p: from,
+        color: MARKER_COLOR.from,
+        text: "",
+        onDelete: () => tripActions.pointDeleted(ROLE.FROM),
+      });
     vias.forEach((p, i) =>
-      specs.push({ p, color: MARKER_COLOR.via, text: String(i + 1), role: { via: i } }),
+      specs.push({
+        p,
+        color: MARKER_COLOR.via,
+        text: String(i + 1),
+        onDelete: () => tripActions.viaDeleted(i),
+      }),
     );
-    if (to) specs.push({ p: to, color: MARKER_COLOR.to, text: "", role: "to" });
-    markersRef.current = specs.map(({ p, color, text, role }) =>
+    if (to)
+      specs.push({
+        p: to,
+        color: MARKER_COLOR.to,
+        text: "",
+        onDelete: () => tripActions.pointDeleted(ROLE.TO),
+      });
+    markersRef.current = specs.map(({ p, color, text, onDelete }) =>
       new maplibregl.Marker({
         element: markerElement(color, text, () => {
           tripActions.popupClosed();
-          setMarkerPopup({ p, role });
+          setMarkerPopup({ p, onDelete });
         }),
       })
         .setLngLat(p)
@@ -198,7 +215,7 @@ export function Map() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (mode === "nav") {
+    if (mode === MODE.NAV) {
       map.touchZoomRotate.disableRotation();
       map.touchPitch.disable();
       map.dragRotate.disable();
@@ -215,7 +232,7 @@ export function Map() {
       if (!map.hasControl(compassRef.current)) map.addControl(compassRef.current, "top-right");
       map.jumpTo({ bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
     }
-    if (mode === "home") easeToHome(map);
+    if (mode === MODE.HOME) easeToHome(map);
   }, [mode]);
 
   // 追従: nav が更新されるたび（= 受理した fix ごと・follow/zoom 変更）に easeTo。heading null なら bearing 据え置き。
@@ -231,7 +248,7 @@ export function Map() {
   });
   useEffect(() => {
     const map = mapRef.current;
-    if (map && mode === "nav" && nav?.follow) followFix(map, nav);
+    if (map && mode === MODE.NAV && nav?.follow) followFix(map, nav);
   }, [nav, mode]);
 
   // 選択経路に fitBounds。selected は意図的に依存にしない: 代替切替でカメラを動かさない（ui.md「探索」）
@@ -249,18 +266,18 @@ export function Map() {
 
   const popupContent = popup ? (
     <PointPopup
-      mode={mode === "home" ? "home" : "edit"}
+      mode={mode === MODE.HOME ? MODE.HOME : MODE.EDIT}
       label={popup.label}
       canAddVia={vias.length < MAX_VIAS}
       onAction={tripActions.popupActionTaken}
+      onHome={tripActions.popupHomeTaken}
     />
   ) : markerPopup ? (
     <button
       {...stylex.props(button.base, button.danger)}
       onClick={() => {
-        const { role } = markerPopup;
         setMarkerPopup(null);
-        tripActions.pointDeleted(role);
+        markerPopup.onDelete();
       }}
     >
       削除

@@ -14,7 +14,14 @@ import type { Fix, Point } from "@/model/point.ts";
 import type { Instruction, RouteModel } from "@/model/route.ts";
 import * as speech from "@/api/speech.ts";
 import { showToast } from "@/store/toast.ts";
-import { getTrip, selectNarrow, selectProfile, selectRoute, tripActions } from "@/store/trip.ts";
+import {
+  MODE,
+  getTrip,
+  selectNarrow,
+  selectProfile,
+  selectRoute,
+  tripActions,
+} from "@/store/trip.ts";
 
 /** ナビ開始時の zoom（nav.md「カメラ」） */
 export const NAV_ZOOM = 17;
@@ -87,7 +94,7 @@ async function reroute(state: NavState, f: Fix) {
   } catch {
     // r undefined
   }
-  if (getTrip().mode !== "nav") return; // 応答前に終了・到着
+  if (getTrip().mode !== MODE.NAV) return; // 応答前に終了・到着
   if (!r) {
     showToast("経路を再探索できません");
     // 旧経路で継続、次の連続外れで再試行
@@ -142,7 +149,7 @@ export const navActions = {
     const { nav } = getNav();
     const t = getTrip();
     const route = selectRoute(t);
-    if (t.mode !== "nav" || !nav || !route) return;
+    if (t.mode !== MODE.NAV || !nav || !route) return;
     const r = step(route, selectNarrow(t), nav, fix);
     set({ nav: r.state });
     dispatch(r.events, r.state, fix);

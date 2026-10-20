@@ -3,7 +3,7 @@ import * as stylex from "@stylexjs/stylex";
 import maplibregl, { type LngLatBoundsLike } from "maplibre-gl";
 import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
 import type { Fix } from "@/model/point.ts";
-import type { RouteModel } from "@/model/route.ts";
+import { ROAD_KIND, type RouteModel } from "@/model/route.ts";
 
 export const STYLE = {
   light: "https://tiles.openfreemap.org/styles/liberty",
@@ -135,7 +135,7 @@ export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC
       id: "route-wide",
       type: "line",
       source: "route",
-      filter: ["==", ["get", "kind"], "wide"],
+      filter: ["==", ["get", "kind"], ROAD_KIND.WIDE],
       layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": "#1a73e8", "line-width": 6 },
     },
@@ -146,7 +146,7 @@ export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC
       id: "route-narrow",
       type: "line",
       source: "route",
-      filter: ["!=", ["get", "kind"], "wide"],
+      filter: ["!=", ["get", "kind"], ROAD_KIND.WIDE],
       layout: { "line-join": "round" },
       paint: { "line-color": "#e8710a", "line-width": 8, "line-dasharray": [1.5, 1.2] },
     },

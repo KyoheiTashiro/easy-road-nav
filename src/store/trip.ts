@@ -1,8 +1,16 @@
 import { create } from "zustand";
-import type { Profile } from "@/api/graphhopper.ts";
+import { PROFILE, type Profile } from "@/api/graphhopper.ts";
 import { reverseGeocode } from "@/api/gsi.ts";
 import { narrowSegments, type NarrowSegment } from "@/model/narrow.ts";
-import type { Fix, LatLng, Point, PointRole } from "@/model/point.ts";
+import {
+  ROLE,
+  type Fix,
+  type LatLng,
+  type PickRole,
+  type Point,
+  type PointRole,
+  type Slot,
+} from "@/model/point.ts";
 import type { RouteModel } from "@/model/route.ts";
 import { parseQuery } from "@/model/url.ts";
 import { savedActions } from "@/store/saved.ts";
@@ -14,7 +22,8 @@ const INIT = parseQuery(typeof location === "undefined" ? "" : location.search);
 /** 初回 fix のカメラ（Map）: URL に地点が無ければ現在地へ easeTo。あれば探索後の fitBounds が優先 */
 export const URL_HAD_POINTS = INIT.from !== null || INIT.to !== null;
 
-export type Mode = "edit" | "nav" | "home";
+export const MODE = { EDIT: "edit", NAV: "nav", HOME: "home" } as const;
+export type Mode = (typeof MODE)[keyof typeof MODE];
 export type Popup = { p: LatLng; label: string | null };
 type Result = { key: string; routes: RouteModel[]; narrows: NarrowSegment[][] };
 
@@ -40,7 +49,7 @@ export type TripState = {
 const unlabeled = (p: LatLng | null): Point | null => p && { lat: p.lat, lng: p.lng, label: null };
 
 const useStore = create<TripState>(() => ({
-  mode: "edit",
+  mode: MODE.EDIT,
   from: unlabeled(INIT.from),
   to: unlabeled(INIT.to),
   vias: INIT.vias.map((p) => ({ ...p, label: null })),
@@ -78,7 +87,7 @@ const complete = (s: TripState) => s.from !== null && s.to !== null;
 export const selectPointsKey = (s: TripState): string => keyOf([s.from, ...s.vias, s.to]);
 export const selectReqKey = (s: TripState): string =>
   selectPointsKey(s) + (s.notoll ? NOTOLL_SUFFIX : "");
-export const selectProfile = (s: TripState): Profile => (s.notoll ? "car_notoll" : "car");
+export const selectProfile = (s: TripState): Profile => (s.notoll ? PROFILE.NOTOLL : PROFILE.CAR);
 /** 地点が揃い result.key === reqKey のときだけ結果。地点欠けで即空、探索中は旧結果を出さない */
 function current(s: TripState): Result | null {
   const r = s.result;
@@ -116,23 +125,17 @@ function withPoints(s: TripState, patch: Partial<TripState>): Partial<TripState>
 }
 
 export const tripActions = {
-  pointSet(role: "from" | "to", p: LatLng, label: string | null): void {
+  pointSet(role: Slot, p: LatLng, label: string | null): void {
     set((s) => withPoints(s, { [role]: { lat: p.lat, lng: p.lng, label } }));
   },
   viaAdded(p: Point): void {
     set((s) => withPoints(s, { vias: [...s.vias, p] }));
   },
-  pointDeleted(role: PointRole): void {
-    set((s) =>
-      withPoints(
-        s,
-        role === "from"
-          ? { from: null }
-          : role === "to"
-            ? { to: null }
-            : { vias: s.vias.filter((_, i) => i !== role.via) },
-      ),
-    );
+  pointDeleted(role: Slot): void {
+    set((s) => withPoints(s, { [role]: null }));
+  },
+  viaDeleted(i: number): void {
+    set((s) => withPoints(s, { vias: s.vias.filter((_, k) => k !== i) }));
   },
   viaMoved(i: number, dir: -1 | 1): void {
     set((s) => {
@@ -202,21 +205,22 @@ export const tripActions = {
   popupClosed(): void {
     set({ popup: null });
   },
-  popupActionTaken(role: "from" | "to" | "via" | "home"): void {
+  popupActionTaken(role: PointRole): void {
     const { popup } = getTrip();
     if (!popup) return;
-    if (role === "home") {
-      if (popup.label !== null) tripActions.homeChosen(popup.p, popup.label);
-      return;
-    }
     const pt: Point = { lat: popup.p.lat, lng: popup.p.lng, label: popup.label };
-    if (role === "via") tripActions.viaAdded(pt);
+    if (role === ROLE.VIA) tripActions.viaAdded(pt);
     else tripActions.pointSet(role, pt, pt.label);
     set({ popup: null });
   },
+  /** ポップアップ「自宅にする」。label 未確定（逆ジオ中）なら何もしない */
+  popupHomeTaken(): void {
+    const { popup } = getTrip();
+    if (popup && popup.label !== null) tripActions.homeChosen(popup.p, popup.label);
+  },
   /** 検索欄の候補。home モードの「現在地」は label 未確定 → ポップアップで逆ジオを待ち「自宅にする」で確定 */
-  searchPicked(role: "from" | "to" | "home", p: LatLng, label: string | null): void {
-    if (role !== "home") tripActions.pointSet(role, p, label);
+  searchPicked(role: PickRole, p: LatLng, label: string | null): void {
+    if (role !== ROLE.HOME) tripActions.pointSet(role, p, label);
     else if (label === null) tripActions.popupOpened(p);
     else tripActions.homeChosen(p, label);
   },
@@ -224,13 +228,13 @@ export const tripActions = {
   homeChosen(p: LatLng, label: string): void {
     savedActions.homeSaved({ lat: p.lat, lng: p.lng, label });
     showToast("自宅を登録しました");
-    set({ popup: null, mode: "edit" });
+    set({ popup: null, mode: MODE.EDIT });
   },
   homeSetupEntered(): void {
-    set({ popup: null, sheetExpanded: false, mode: "home" });
+    set({ popup: null, sheetExpanded: false, mode: MODE.HOME });
   },
   editReturned(): void {
-    set({ popup: null, mode: "edit" });
+    set({ popup: null, mode: MODE.EDIT });
   },
   setSheet(sheetExpanded: boolean): void {
     set({ sheetExpanded });
@@ -247,7 +251,7 @@ export const tripActions = {
         popup: null,
         sheetExpanded: false,
         passedVia: 0,
-        mode: "nav",
+        mode: MODE.NAV,
       };
     });
   },
@@ -257,7 +261,7 @@ export const tripActions = {
   },
   navEnded(passedInNav: number): void {
     set((s) => ({
-      mode: "edit",
+      mode: MODE.EDIT,
       passedVia: s.passedVia + passedInNav, // 編集モードの「通過済」表示用
       fitVersion: s.fitVersion + 1,
     }));

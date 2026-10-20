@@ -1,7 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { useEffect } from "react";
 import { clearToast, useToast } from "@/store/toast.ts";
-import { useTrip } from "@/store/trip.ts";
+import { MODE, useTrip } from "@/store/trip.ts";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
 
@@ -27,7 +27,7 @@ const styles = stylex.create({
 /** 1 つだけ。4 秒で消去。ナビ中は HUD の下に出す */
 export function Toast() {
   const message = useToast();
-  const navMode = useTrip((s) => s.mode === "nav");
+  const navMode = useTrip((s) => s.mode === MODE.NAV);
   useEffect(() => {
     if (!message) return;
     const t = setTimeout(clearToast, 4000);

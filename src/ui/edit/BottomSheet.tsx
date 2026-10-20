@@ -1,6 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 import { useRef } from "react";
-import type { Point } from "@/model/point.ts";
+import { ROLE, type Point } from "@/model/point.ts";
 import { navActions, useNav } from "@/store/nav.ts";
 import { useSaved } from "@/store/saved.ts";
 import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
@@ -170,14 +170,14 @@ export function BottomSheet() {
       </div>
       <div ref={body} {...stylex.props(styles.body)}>
         <ul {...stylex.props(styles.list)}>
-          <Row role="出発地" p={from} onDelete={() => tripActions.pointDeleted("from")} />
+          <Row role="出発地" p={from} onDelete={() => tripActions.pointDeleted(ROLE.FROM)} />
           {vias.map((v, i) => (
             <Row
               key={i}
               role={`経由地 ${i + 1}`}
               p={v}
               passed={i < passedVia}
-              onDelete={() => tripActions.pointDeleted({ via: i })}
+              onDelete={() => tripActions.viaDeleted(i)}
             >
               <button
                 {...stylex.props(button.base, button.icon)}
@@ -197,7 +197,7 @@ export function BottomSheet() {
               </button>
             </Row>
           ))}
-          <Row role="到着地" p={to} onDelete={() => tripActions.pointDeleted("to")} />
+          <Row role="到着地" p={to} onDelete={() => tripActions.pointDeleted(ROLE.TO)} />
         </ul>
         <label {...stylex.props(styles.toggle)}>
           <input

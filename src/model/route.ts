@@ -1,8 +1,10 @@
 import { bearing, haversine, projectToSegment } from "@/model/geo.ts";
 import type { LatLng } from "@/model/point.ts";
 
-export type RoadKind = "wide" | "narrow" | "forbidden";
-export type TollValue = "no" | "all" | "hgv";
+export const ROAD_KIND = { WIDE: "wide", NARROW: "narrow", FORBIDDEN: "forbidden" } as const;
+export type RoadKind = (typeof ROAD_KIND)[keyof typeof ROAD_KIND];
+export const TOLL = { NO: "no", ALL: "all", HGV: "hgv" } as const;
+export type TollValue = (typeof TOLL)[keyof typeof TOLL];
 
 export type RouteModel = {
   points: [number, number][]; // [lng, lat]
@@ -57,9 +59,9 @@ export const FORK_ANGLE = 45;
 const WIDE = new Set(["motorway", "trunk", "primary", "secondary", "tertiary"]);
 
 function roadKind(cls: string): RoadKind {
-  if (WIDE.has(cls)) return "wide";
-  if (cls === "track") return "forbidden";
-  return "narrow";
+  if (WIDE.has(cls)) return ROAD_KIND.WIDE;
+  if (cls === "track") return ROAD_KIND.FORBIDDEN;
+  return ROAD_KIND.NARROW;
 }
 
 function toLatLng([lng, lat]: [number, number]): LatLng {
@@ -166,6 +168,6 @@ export function segmentBearing(route: RouteModel, i: number): number {
 /** toll.value == "all" の合計 m */
 export function tollDistance(route: RouteModel): number {
   return route.toll
-    .filter((t) => t.value === "all")
+    .filter((t) => t.value === TOLL.ALL)
     .reduce((sum, t) => sum + route.cum[t.to]! - route.cum[t.from]!, 0);
 }

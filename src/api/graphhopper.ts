@@ -1,7 +1,8 @@
 import type { LatLng } from "@/model/point.ts";
 import { fromGhPath, type GhPath, type RouteModel } from "@/model/route.ts";
 
-export type Profile = "car" | "car_notoll";
+export const PROFILE = { CAR: "car", NOTOLL: "car_notoll" } as const;
+export type Profile = (typeof PROFILE)[keyof typeof PROFILE];
 
 /** 400 の message（"Cannot find point" 等）。ネットワーク不達は fetch の TypeError のまま */
 export class RouteError extends Error {}

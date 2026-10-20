@@ -1,4 +1,4 @@
-import type { Instruction, RouteModel } from "@/model/route.ts";
+import { ROAD_KIND, type Instruction, type RouteModel } from "@/model/route.ts";
 
 export type NarrowSegment = {
   from: number;
@@ -18,7 +18,7 @@ export function narrowSegments(
   const n = route.points.length;
   const merged: { from: number; to: number }[] = [];
   for (const seg of route.roadClass) {
-    if (seg.kind === "wide") continue;
+    if (seg.kind === ROAD_KIND.WIDE) continue;
     const last = merged.at(-1);
     if (last && cum[seg.from]! - cum[last.to]! < mergeBelow) last.to = seg.to;
     else merged.push({ from: seg.from, to: seg.to });

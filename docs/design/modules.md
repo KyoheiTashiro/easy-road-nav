@@ -13,7 +13,10 @@
 export type LatLng = { lat: number; lng: number };
 export type Fix = LatLng & { accuracy: number; t: number }; // t = position.timestamp
 export type Point = LatLng & { label: string | null }; // label null = 逆ジオ中
-export type PointRole = "from" | "to" | { via: number }; // マーカー削除・地点リスト操作の対象
+export const ROLE = { FROM: "from", TO: "to", VIA: "via", HOME: "home" } as const;
+export type Slot = typeof ROLE.FROM | typeof ROLE.TO; // 出発地 / 到着地
+export type PointRole = Slot | typeof ROLE.VIA; // 地図ポップアップの地点指定
+export type PickRole = Slot | typeof ROLE.HOME; // 検索欄の種類
 export type SavedPoint = LatLng & { label: string }; // 自宅・検索履歴・検索候補。label 確定済みのみ
 export const MAX_VIAS = 5; // 経由地の上限（CONTEXT.md）
 ```
@@ -38,7 +41,8 @@ export const savedActions: {
 ## `src/api/graphhopper.ts`
 
 ```ts
-export type Profile = "car" | "car_notoll";
+export const PROFILE = { CAR: "car", NOTOLL: "car_notoll" } as const;
+export type Profile = (typeof PROFILE)[keyof typeof PROFILE];
 export class RouteError extends Error {} // 400 の message（"Cannot find point" 等）。ネットワーク不達は fetch の TypeError のまま
 
 export function fetchRoute(
@@ -262,9 +266,10 @@ export const selectNarrow: (s) => NarrowSegment[];
 
 export const tripActions: {
   // 地点（いずれも passedVia 0、地点が欠けたら fittedKey を空にして次に揃ったとき fitBounds）
-  pointSet(role: "from" | "to", p: LatLng, label: string | null): void;
+  pointSet(role: Slot, p: LatLng, label: string | null): void;
   viaAdded(p: Point): void;
-  pointDeleted(role: PointRole): void;
+  pointDeleted(role: Slot): void;
+  viaDeleted(i: number): void;
   viaMoved(i: number, dir: -1 | 1): void;
   notollToggled(v: boolean): void;
   // 探索（useRouteSearch）
@@ -279,9 +284,10 @@ export const tripActions: {
   // 地図タップ・ポップアップ
   popupOpened(p: LatLng): void; // edit / home モードのみ。label は逆ジオ後に入る
   popupClosed(): void;
-  popupActionTaken(role: "from" | "to" | "via" | "home"): void;
+  popupActionTaken(role: PointRole): void;
+  popupHomeTaken(): void; // 「自宅にする」。label 未確定（逆ジオ中）なら何もしない
   // 検索・自宅
-  searchPicked(role: "from" | "to" | "home", p: LatLng, label: string | null): void; // home かつ label null（現在地）は popupOpened で逆ジオを待つ
+  searchPicked(role: PickRole, p: LatLng, label: string | null): void; // home かつ label null（現在地）は popupOpened で逆ジオを待つ
   homeChosen(p: LatLng, label: string): void; // savedActions.homeSaved → トースト「自宅を登録しました」→ mode edit
   homeSetupEntered(): void; // mode home、popup null
   editReturned(): void;
@@ -338,7 +344,7 @@ Effect はここにだけ書く。いずれも引数なし・戻り値なしで�
 
 ## `src/ui/map/Map.tsx`
 
-props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup`、nav store から `nav`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `pointDeleted` `viaAdded`）と `navActions`（`setFollow` `setZoom`）。
+props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup`、nav store から `nav`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `popupHomeTaken` `pointDeleted` `viaDeleted` `viaAdded`）と `navActions`（`setFollow` `setZoom`）。
 
 ```ts
 export const NAV_PITCH = 50; // ナビ中の pitch（ナビ開始の jumpTo）
@@ -390,10 +396,11 @@ IME 変換確定の Enter は入力欄の `onKeyDown` で `e.nativeEvent.isCompo
 
 ```ts
 type PointPopupProps = {
-  mode: "edit" | "home";
+  mode: typeof MODE.EDIT | typeof MODE.HOME;
   label: string | null;
   canAddVia: boolean;
-  onAction(role: "from" | "to" | "via" | "home"): void;
+  onAction(role: PointRole): void;
+  onHome(): void; // home モードの「自宅にする」
 };
 ```
 
@@ -401,7 +408,7 @@ type PointPopupProps = {
 
 ## `src/ui/edit/BottomSheet.tsx`
 
-props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、nav store の `starting`、saved store の `home`。`loading` = `selectLoading || starting`、`canStart` = fix あり かつ gpsError でない かつ routes あり かつ `!starting`。操作: スワイプ → `setSheet`、× → `pointDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、「自宅を設定」/「変更」→ `homeSetupEntered`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
+props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、nav store の `starting`、saved store の `home`。`loading` = `selectLoading || starting`、`canStart` = fix あり かつ gpsError でない かつ routes あり かつ `!starting`。操作: スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、「自宅を設定」/「変更」→ `homeSetupEntered`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
 
 内部に地点リスト（別ファイルにしない）。ピーク = `RouteSummary` + 「案内開始」。展開 = 地点リスト → トグル → 自宅行 → 代替カード → `StepList`。
 
@@ -470,7 +477,7 @@ export const layout = stylex.defineConsts({ peek: 80, navbar: 64, hud: 88, next:
 - 探索: `useRouteSearch`（ui.md「状態」）。`routesLoaded` が `pointsKey` と `fittedKey` を比べて `fitVersion++`
 - 逆ジオ: `useReverseGeocode` → `labelRequested`。重複排除と反映は store
 - ナビ: `navActions.start` → fix ごとに `useGeolocation` が `navActions.onFix` → `dispatch`。リルート・終了・到着は `store/nav.ts`
-- 自宅設定: `homeSetupEntered` → mode home。`home` モードのタップは edit と同じく `popupOpened`。保存は `homeChosen` 1 箇所（`popupActionTaken("home")` と `searchPicked("home", …)` から）。`editReturned` で戻る
+- 自宅設定: `homeSetupEntered` → mode home。`home` モードのタップは edit と同じく `popupOpened`。保存は `homeChosen` 1 箇所（`popupHomeTaken` と `searchPicked(ROLE.HOME, …)` から）。`editReturned` で戻る
 - 検索履歴: SearchBox が `savedActions.historyPushed`。edit・home どちらのモードでも同じ
 
 ## `src/main.tsx`

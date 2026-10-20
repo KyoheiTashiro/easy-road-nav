@@ -1,3 +1,5 @@
+import { ROLE, type Slot } from "@/model/point.ts";
+
 // 方向アイコン。矢印 1 本を sign ごとに回転・反転。U ターン・寄り・ラウンドアバウト・ピンは個別パス
 const ARROW = "M12 20V5m0 0-5 5m5-5 5 5";
 const UTURN = "M8 20V9a4 4 0 0 1 8 0v5m0 0-3-3m3 3 3-3";
@@ -29,10 +31,10 @@ function svgProps(size: number) {
 }
 
 // 出発地 = 白抜き丸、到着地 = ピン
-export function PointIcon({ role, size = 24 }: { role: "from" | "to"; size?: number }) {
+export function PointIcon({ role, size = 24 }: { role: Slot; size?: number }) {
   return (
     <svg {...svgProps(size)}>
-      {role === "from" ? <circle cx={12} cy={12} r={4} /> : <path d={PIN} />}
+      {role === ROLE.FROM ? <circle cx={12} cy={12} r={4} /> : <path d={PIN} />}
     </svg>
   );
 }

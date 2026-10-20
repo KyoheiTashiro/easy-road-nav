@@ -2,10 +2,10 @@ import * as stylex from "@stylexjs/stylex";
 import { useRef, useState } from "react";
 import { searchAddress } from "@/api/gsi.ts";
 import { searchPoi } from "@/api/yahoo.ts";
-import type { LatLng, Point, SavedPoint } from "@/model/point.ts";
+import { ROLE, type LatLng, type PickRole, type Point, type SavedPoint } from "@/model/point.ts";
 import { savedActions, useSaved } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
-import { tripActions, useTrip } from "@/store/trip.ts";
+import { MODE, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { PointIcon } from "@/ui/icons.tsx";
 import { colors } from "@/ui/tokens.stylex.ts";
@@ -76,7 +76,6 @@ const styles = stylex.create({
   },
 });
 
-type Role = "from" | "to" | "home";
 type Result = { q: string; hits: SavedPoint[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
 
 const skipAbort = (e: unknown) => {
@@ -86,13 +85,13 @@ const skipAbort = (e: unknown) => {
 
 /** edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ。App が key={mode} で入力 state を捨てる */
 export function SearchBox() {
-  const mode = useTrip((s) => (s.mode === "home" ? "home" : "edit"));
+  const mode = useTrip((s) => (s.mode === MODE.HOME ? MODE.HOME : MODE.EDIT));
   const from = useTrip((s) => s.from);
   const to = useTrip((s) => s.to);
   const fix = useTrip((s) => (s.gpsError ? null : s.fix)); // 候補「現在地」の表示条件
   const home = useSaved((s) => s.home); // 空欄候補「自宅」（home モードでは出さない）
   const history = useSaved((s) => s.history); // 空欄候補（新しい順）
-  const [active, setActive] = useState<Role | null>(null); // フォーカス中の欄
+  const [active, setActive] = useState<PickRole | null>(null); // フォーカス中の欄
   const [query, setQuery] = useState("");
   const [gsi, setGsi] = useState<Result | null>(null); // 住所検索
   const [poi, setPoi] = useState<Result | null>(null); // 施設名検索
@@ -100,10 +99,10 @@ export function SearchBox() {
   const q = query.trim();
   const gsiHits = active && gsi?.q === q ? gsi.hits : [];
   const poiHits = active && poi?.q === q ? poi.hits : [];
-  const showCurrent = (active === "from" || active === "home") && !!fix;
+  const showCurrent = (active === ROLE.FROM || active === ROLE.HOME) && !!fix;
   // 入力が空のときだけ出す固定候補: 自宅（edit のみ）→ 履歴
   const empty = !!active && q === "";
-  const showHome = empty && active !== "home" && home;
+  const showHome = empty && active !== ROLE.HOME && home;
   const saved = empty ? history : [];
   const showSearchRow = !!active && q !== "" && searched !== q;
   const showList =
@@ -134,24 +133,24 @@ export function SearchBox() {
   }
 
   // label null = 逆ジオへ
-  function pick(role: Role, p: LatLng, label: string | null) {
+  function pick(role: PickRole, p: LatLng, label: string | null) {
     setQuery("");
     setSearched(null);
     setActive(null);
     tripActions.searchPicked(role, p, label);
   }
 
-  function field(role: Role, point: Point | null, name: string) {
+  function field(role: PickRole, point: Point | null, name: string) {
     const focused = active === role;
     return (
       <form
-        {...stylex.props(styles.row, role === "to" && styles.divider)}
+        {...stylex.props(styles.row, role === ROLE.TO && styles.divider)}
         onSubmit={(e) => {
           e.preventDefault();
           search();
         }}
       >
-        {role === "home" ? (
+        {role === ROLE.HOME ? (
           <button
             {...stylex.props(button.base, button.icon, styles.back)}
             onClick={tripActions.editReturned}
@@ -186,7 +185,7 @@ export function SearchBox() {
             }}
             aria-label={name}
           />
-          {!focused && point && role !== "home" && (
+          {!focused && point && role !== ROLE.HOME && (
             <button
               {...stylex.props(button.base, button.icon, styles.clear)}
               onClick={() => tripActions.pointDeleted(role)}
@@ -203,12 +202,12 @@ export function SearchBox() {
   return (
     <div {...stylex.props(styles.box)}>
       <div {...stylex.props(styles.card)}>
-        {mode === "home" ? (
-          field("home", null, "自宅")
+        {mode === MODE.HOME ? (
+          field(ROLE.HOME, null, "自宅")
         ) : (
           <>
-            {field("from", from, "出発地")}
-            {field("to", to, "到着地")}
+            {field(ROLE.FROM, from, "出発地")}
+            {field(ROLE.TO, to, "到着地")}
           </>
         )}
       </div>

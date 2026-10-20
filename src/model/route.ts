@@ -81,9 +81,10 @@ export function fromGhPath(path: GhPath): RouteModel {
     from: ins.interval[0],
     to: ins.interval[1],
     time: ins.time,
-    ...(ins.exit_number == null ? {} : { exitNumber: ins.exit_number }),
+    exitNumber: ins.exit_number,
   }));
-  for (const [k, , x] of path.details.intersection ?? [])
+  // intersection の詳細は [from, to, 交差点]。交差点は頂点 from にある
+  for (const [k, _to, x] of path.details.intersection ?? [])
     addFork(instructions, cum, k, forkSign(x));
   return {
     points,
@@ -110,11 +111,11 @@ function angleDiff(a: number, b: number): number {
 export function forkSign(x: GhIntersection): number {
   const out = x.bearings[x.out]!;
   let sign = 0;
-  let best = FORK_ANGLE + 1;
+  let best = FORK_ANGLE; // 採用済みの最小方位差。初期値 = 分岐とみなす上限
   x.bearings.forEach((b, i) => {
     if (i === x.out || i === x.in || !x.entries[i]) return;
     const d = angleDiff(out, b);
-    if (Math.abs(d) <= Math.min(FORK_ANGLE, best)) {
+    if (Math.abs(d) <= best) {
       best = Math.abs(d);
       sign = d > 0 ? -7 : 7; // 他方が右にある → 自分は左寄り
     }

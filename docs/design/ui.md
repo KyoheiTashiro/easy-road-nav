@@ -34,12 +34,12 @@
 
 ### ボトムシート
 
-2 段（ピーク = `layout.peek`、展開 = 70vh = `layout.half`）。CSS `max-height` transition のみ、ライブラリ不使用。
+2 段（ピーク = `layout.peek`、展開 = 70dvh = `layout.half`）。CSS `max-height` transition のみ、ライブラリ不使用。
 
 開閉の操作:
 
 - タップ: ハンドル（`<button aria-expanded>`）とピーク行の文字部分で切替。「案内開始」はタップ対象外
-- スワイプ: `touchmove` で `max-height` を指に追従（ピーク高〜70vh にクランプ、追従中は transition なし）。`touchend` で縦移動 30px 以上なら方向で確定、未満なら元に戻る。展開中にリストがスクロール済み（`scrollTop > 0`）なら下方向は無視
+- スワイプ: `touchmove` で `max-height` を指に追従（ピーク高〜70dvh にクランプ、追従中は transition なし）。`touchend` で縦移動 30px 以上なら方向で確定、未満なら元に戻る。`touchcancel` でも追従を解除。展開中の上方向はリストのスクロールに任せシートを触らない。リスト内で始めたタッチでリストがスクロール済み（`scrollTop > 0`）なら下方向は無視（ハンドル上なら閉じる）
 - 地図タップ: 展開中は地点ポップアップを開かず収納だけ
 - 再展開は先頭から（展開時に body の `scrollTop` を 0 に）
 - 展開・収納のたびに `fitBounds` し直す（[探索](#探索)）
@@ -118,7 +118,7 @@ MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（�
 - 飛行中リクエストは `AbortController` で中断してから次を投げる。中断はトーストしない
 - ローディング表示: サマリ行にスピナー 1 個
 - 経由地なし → `alternative_route` 最大 3 本、あり → 1 本（[route-model.md](route-model.md) の契約）
-- 新しい経路が返ったら `fitBounds`（下パディング = シートの高さ。収納時はピーク高、展開時は 70vh）。ボトムシートの展開・収納でも fit し直す。代替切替・トグル変更・再探索の結果ではカメラを動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（trip store が `routesLoaded` で地点集合の変化を検知して増やし、Map が `useEffect([fitVersion])` と `useEffect([sheetExpanded])` で fit）
+- 新しい経路が返ったら `fitBounds`（下パディング = シートの高さ。収納時はピーク高、展開時は 70dvh）。ボトムシートの展開・収納でも fit し直す。代替切替・トグル変更・再探索の結果ではカメラを動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（trip store が `routesLoaded` で地点集合の変化を検知して増やし、Map が `useEffect([fitVersion])` と `useEffect([sheetExpanded])` で fit）
 - 失敗（400 / ネットワーク）→ トースト 1 種「経路を探索できません」。経路表示は空にする
 
 ## 経路レイヤー

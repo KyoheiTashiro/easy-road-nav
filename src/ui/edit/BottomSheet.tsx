@@ -30,7 +30,7 @@ const styles = stylex.create({
     transition: "max-height 0.25s ease",
     zIndex: 5,
   },
-  expanded: { maxHeight: `${layout.half}vh` },
+  expanded: { maxHeight: `${layout.half}dvh` }, // vh だと Safari のツールバー表示中に innerHeight とずれ、指追従の終わりで跳ねる
   // ピーク時に body が覗かないよう高さを揃える。ホームインジケータ分は空けず、ボタンをその直上に置く
   header: { flexShrink: 0, minHeight: `${layout.peek}px` },
   handle: {
@@ -188,7 +188,8 @@ export function BottomSheet() {
 
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     touchY.current = e.touches[0]?.clientY ?? 0;
-    touchScrollTop.current = body.current?.scrollTop ?? 0;
+    // ハンドル上の下スワイプはリストがスクロール済みでも閉じる
+    touchScrollTop.current = body.current?.contains(e.target as Node) ? body.current.scrollTop : 0;
     startHeight.current = sheet.current?.getBoundingClientRect().height ?? 0;
   };
   // 指に追従。途中からのスクロールで先頭に戻っても閉じない。先頭にいる状態で始めた下スワイプだけ閉じる
@@ -197,17 +198,22 @@ export function BottomSheet() {
     const el = sheet.current;
     const dy = (e.touches[0]?.clientY ?? touchY.current) - touchY.current;
     if (!el || !dragAllowed(dy)) return;
+    // 展開済みの上スワイプはリストのスクロール。シートの高さを触ると iOS がスクロールを取りこぼす（追従開始後の反転は追従を続ける）
+    if (expanded && dy < 0 && !el.style.maxHeight) return;
     const max = (window.innerHeight * layout.half) / 100;
     const h = Math.min(max, Math.max(layout.peek, startHeight.current - dy));
     el.style.transition = "none";
     el.style.maxHeight = `${h}px`;
   };
-  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+  // 以降は class の max-height へアニメーション。touchcancel（画面端のシステムジェスチャ等）でも戻さないと固着する
+  const resetStyle = () => {
     const el = sheet.current;
-    if (el) {
-      el.style.transition = "";
-      el.style.maxHeight = ""; // 以降は class の max-height へアニメーション
-    }
+    if (!el) return;
+    el.style.transition = "";
+    el.style.maxHeight = "";
+  };
+  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    resetStyle();
     const dy = (e.changedTouches[0]?.clientY ?? touchY.current) - touchY.current;
     if (Math.abs(dy) < SWIPE_PX || !dragAllowed(dy)) return;
     tripActions.setSheet(dy < 0);
@@ -219,6 +225,7 @@ export function BottomSheet() {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      onTouchCancel={resetStyle}
     >
       <div {...stylex.props(styles.header)}>
         <button

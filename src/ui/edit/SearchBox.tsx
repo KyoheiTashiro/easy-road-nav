@@ -221,7 +221,7 @@ export function SearchBox() {
       row(
         "search",
         <button
-          {...stylex.props(button.base, button.ghost, styles.current)}
+          {...stylex.props(button.base, button.ghost)}
           // 入力欄の blur（→ リスト非表示）を防ぐ
           onMouseDown={(e) => e.preventDefault()}
           onClick={search}

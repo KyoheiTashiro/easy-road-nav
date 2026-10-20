@@ -75,7 +75,7 @@ function Stats({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }
       {toll > 0 && <span>有料 {formatKm(toll)}</span>}
       <span {...stylex.props(styles.stat)}>
         <TurnsIcon size={16} />
-        {turnCount(route)}
+        右左折 {turnCount(route)}
       </span>
     </div>
   );

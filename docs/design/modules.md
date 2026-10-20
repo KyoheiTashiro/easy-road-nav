@@ -428,7 +428,7 @@ type RouteSummaryProps = {
 };
 ```
 
-`compact` = ピーク行（選択経路）。表示は `format.ts`。2 行構成を `Main`（所要時間 20px 太字 + 距離 14px。代替カードでは先頭にラベル）と `Stats`（細い道合計 > 0 なら `colors.narrow` 背景のチップ「`NarrowIcon` 細い道 x.x km」、0 なら `colors.ok` 色「細い道なし」/ 有料 x.x km（あれば）/ `TurnsIcon` + 右左折回数）で共有。compact で `loading` か経路なしならスピナー +「探索中…」/「出発地と到着地を設定してください」。`compact=false` は代替カード（`routes.length < 2` なら null。`<button aria-pressed>`、`borderLeftWidth 4`、選択中は `borderColor: accent`）。
+`compact` = ピーク行（選択経路）。表示は `format.ts`。2 行構成を `Main`（所要時間 20px 太字 + 距離 14px。代替カードでは先頭にラベル）と `Stats`（細い道合計 > 0 なら `colors.narrow` 背景のチップ「`NarrowIcon` 細い道 x.x km」、0 なら `colors.ok` 色「細い道なし」/ 有料 x.x km（あれば）/ 「`TurnsIcon` 右左折 n」）で共有。compact で `loading` か経路なしならスピナー +「探索中…」/「出発地と到着地を設定してください」。`compact=false` は代替カード（`routes.length < 2` なら null。`<button aria-pressed>`、`borderLeftWidth 4`、選択中は `borderColor: accent`）。
 
 ## `src/ui/edit/StepList.tsx`
 

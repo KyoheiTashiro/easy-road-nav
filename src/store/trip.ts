@@ -167,8 +167,7 @@ export const tripActions = {
     set({ result: resultOf(reqKey, []) });
   },
   routeSelected(i: number): void {
-    // 別経路に切替 → 地図で確認できるようシートを収納
-    set((s) => ({ selected: i, sheetExpanded: i === s.selected && s.sheetExpanded }));
+    set({ selected: i });
   },
   /** label null の地点を逆ジオ。解決時は座標一致かつ label null の地点だけ更新（配列 identity は不変時維持） */
   labelRequested(p: LatLng): void {

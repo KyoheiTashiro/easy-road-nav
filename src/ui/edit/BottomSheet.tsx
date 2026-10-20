@@ -11,6 +11,7 @@ import { FromIcon, HomeIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors, marker } from "@/ui/tokens.stylex.ts";
 const SWIPE_PX = 30;
+const DRAG_START_PX = 10; // iOS のタップ判定の揺れより大きく
 const DOT = 24;
 
 const styles = stylex.create({
@@ -198,8 +199,8 @@ export function BottomSheet() {
     const el = sheet.current;
     const dy = (e.touches[0]?.clientY ?? touchY.current) - touchY.current;
     if (!el || !dragAllowed(dy)) return;
-    // 展開済みの上スワイプはリストのスクロール。シートの高さを触ると iOS がスクロールを取りこぼす（追従開始後の反転は追従を続ける）
-    if (expanded && dy < 0 && !el.style.maxHeight) return;
+    // 展開済みはリストのスクロールが主。シートの高さを触ると iOS がスクロールもタップも取りこぼす（先頭でタップ時の数 px の揺れでも起きる）ので、閉じ方向へ明確に動くまで触らない（追従開始後の反転は追従を続ける）
+    if (expanded && dy < DRAG_START_PX && !el.style.maxHeight) return;
     const max = (window.innerHeight * layout.half) / 100;
     const h = Math.min(max, Math.max(layout.peek, startHeight.current - dy));
     el.style.transition = "none";

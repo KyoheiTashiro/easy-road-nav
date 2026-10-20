@@ -12,7 +12,7 @@ fetch は `src/api/graphhopper.ts`、変換（`fromGhPath`）・構造・計算�
 - `points_encoded: false` — 座標配列がそのまま返る。デコーダ不要、MapLibre へ直渡し
 - `elevation: false`
 - `instructions: true`, `locale: "ja"`
-- `details: ["road_class", "toll"]`
+- `details: ["road_class", "toll", "intersection"]`
 - `snap_preventions: ["tunnel", "bridge", "ferry"]`
 - `algorithm: "alternative_route"`, `alternative_route.max_paths: 3` — 経由地なしのときのみ。経由地ありは省略（最短 1 本）
 - CH 有効のため `heading` `pass_through` `custom_model` `ch.disable` は送らない
@@ -26,6 +26,7 @@ fetch は `src/api/graphhopper.ts`、変換（`fromGhPath`）・構造・計算�
 - `instructions[]`: `{ text, distance, time, sign, street_name, interval: [from, to] }`。`interval` は P の index 範囲。隣接する指示は端点を共有する（前の `to` = 次の `from`）
 - `details.road_class`: `[from, to, "residential"][]`（値は小文字。custom model の `RESIDENTIAL` と異なる、実応答で確認済み）。P の index 範囲、隣接範囲は端点を共有、経路全体を隙間なく覆う
 - `details.toll`: 同形式。値は `no` | `all` | `hgv`（小文字）
+- `details.intersection`: `[from, to, { bearings, entries, in, out }][]`。頂点 `from` にある交差点の全接続エッジ。`bearings` は交差点から見た方位（昇順）、`entries[i]` は進入可能か（一方通行の逆走は false）、`in` / `out` は来た道・進む道の index（`in` は先頭ノードに無い）。経路の全ノード分（通過点含む）返る
 - `sign == 5`（経由地到達）の指示の `from` が経由地の頂点 index（`interval` は `[k, k]`）。`locale=ja` の `text` は「1で降りる」と不自然（GraphHopper 11 の翻訳）。フロントで「経由地 n」に差し替える
 
 エラー応答は HTTP 400（`message` に `Cannot find point`（地点が道路に吸着できない）、`Connection between locations not found`（経路なし））、またはネットワーク不達。いずれもトースト 1 種で通知、リトライなし。
@@ -55,6 +56,7 @@ type RouteModel = {
 
 - `kind` は CONTEXT.md の分類表で `road_class` 文字列から決める。`forbidden` は custom model で priority 0 なので通常現れないが型として持つ
 - 経路上の位置はすべて「累積距離 s（m）」で表す。案内地点 = `cum[instruction.from]`、細い道区間開始 = `cum[seg.from]`、経由地 = `cum[viaIndex]`、到着地 = `cum[n-1]`
+- 分岐合成（`forkSign` / `addFork`）: GraphHopper は同格の分岐（高架下をくぐる vs 側道へ）で keep 指示を出さないことがある。`intersection` の各ノードで、`out` 以外に進入可能な道（`in` 除く）があり `out` との方位差が「分岐判定角」以下なら分岐。他方が右にあれば `-7`（左寄り）、左なら `7`（右寄り）。そのノードに既に `sign != 0` の指示があれば何もしない。`sign 0` の指示がそこから始まるなら sign・text を書き換え、指示の途中なら 2 つに分割（`time` は距離比で配分）。出発地（頂点 0）は対象外
 - 派生値: 細い道区間（`src/model/narrow.ts`、CONTEXT.md「細い道区間」の生成ルール）、有料距離（`toll.value == "all"` の範囲の `cum[to] - cum[from]` 合計）
 
 ## 幾何計算（`src/model/geo.ts`）

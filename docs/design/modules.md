@@ -116,10 +116,14 @@ export function projectToSegment(p: LatLng, a: LatLng, b: LatLng): { t: number; 
 export type RouteModel = { ... };            // route-model.md の定義そのまま
 export type Instruction = RouteModel["instructions"][number];
 export type GhPath = { ... };                 // GraphHopper paths[] 要素の必要フィールドだけ型定義
+export type GhIntersection = { bearings: number[]; entries: boolean[]; in?: number; out: number };
+export const FORK_ANGLE = 45;                 // 分岐判定角（CONTEXT.md）
 
 export function fromGhPath(path: GhPath): RouteModel;
   // cum: haversine 累積。roadClass: 文字列 → kind（CONTEXT.md の表。BUSWAY・OTHER は narrow、TRACK は forbidden）
   // viaIndices: sign == 5 の from
+  // details.intersection の各ノードに forkSign を適用し、±7 なら指示を書き換え/分割（route-model.md「分岐合成」）
+export function forkSign(x: GhIntersection): number;  // 7（右寄り）/ -7（左寄り）/ 0
 export function nearest(route: RouteModel, p: LatLng): { s: number; distanceToRoute: number; segmentIndex: number };
   // 全線分に projectToSegment、dist 最小を採用。s = cum[i] + t × (cum[i+1] − cum[i])
 export function segmentBearing(route: RouteModel, i: number): number;  // bearing(P[i], P[i+1])
@@ -458,7 +462,11 @@ state は ui.md。追加で:
 const [fitVersion, setFitVersion] = useState(0);
 const [sheetExpanded, setSheetExpanded] = useState(false);
 const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null);
-const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number; next: NextNext | null } | null>(null);
+const [hud, setHud] = useState<{
+  instruction: Instruction | null;
+  remaining: number;
+  next: NextNext | null;
+} | null>(null);
 const [inNarrow, setInNarrow] = useState(false);
 const [passedVia, setPassedVia] = useState(0); // 現在の経路より前に通過した経由地数。リルートで加算、終了時に nav.passedVia を畳む、地点変更・開始で 0
 ```

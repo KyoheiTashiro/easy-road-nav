@@ -42,8 +42,22 @@ export type GhPath = {
     time: number;
     exit_number?: number;
   }[];
-  details: { road_class: [number, number, string][]; toll: [number, number, string][] };
+  details: {
+    road_class: [number, number, string][];
+    toll: [number, number, string][];
+    intersection?: [number, number, GhIntersection][];
+  };
 };
+/** details=intersection の 1 要素。頂点 from にある交差点の全接続エッジ。bearings は昇順、in/out はその index */
+export type GhIntersection = {
+  bearings: number[];
+  entries: boolean[]; // 進入可能か（in エッジと一方通行の逆走は false）
+  in?: number; // 先頭ノードには無い
+  out: number;
+};
+
+/** 分岐判定角（deg、CONTEXT.md）。進む道と別の進入可能な道の方位差がこれ以下なら分岐として「右寄り/左寄り」を合成 */
+export const FORK_ANGLE = 45;
 
 const WIDE = new Set(["motorway", "trunk", "primary", "secondary", "tertiary"]);
 
@@ -72,6 +86,8 @@ export function fromGhPath(path: GhPath): RouteModel {
     time: ins.time,
     ...(ins.exit_number == null ? {} : { exitNumber: ins.exit_number }),
   }));
+  for (const [k, , x] of path.details.intersection ?? [])
+    addFork(instructions, cum, k, forkSign(x));
   return {
     points,
     cum,
@@ -86,6 +102,45 @@ export function fromGhPath(path: GhPath): RouteModel {
     distance: path.distance,
     time: path.time,
   };
+}
+
+/** -180 < d <= 180。正 = b は a の右（時計回り） */
+function angleDiff(a: number, b: number): number {
+  return ((b - a + 540) % 360) - 180;
+}
+
+/** 分岐なら 7（右寄り）/ -7（左寄り）、それ以外 0。GraphHopper が keep を出さない同格の分岐（高架下 vs 側道等）を補う */
+export function forkSign(x: GhIntersection): number {
+  const out = x.bearings[x.out]!;
+  let sign = 0;
+  let best = FORK_ANGLE + 1;
+  x.bearings.forEach((b, i) => {
+    if (i === x.out || i === x.in || !x.entries[i]) return;
+    const d = angleDiff(out, b);
+    if (Math.abs(d) <= Math.min(FORK_ANGLE, best)) {
+      best = Math.abs(d);
+      sign = d > 0 ? -7 : 7; // 他方が右にある → 自分は左寄り
+    }
+  });
+  return sign;
+}
+
+/** 頂点 k に sign ±7 の指示を入れる。既に案内地点（sign != 0）なら何もしない。sign 0 の指示が k から始まるなら書き換え、途中なら分割 */
+function addFork(instructions: Instruction[], cum: number[], k: number, sign: number): void {
+  if (sign === 0 || k === 0) return; // 出発地は案内しない
+  const text = sign > 0 ? "右寄り" : "左寄り";
+  const idx = instructions.findIndex((i) => i.from <= k && k < i.to);
+  const ins = instructions[idx];
+  if (!ins) return;
+  if (ins.from === k) {
+    if (ins.sign === 0) Object.assign(ins, { sign, text });
+    return;
+  }
+  const len = cum[ins.to]! - cum[ins.from]!;
+  const t = len > 0 ? (ins.time * (cum[k]! - cum[ins.from]!)) / len : 0;
+  const tail = { ...ins, sign, text, from: k, time: ins.time - t };
+  delete tail.exitNumber;
+  instructions.splice(idx, 1, { ...ins, to: k, time: t }, tail);
 }
 
 function vertex(route: RouteModel, i: number): LatLng {

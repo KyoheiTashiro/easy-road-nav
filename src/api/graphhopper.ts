@@ -20,7 +20,7 @@ export async function fetchRoute(
     elevation: false,
     instructions: true,
     locale: "ja",
-    details: ["road_class", "toll"],
+    details: ["road_class", "toll", "intersection"], // intersection は分岐検出（route-model.md）
     snap_preventions: ["tunnel", "bridge", "ferry"],
     ...(alternatives ? { algorithm: "alternative_route", "alternative_route.max_paths": 3 } : {}),
   };

@@ -3,7 +3,14 @@ import narrowFx from "./__fixtures__/narrow.json";
 import tollFx from "./__fixtures__/toll.json";
 import viaFx from "./__fixtures__/via.json";
 import { haversine } from "./geo.ts";
-import { fromGhPath, nearest, segmentBearing, tollDistance, type GhPath } from "./route.ts";
+import {
+  forkSign,
+  fromGhPath,
+  nearest,
+  segmentBearing,
+  tollDistance,
+  type GhPath,
+} from "./route.ts";
 
 // JSON 推論型（number[][]）はタプルと互換がないので unknown 経由で変換
 const gh = (fx: unknown, i: number) => (fx as { paths: GhPath[] }).paths[i]!;
@@ -124,5 +131,76 @@ describe("tollDistance", () => {
       sum += haversine({ lat: lat0, lng: lng0 }, { lat: lat1, lng: lng1 });
     }
     expect(toll.cum[first.to]! - toll.cum[first.from]!).toBeCloseTo(sum, 6);
+  });
+});
+
+describe("forkSign", () => {
+  // bearings 昇順。in は後方（進行方向 + 180）
+  it("進行方向の近くに別の進入可能な道 → 他方が右なら左寄り、左なら右寄り", () => {
+    expect(forkSign({ bearings: [0, 30, 180], entries: [true, true, false], in: 2, out: 0 })).toBe(
+      -7,
+    );
+    expect(forkSign({ bearings: [0, 30, 180], entries: [true, true, false], in: 2, out: 1 })).toBe(
+      7,
+    );
+  });
+  it("直角の脇道・進入不可・in は無視", () => {
+    expect(
+      forkSign({ bearings: [0, 90, 180, 270], entries: [true, true, false, true], in: 2, out: 0 }),
+    ).toBe(0);
+    expect(forkSign({ bearings: [0, 20, 180], entries: [true, false, false], in: 2, out: 0 })).toBe(
+      0,
+    );
+    expect(forkSign({ bearings: [0, 180], entries: [true, false], in: 1, out: 0 })).toBe(0);
+  });
+  it("北をまたぐ方位差", () => {
+    expect(
+      forkSign({ bearings: [10, 170, 350], entries: [true, false, true], in: 1, out: 2 }),
+    ).toBe(-7); // 350 → 10 は右
+  });
+});
+
+describe("fromGhPath 分岐合成", () => {
+  const fork = { bearings: [0, 30, 180], entries: [true, true, false], in: 2, out: 0 };
+  const path = {
+    ...narrowPath,
+    details: {
+      ...narrowPath.details,
+      intersection: [[10, 11, fork]] as [number, number, typeof fork][],
+    },
+  };
+  it("指示の途中なら分割し時間を距離比で配分、末尾側が左寄り", () => {
+    const r = fromGhPath(path);
+    const orig = narrowPath.instructions.find((i) => i.interval[0] <= 10 && 10 < i.interval[1])!;
+    const k = r.instructions.findIndex((i) => i.from === 10);
+    expect(r.instructions[k - 1]).toMatchObject({
+      from: orig.interval[0],
+      to: 10,
+      sign: orig.sign,
+    });
+    expect(r.instructions[k]).toMatchObject({
+      from: 10,
+      to: orig.interval[1],
+      sign: -7,
+      text: "左寄り",
+    });
+    expect(r.instructions[k - 1]!.time + r.instructions[k]!.time).toBeCloseTo(orig.time, 6);
+    expect(r.instructions.length).toBe(narrow.instructions.length + 1);
+    for (let i = 1; i < r.instructions.length; i++)
+      expect(r.instructions[i]!.from).toBe(r.instructions[i - 1]!.to);
+  });
+  it("既に案内地点なら何もしない、出発地は無視", () => {
+    const turn = narrowPath.instructions.find((i) => i.sign !== 0 && i.sign !== 4)!;
+    const r = fromGhPath({
+      ...path,
+      details: {
+        ...path.details,
+        intersection: [
+          [0, 1, fork],
+          [turn.interval[0], turn.interval[0] + 1, fork],
+        ],
+      },
+    });
+    expect(r.instructions).toEqual(narrow.instructions);
   });
 });

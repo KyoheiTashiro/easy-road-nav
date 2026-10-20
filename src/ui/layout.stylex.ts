@@ -5,5 +5,5 @@ export const layout = stylex.defineConsts({
   peek: 80, // BottomSheet ピーク時の高さ
   navbar: 64, // NavBar
   hud: 88, // NavHud 本体（バナー除く）
-  next: 32, // NavHud 「その先」行
+  next: 36, // NavHud 「その先」行
 });

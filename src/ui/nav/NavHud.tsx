@@ -42,8 +42,8 @@ const styles = stylex.create({
     gap: 8,
     height: layout.next,
     padding: "0 16px",
-    fontSize: 14,
-    backgroundColor: colors.surface,
+    fontSize: 18,
+    backgroundColor: colors.bg,
     color: colors.fg,
     opacity: 0.85,
   },
@@ -77,7 +77,7 @@ export function NavHud() {
         {next && (
           <>
             <span>その先</span>
-            <DirectionIcon sign={next.instruction.sign} size={20} />
+            <DirectionIcon sign={next.instruction.sign} size={24} />
             <span>
               {formatDistance(next.distance)} {signWord(next.instruction)}
             </span>

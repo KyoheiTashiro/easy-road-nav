@@ -36,13 +36,12 @@ down: ## serve 停止
 logs: ## serve ログ追従
 	docker compose logs -f serve
 
-import: ## graph-cache 再生成（pbf 必須、十数分）
+import: ## graph-cache 再生成（pbf 必須、約 20 分）
 	rm -rf data/graph-cache
 	docker compose --profile import run --rm import
 
-pbf: ## 関東 pbf を Geofabrik から取得
-	mkdir -p data
-	curl -fL -o data/kanto-latest.osm.pbf https://download.geofabrik.de/asia/japan/kanto-latest.osm.pbf
+pbf: ## 関東甲信越 pbf を作る（Geofabrik 取得 + 県切り出し + 結合。osmium-tool 必須）
+	sh scripts/build-pbf.sh
 
 fixtures: ## GraphHopper 実応答を fixture に保存（serve 起動中）
 	sh scripts/fixtures.sh

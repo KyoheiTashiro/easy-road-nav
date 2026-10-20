@@ -16,6 +16,6 @@
 
 ## データソース
 
-- OSM pbf（Geofabrik）。v1 は `kanto-latest.osm.pbf`、全国化は `japan-latest.osm.pbf`（[infrastructure.md](infrastructure.md)）。日本国内限定はデータ範囲で担保する
+- OSM pbf（Geofabrik）。v1 は `kanto-koshinetsu.osm.pbf`（関東 1 都 6 県 + 山梨・長野・新潟。作り方は [infrastructure.md](infrastructure.md)「開発環境」）、全国化は `japan-latest.osm.pbf`（[infrastructure.md](infrastructure.md)）。日本国内限定はデータ範囲で担保する
 - 日本の `highway` 付与慣行（JA:Japan tagging）: trunk=国道、primary=主要地方道、secondary=一般都道府県道、tertiary=センターラインあり2車線の市町村道、unclassified=1.5車線以下の市町村道、residential=住宅街
 - 既知の限界: 険道（1車線の県道）は広い道扱いになる。Yahoo/ALPS インポート由来の道路は幅員で機械分類されており、都市部より地方で精度が良い傾向

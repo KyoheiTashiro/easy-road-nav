@@ -21,7 +21,7 @@ services:
         "/graphhopper/config.yml",
         "--import",
         "-i",
-        "/data/kanto-latest.osm.pbf",
+        "/data/kanto-koshinetsu.osm.pbf",
         "-o",
         "/data/graph-cache",
       ]

@@ -1,7 +1,7 @@
 # GraphHopper 11.0 設定。graph-cache 互換条件の一部（変更したら再インポート）。
 # 根拠: docs/requirements/routing.md, docs/CONTEXT.md
 graphhopper:
-  datareader.file: /data/kanto-latest.osm.pbf
+  datareader.file: /data/kanto-koshinetsu.osm.pbf
   graph.location: /data/graph-cache
 
   # 徒歩・自転車系は読み込まない（自動車のみ）

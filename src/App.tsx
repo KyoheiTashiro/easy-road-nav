@@ -442,7 +442,10 @@ export default function App() {
               routes={routes}
               narrows={narrows}
               selected={selected}
-              onSelect={setSelected}
+              onSelect={(i) => {
+                setSelected(i);
+                if (i !== selected) setSheetExpanded(false); // 別経路に切替 → 地図で確認できるよう収納
+              }}
               loading={loading || starting}
               canStart={!!route && !!fix && !gpsError && !starting}
               onStart={onStart}

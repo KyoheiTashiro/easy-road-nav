@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "@/ui/map/maplibre.css";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NavState } from "@/model/progress.ts";
@@ -24,8 +25,8 @@ import {
   homeMarkerElement,
   markerElement,
   routeFeatures,
-} from "@/ui/mapLayers.ts";
-import { PointPopup } from "@/ui/PointPopup.tsx";
+} from "@/ui/map/mapLayers.ts";
+import { PointPopup } from "@/ui/map/PointPopup.tsx";
 import { HomeIcon } from "@/ui/icons.tsx";
 
 /** ナビ中のカメラ pitch（nav.md「カメラ」節。zoom は store/nav.ts の NAV_ZOOM） */

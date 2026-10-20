@@ -110,7 +110,7 @@ VPS:
 ## デプロイ
 
 - `npm run deploy`: `vite build` → `rsync --delete` で `/srv/easy-road-nav/web` へ。web は build 出力の鏡、VPS 側で手で置くファイルなし。CI なし
-- `npm run deploy:graph`: graph-cache + `graphhopper/` + `compose.yml` を一括転送（整合必須なので分けない）。`graph-cache.new` へ rsync → `docker compose down` → 入替 → `up -d serve` → `/info` 確認。返らなければ旧 graph-cache に戻して `up`。稼働中の graph-cache への上書きは不可（mmap 中）。停止は数十秒、許容する
+- `npm run deploy:graph`: graph-cache + `graphhopper/` + `compose.yml` を一括転送（整合必須なので分けない）。`graph-cache.new` へ rsync → `docker compose --profile serve down` → 入替 → `up -d serve` → `/info` 確認。返らなければ旧 graph-cache に戻して `up`。稼働中の graph-cache への上書きは不可（mmap 中）。停止は数十秒、許容する
 - 頻度が違うので web と graph は別コマンド
 
 ## 運用

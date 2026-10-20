@@ -72,7 +72,7 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
 
 1. `rsync -az --delete data/graph-cache/ $VPS_HOST:/srv/easy-road-nav/data/graph-cache.new/`
 2. `rsync -az --delete graphhopper/` と `rsync -az compose.yml` を `/srv/easy-road-nav/` へ
-3. VPS で `docker compose down`
+3. VPS で `docker compose --profile serve down`
 4. `mv data/graph-cache data/graph-cache.old && mv data/graph-cache.new data/graph-cache`
 5. `docker compose up -d serve`
 6. `/info` を 2 秒間隔・最大 60 秒待つ。返れば `rm -rf data/graph-cache.old` で終了

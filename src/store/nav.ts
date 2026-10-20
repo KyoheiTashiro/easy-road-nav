@@ -10,7 +10,8 @@ import {
   type NavState,
   type NextNext,
 } from "@/model/progress.ts";
-import type { Fix, Instruction, Point, RouteModel } from "@/model/route.ts";
+import type { Fix, Point } from "@/model/point.ts";
+import type { Instruction, RouteModel } from "@/model/route.ts";
 import * as speech from "@/nav/speech.ts";
 import { showToast } from "@/store/toast.ts";
 import { getTrip, selectNarrow, selectProfile, selectRoute, tripActions } from "@/store/trip.ts";

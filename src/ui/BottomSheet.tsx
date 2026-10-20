@@ -1,6 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 import { useRef } from "react";
-import type { Point } from "@/model/route.ts";
+import type { Point } from "@/model/point.ts";
 import { navActions, useNav } from "@/store/nav.ts";
 import { useSaved } from "@/store/saved.ts";
 import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";

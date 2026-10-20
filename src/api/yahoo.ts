@@ -1,4 +1,4 @@
-import type { SearchHit } from "@/api/gsi.ts";
+import type { SavedPoint } from "@/model/point.ts";
 
 const SEARCH = "https://map.yahooapis.jp/search/local/V1/localSearch";
 const TIMEOUT = 10_000;
@@ -20,14 +20,14 @@ type Response = {
  * Yahoo! ローカルサーチで施設名検索。API が CORS ヘッダを返さないため JSONP。
  * 最大 100 件（API 上限）。失敗（script error・10 秒・Status != 200・appid 未設定）は reject。abort は AbortError
  */
-export async function searchPoi(q: string, signal: AbortSignal): Promise<SearchHit[]> {
+export async function searchPoi(q: string, signal: AbortSignal): Promise<SavedPoint[]> {
   const appid = import.meta.env.VITE_YAHOO_APPID as string | undefined;
   if (!appid) throw new Error("VITE_YAHOO_APPID is not set");
   signal.throwIfAborted();
   const cb = `__yj${++seq}`;
   const w = window as unknown as Record<string, unknown>;
   const script = document.createElement("script");
-  return new Promise<SearchHit[]>((resolve, reject) => {
+  return new Promise<SavedPoint[]>((resolve, reject) => {
     const done = (f: () => void) => () => {
       clearTimeout(timer);
       signal.removeEventListener("abort", onAbort);
@@ -49,7 +49,7 @@ export async function searchPoi(q: string, signal: AbortSignal): Promise<SearchH
         resolve(
           (res.Feature ?? []).map((f) => {
             const [lng = NaN, lat = NaN] = f.Geometry.Coordinates.split(",").map(Number);
-            return { title: f.Name, lat, lng };
+            return { label: f.Name, lat, lng };
           }),
         );
       })();

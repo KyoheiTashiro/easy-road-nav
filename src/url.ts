@@ -1,8 +1,6 @@
-import type { LatLng } from "@/model/route.ts";
+import { MAX_VIAS, type LatLng } from "@/model/point.ts";
 
 export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
-
-const MAX_VIAS = 5;
 
 function parseLatLng(s: string | null): LatLng | null {
   if (!s) return null;

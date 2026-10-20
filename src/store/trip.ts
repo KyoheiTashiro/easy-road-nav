@@ -2,12 +2,12 @@ import { create } from "zustand";
 import type { Profile } from "@/api/graphhopper.ts";
 import { reverseGeocode } from "@/api/gsi.ts";
 import { narrowSegments, type NarrowSegment } from "@/model/narrow.ts";
-import type { Fix, LatLng, Point, PointRole, RouteModel } from "@/model/route.ts";
+import type { Fix, LatLng, Point, PointRole } from "@/model/point.ts";
+import type { RouteModel } from "@/model/route.ts";
 import { parseQuery } from "@/url.ts";
 import { savedActions } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
 
-export const MAX_VIAS = 5;
 const NOTOLL_SUFFIX = "&notoll";
 // テスト（node）には location が無い
 const INIT = parseQuery(typeof location === "undefined" ? "" : location.search);

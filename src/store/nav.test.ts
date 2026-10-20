@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fetchRoute } from "@/api/graphhopper.ts";
 import { destination } from "@/model/geo.ts";
-import type { Fix, RouteModel } from "@/model/route.ts";
+import type { Fix } from "@/model/point.ts";
+import type { RouteModel } from "@/model/route.ts";
 import { getNav, navActions } from "@/store/nav.ts";
 import { getTrip, tripActions } from "@/store/trip.ts";
 

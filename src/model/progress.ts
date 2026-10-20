@@ -2,14 +2,8 @@
 import { formatSpokenDistance } from "@/model/format.ts";
 import { bearing, destination, haversine } from "@/model/geo.ts";
 import type { NarrowSegment } from "@/model/narrow.ts";
-import {
-  nearest,
-  segmentBearing,
-  type Fix,
-  type Instruction,
-  type LatLng,
-  type RouteModel,
-} from "@/model/route.ts";
+import type { Fix, LatLng } from "@/model/point.ts";
+import { nearest, segmentBearing, type Instruction, type RouteModel } from "@/model/route.ts";
 
 const ACCURACY_MAX = 50; // 進捗採用精度
 const OFF_ROUTE = 50; // 経路外れ距離

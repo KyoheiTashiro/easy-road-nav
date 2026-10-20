@@ -1,4 +1,4 @@
-import type { LatLng } from "@/model/route.ts";
+import type { LatLng } from "@/model/point.ts";
 
 const R = 6371008.8; // m
 const RAD = Math.PI / 180;

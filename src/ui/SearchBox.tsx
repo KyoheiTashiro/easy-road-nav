@@ -1,8 +1,8 @@
 import * as stylex from "@stylexjs/stylex";
 import { useRef, useState } from "react";
-import { searchAddress, type SearchHit } from "@/api/gsi.ts";
+import { searchAddress } from "@/api/gsi.ts";
 import { searchPoi } from "@/api/yahoo.ts";
-import type { LatLng, Point } from "@/model/route.ts";
+import type { LatLng, Point, SavedPoint } from "@/model/point.ts";
 import { savedActions, useSaved } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
 import { tripActions, useTrip } from "@/store/trip.ts";
@@ -77,7 +77,7 @@ const styles = stylex.create({
 });
 
 type Role = "from" | "to" | "home";
-type Result = { q: string; hits: SearchHit[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
+type Result = { q: string; hits: SavedPoint[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
 
 const skipAbort = (e: unknown) => {
   if (e instanceof DOMException && e.name === "AbortError") return;
@@ -261,11 +261,11 @@ export function SearchBox() {
               <button
                 {...stylex.props(button.base, button.ghost)}
                 onClick={() => {
-                  savedActions.historyPushed({ lat: h.lat, lng: h.lng, label: h.title }); // 住所 / 施設名の候補だけ履歴に残す
-                  pick(active, { lat: h.lat, lng: h.lng }, h.title);
+                  savedActions.historyPushed(h); // 住所 / 施設名の候補だけ履歴に残す
+                  pick(active, { lat: h.lat, lng: h.lng }, h.label);
                 }}
               >
-                {h.title}
+                {h.label}
               </button>
             </li>
           ))}

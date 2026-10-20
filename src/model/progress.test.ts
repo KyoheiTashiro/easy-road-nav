@@ -12,13 +12,8 @@ import {
   type NavEvent,
   type NavState,
 } from "@/model/progress.ts";
-import {
-  fromGhPath,
-  segmentBearing,
-  type Fix,
-  type GhPath,
-  type RouteModel,
-} from "@/model/route.ts";
+import type { Fix } from "@/model/point.ts";
+import { fromGhPath, segmentBearing, type GhPath, type RouteModel } from "@/model/route.ts";
 
 const gh = (fx: unknown, i: number) => (fx as { paths: GhPath[] }).paths[i]!;
 const narrowRoute = fromGhPath(gh(narrowFx, 0));

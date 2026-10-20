@@ -47,6 +47,7 @@ export function Map() {
   const selected = useTrip((s) => s.selected);
   const fitVersion = useTrip((s) => s.fitVersion);
   const popup = useTrip((s) => s.popup);
+  const sheetExpanded = useTrip((s) => s.sheetExpanded);
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   // マーカータップで開く「削除」ポップアップ（地点ポップアップとは排他）
@@ -67,6 +68,11 @@ export function Map() {
   // 一度だけ登録する map イベントから最新の mode を読む
   const onMapClick = useEffectEvent((p: LatLng) => {
     if (mode === MODE.NAV) return;
+    // 展開中は地図を見たい操作とみなし、ポップアップを開かず収納だけ
+    if (mode === MODE.EDIT && sheetExpanded) {
+      tripActions.setSheet(false);
+      return;
+    }
     setMarkerPopup(null);
     tripActions.popupOpened(p);
   });
@@ -249,18 +255,23 @@ export function Map() {
     if (map && mode === MODE.NAV && nav?.follow) followFix(map, nav);
   }, [nav, mode]);
 
-  // 選択経路に fitBounds。selected は意図的に依存にしない: 代替切替でカメラを動かさない（ui.md「探索」）
+  // 選択経路に fitBounds。下パディングはシートの高さに追従。selected は意図的に依存にしない: 代替切替でカメラを動かさない（ui.md「探索」）
   const fitSelected = useEffectEvent(() => {
     const route = routes[selected];
-    if (route) {
-      mapRef.current?.fitBounds(bounds(route), {
-        padding: { top: 40, left: 40, right: 40, bottom: layout.peek + 40 },
-      });
-    }
+    const map = mapRef.current;
+    if (!route || !map || mode !== MODE.EDIT) return;
+    const sheet = sheetExpanded
+      ? Math.round((map.getContainer().clientHeight * layout.half) / 100)
+      : layout.peek;
+    map.fitBounds(bounds(route), { padding: { top: 40, left: 40, right: 40, bottom: sheet + 40 } });
   });
   useEffect(() => {
     if (fitVersion > 0) fitSelected();
   }, [fitVersion]);
+  // シート開閉で見える範囲が変わるので収め直す
+  useEffect(() => {
+    fitSelected();
+  }, [sheetExpanded]);
 
   let popupContent: ReactNode = null;
   if (popup) {

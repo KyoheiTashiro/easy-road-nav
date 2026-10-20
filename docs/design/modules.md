@@ -345,7 +345,7 @@ Effect はここにだけ書く。いずれも引数なし・戻り値なしで�
 
 ## `src/ui/map/Map.tsx`
 
-props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup`、nav store から `nav`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `popupHomeTaken` `pointDeleted` `viaDeleted` `viaAdded`）と `navActions`（`setFollow` `setZoom`）。
+props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup` `sheetExpanded`、nav store から `nav`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `popupHomeTaken` `pointDeleted` `viaDeleted` `viaAdded` `setSheet`）と `navActions`（`setFollow` `setZoom`）。
 
 ```ts
 export const NAV_PITCH = 50; // ナビ中の pitch（ナビ開始の jumpTo）
@@ -363,8 +363,8 @@ export function Map(): JSX.Element;
 - `useEffect([mode])`: `home` に入ったとき `home` があれば `easeTo(自宅, zoom 15)`（`home` は `useEffectEvent` で読む。自宅の変更では動かさない）
 - ポップアップ: MapLibre `Popup` 1 個（`closeOnClick: false`）。`setDOMContent(div)` して `createPortal(…, div)`。内容は `popup` prop（PointPopup）優先、無ければ内部 state のマーカー「削除」ボタン。両方 null で `remove`。開いている間は `setLngLat` のみ（`addTo` し直すと `close` が発火して閉じる）。`close` イベント（×）→ `tripActions.popupClosed`。マーカー click は `stopPropagation`（地図 `click` に伝播させない）
 - 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `URL_HAD_POINTS` が false なら `easeTo(zoom 15)`（1 回だけ。`fixUpdated` が `from` と `fix` を同時に入れるので `from` の null では判定できない）
-- カメラ: `useEffect([fitVersion])` で `fitBounds`（`fitVersion > 0` のみ。routes / selected は `useEffectEvent` で読む）。ナビ中は `useEffect([nav])` で `easeTo`（nav.md「カメラ」。fix は `useEffectEvent` で読む）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
-- イベント: `click` `dragstart` `zoomend`（`originalEvent` あり）は map 生成時に 1 回登録し、ハンドラは `useEffectEvent`（`mode` を見て edit / home なら `popupOpened`、`setFollow(false)`、`setZoom`）
+- カメラ: `useEffect([fitVersion])`（`fitVersion > 0` のみ）と `useEffect([sheetExpanded])` で `fitBounds`。edit モードのみ。padding は 40、下はそれに シートの高さ（展開時 `clientHeight × layout.half / 100`、収納時 `layout.peek`）を足す。routes / selected は `useEffectEvent` で読む。ナビ中は `useEffect([nav])` で `easeTo`（nav.md「カメラ」。fix は `useEffectEvent` で読む）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
+- イベント: `click` `dragstart` `zoomend`（`originalEvent` あり）は map 生成時に 1 回登録し、ハンドラは `useEffectEvent`（`click`: edit で `sheetExpanded` なら `setSheet(false)` だけ、それ以外 edit / home なら `popupOpened`。`dragstart` → `setFollow(false)`、`zoomend` → `setZoom`）
 - コントロール: `ScaleControl`（bottom-right、帰属表示の上）、`NavigationControl`（コンパスのみ、top-right。`useEffect([mode])` でナビ中は `removeControl`、戻りで `addControl`）。位置の余白は `ui/map/maplibre.css` でオーバーレイを避ける
 
 ## `src/ui/map/mapLayers.ts`
@@ -409,9 +409,11 @@ type PointPopupProps = {
 
 ## `src/ui/edit/BottomSheet.tsx`
 
-props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、nav store の `starting`、saved store の `home`。`loading` = `selectLoading || starting`、`canStart` = fix あり かつ gpsError でない かつ routes あり かつ `!starting`。操作: スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、「自宅を設定」/「変更」→ `homeSetupEntered`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
+props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、`gpsOk`（= fix あり かつ gpsError でない）、nav store の `starting`、saved store の `home`。`loading` = `selectLoading || starting`。「案内開始」は routes があるときだけ描画し、`!gpsOk`（文言「GPS 待ち」）か `starting` で disabled。操作: ハンドル / サマリ文字部のタップ・スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、「自宅を設定」/「変更」→ `homeSetupEntered`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
 
-内部に地点リスト（別ファイルにしない）。ピーク = `RouteSummary` + 「案内開始」。展開 = 地点リスト → トグル → 自宅行 → 代替カード → `StepList`。
+スワイプは `onTouchStart` で開始 Y・body の `scrollTop`・シートの現在高を取り、`onTouchMove` で inline `max-height` を `[layout.peek, innerHeight × layout.half / 100]` にクランプして追従（`transition: none`）、`onTouchEnd` で inline を外し 30px 以上なら `setSheet(dy < 0)`。下方向は開始時 `scrollTop > 0` なら無視。`useEffect([expanded])` で展開時に `scrollTop = 0`。
+
+内部に地点リスト（タイムライン。別ファイルにしない）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル・自宅行）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
 
 ## `src/ui/edit/RouteSummary.tsx`
 
@@ -474,10 +476,10 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ。`layou
 ## `src/ui/layout.stylex.ts`
 
 ```ts
-export const layout = stylex.defineConsts({ peek: 80, navbar: 64, hud: 88, next: 32 }); // px
+export const layout = stylex.defineConsts({ peek: 80, half: 70, navbar: 64, hud: 88, next: 36 }); // px。half のみ vh
 ```
 
-画面部品の高さ。`BottomSheet` `NavBar` `NavHud` が自分の高さに使い、`Map` が fitBounds / ナビ時の padding、`Toast` がナビ時の `top` に使う。`defineConsts` の値はコンパイル時に文字列で埋まる。数値は単位なしのまま埋まる（vite dev では `max-height:80` が無効になる。build は lightningcss が px を補うので気づきにくい）ので、`stylex.create` 内では `${layout.peek}px` のように単位を付け、JS で足さず `calc()` に並べる。JS からは数値として読める。
+画面部品の高さ。`BottomSheet`（`peek` 収納時 / `half` 展開時）`NavBar` `NavHud` が自分の高さに使い、`Map` が fitBounds / ナビ時の padding、`Toast` がナビ時の `top` に使う。`defineConsts` の値はコンパイル時に文字列で埋まる。数値は単位なしのまま埋まる（vite dev では `max-height:80` が無効になる。build は lightningcss が px を補うので気づきにくい）ので、`stylex.create` 内では `${layout.peek}px` のように単位を付け、JS で足さず `calc()` に並べる。JS からは数値として読める。
 
 ## `src/App.tsx`
 

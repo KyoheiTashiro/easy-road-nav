@@ -34,14 +34,17 @@
 
 ### ボトムシート
 
-2 段（ピーク = `layout.peek`、展開 = 70dvh = `layout.half`）。CSS `max-height` transition のみ、ライブラリ不使用。
+2 段（ピーク = `layout.peek`、展開 = 70dvh = `layout.half`）。CSS scroll-snap のみ、タッチ JS なし、ライブラリ不使用。
+
+外側スクローラー（高さ 70dvh、`scroll-snap-type: y mandatory`、`pointer-events: none`）の中に透明の spacer（70dvh − ピーク高）とシート本体（70dvh、`pointer-events: auto`）を縦に並べ、スナップ点 2 つ（spacer 先頭 = ピーク、シート先頭 = 展開）で止める。指追従・慣性・開閉アニメはブラウザ任せ。spacer 越しの地図操作はそのまま通る。JS でシートの高さを触ると iOS がタップ・スクロールを取りこぼすため、この方式にした。
 
 開閉の操作:
 
 - タップ: ハンドル（`<button aria-expanded>`）とピーク行の文字部分で切替。「案内開始」はタップ対象外
-- スワイプ: `touchmove` で `max-height` を指に追従（ピーク高〜70dvh にクランプ、追従中は transition なし）。`touchend` で縦移動 30px 以上なら方向で確定、未満なら元に戻る。`touchcancel` でも追従を解除。展開中の上方向はリストのスクロールに任せシートを触らない。リスト内で始めたタッチでリストがスクロール済み（`scrollTop > 0`）なら下方向は無視（ハンドル上なら閉じる）
+- スワイプ: 外側スクローラーのスクロール。展開中のリストは body の入れ子スクロール。リスト先頭で始めた下スワイプは body から外側へ連鎖して閉じる。途中から始めたスワイプは body にラッチして閉じない（iOS の入れ子スクロールの既定動作。body の `overscroll-behavior` は既定のまま、外側は `none`）
 - 地図タップ: 展開中は地点ポップアップを開かず収納だけ
 - 再展開は先頭から（展開時に body の `scrollTop` を 0 に）
+- store との同期: `sheetExpanded` 変更 → `scrollTo({ behavior: "smooth" })`。スクロールがスナップ点で止まった（`scrollend`。未対応なら `scroll` 静止 150ms）→ `setSheet`。途中位置では store を触らない
 - 展開・収納のたびに `fitBounds` し直す（[探索](#探索)）
 
 内容:

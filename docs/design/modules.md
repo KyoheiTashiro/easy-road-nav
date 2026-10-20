@@ -411,7 +411,7 @@ type PointPopupProps = {
 
 props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、`gpsOk`（= fix あり かつ gpsError でない）、nav store の `starting`、saved store の `home`。`loading` = `selectLoading || starting`。「案内開始」は routes があるときだけ描画し、`!gpsOk`（文言「GPS 待ち」）か `starting` で disabled。操作: ハンドル / サマリ文字部のタップ・スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、「自宅を設定」/「変更」→ `homeSetupEntered`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
 
-スワイプは `onTouchStart` で開始 Y・body の `scrollTop`・シートの現在高を取り、`onTouchMove` で inline `max-height` を `[layout.peek, innerHeight × layout.half / 100]` にクランプして追従（`transition: none`）、`onTouchEnd` で inline を外し 30px 以上なら `setSheet(dy < 0)`。下方向は開始時 `scrollTop > 0` なら無視。`useEffect([expanded])` で展開時に `scrollTop = 0`。
+開閉は CSS scroll-snap（ui.md「ボトムシート」）。`useEffect([expanded])` で外側スクローラーを `scrollTo({ top: expanded ? scrollHeight − clientHeight : 0, behavior: "smooth" })`（既にその位置なら何もしない）、展開時は body の `scrollTop = 0`。`useEffect([])` で外側の `scrollend`（未対応なら `scroll` の 150ms 静止）を購読し、`scrollTop` が端（±1px）にあるときだけ `setSheet`。
 
 内部に地点リスト（タイムライン。別ファイルにしない。記号は `FromIcon` / 番号 / `ToIcon` を `marker` 色で塗る）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル・自宅行）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
 

@@ -30,7 +30,7 @@
 - 上部: 検索欄 2 段（出発地 / 到着地）
 - 下部: ボトムシート
 - 右下（ボトムシートの上）: MapLibre `ScaleControl` + 帰属表示（compact）
-- 右上（検索欄の下）: MapLibre `NavigationControl`（コンパスのみ、`visualizePitch`）。アイコンは自前 SVG（赤い北針の円形）に CSS で差替。押下で北上・pitch 0。ナビ中は外す（heading 追従と衝突するため）
+- 右上（検索欄の下）: MapLibre `NavigationControl`（コンパスのみ、`visualizePitch`）。アイコンは自前 SVG（赤い北針の円形）に CSS で差替、MapLibre の白地・影は消す（40px）。押下で北上・pitch 0。ナビ中は外す（heading 追従と衝突するため）
 
 ### ボトムシート
 

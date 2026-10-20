@@ -37,7 +37,6 @@ const styles = stylex.create({
   selected: { borderColor: colors.accent, boxShadow: `inset 0 0 0 1px ${colors.accent}` },
 });
 
-/** 距離 / 時間 / 有料区間 x.x km */
 function summaryText(route: RouteModel): string {
   const parts = [formatKm(route.distance), formatDuration(route.time)];
   const toll = tollDistance(route);

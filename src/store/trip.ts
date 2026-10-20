@@ -35,12 +35,12 @@ export type TripState = {
   notoll: boolean;
   /** 探索結果 + リクエストキー。routes / loading は派生（selectRoutes / selectLoading） */
   result: Result | null;
-  selected: number; // routes の index
+  selected: number;
   fittedKey: string; // fitBounds 済みの地点集合キー。同じ地点集合の再探索（トグル・代替）ではカメラを動かさない
-  fitVersion: number; // 増えたら Map が選択経路に fitBounds
+  fitVersion: number;
   sheetExpanded: boolean;
-  popup: Popup | null; // 地図タップの地点ポップアップ
-  fix: Fix | null; // 最新 GPS fix
+  popup: Popup | null;
+  fix: Fix | null;
   gpsError: boolean;
   fromDefaulted: boolean; // 出発地の既定（初回 fix）を適用済み。URL に from があれば最初から true
   passedVia: number; // 現在の経路より前に通過した経由地数（リルートで加算、終了時に nav.passedVia を畳む）
@@ -225,7 +225,6 @@ export const tripActions = {
     else if (label === null) tripActions.popupOpened(p);
     else tripActions.homeChosen(p, label);
   },
-  // 自宅を保存して編集モードへ戻る
   homeChosen(p: LatLng, label: string): void {
     savedActions.homeSaved({ lat: p.lat, lng: p.lng, label });
     showToast("自宅を登録しました");

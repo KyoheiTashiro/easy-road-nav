@@ -29,9 +29,9 @@ export const NAV_ZOOM = 17;
 export type Hud = { instruction: Instruction | null; remaining: number; next: NextNext | null };
 
 export type NavStore = {
-  nav: NavState | null; // null = ナビ中でない
-  hud: Hud | null; // step の hud event の写し
-  inNarrow: boolean; // 同 narrow event
+  nav: NavState | null;
+  hud: Hud | null;
+  inNarrow: boolean;
   muted: boolean; // セッション内のみ
   starting: boolean; // 「案内開始」の再探索中
 };
@@ -78,7 +78,7 @@ function dispatch(events: NavEvent[], state: NavState, fix: Fix) {
   }
 }
 
-// リルート（nav.md「リルート」）。出発地は進行方向へ前方オフセット、未通過の経由地 + 到着地、代替なし
+// nav.md「リルート」
 async function reroute(state: NavState, f: Fix) {
   const t = getTrip();
   if (!t.to) return;
@@ -91,9 +91,7 @@ async function reroute(state: NavState, f: Fix) {
       false,
       new AbortController().signal,
     );
-  } catch {
-    // r undefined
-  }
+  } catch {}
   if (getTrip().mode !== MODE.NAV) return; // 応答前に終了・到着
   if (!r) {
     showToast("経路を再探索できません");
@@ -112,7 +110,7 @@ async function reroute(state: NavState, f: Fix) {
 }
 
 export const navActions = {
-  // 開始手順（nav.md）: 出発地を fix に置換 → 再探索 1 本 → initNav → 即時 step → 発話。カメラ・Wake Lock は mode から派生
+  // nav.md「開始手順」。カメラ・Wake Lock は mode から派生
   async start(): Promise<void> {
     const t = getTrip();
     const f = t.fix;
@@ -129,7 +127,6 @@ export const navActions = {
         new AbortController().signal,
       );
     } catch {
-      // r undefined
     } finally {
       set({ starting: false });
     }
@@ -144,7 +141,6 @@ export const navActions = {
     say(`案内を開始します。${startText(r, first.state.s)}`);
     dispatch(first.events, first.state, now);
   },
-  /** fix ごとに step → events 分配。useGeolocation が trip.fixUpdated の直後に呼ぶ */
   onFix(fix: Fix): void {
     const { nav } = getNav();
     const t = getTrip();

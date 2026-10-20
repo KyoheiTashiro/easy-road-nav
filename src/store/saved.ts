@@ -50,7 +50,6 @@ function loadHistory(): SavedPoint[] {
   return Array.isArray(v) ? v.filter(valid).slice(0, HISTORY_MAX) : [];
 }
 
-/** 同座標を除いて先頭に追加、HISTORY_MAX 件に切る（純関数） */
 export function pushHistory(list: SavedPoint[], p: SavedPoint): SavedPoint[] {
   return [p, ...list.filter((x) => x.lat !== p.lat || x.lng !== p.lng)].slice(0, HISTORY_MAX);
 }

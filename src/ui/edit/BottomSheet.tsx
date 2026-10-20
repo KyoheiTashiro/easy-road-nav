@@ -10,7 +10,6 @@ import { button } from "@/ui/button.stylex.ts";
 import { HomeIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
-/** スワイプ判定の最小移動量（px） */
 const SWIPE_PX = 30;
 
 const styles = stylex.create({
@@ -120,7 +119,7 @@ export function BottomSheet() {
   const from = useTrip((s) => s.from);
   const to = useTrip((s) => s.to);
   const vias = useTrip((s) => s.vias);
-  const passedVia = useTrip((s) => s.passedVia); // 通過済 表示用（先頭からこの数の経由地）
+  const passedVia = useTrip((s) => s.passedVia);
   const notoll = useTrip((s) => s.notoll);
   const home = useSaved((s) => s.home);
   const routes = useTrip(selectRoutes);
@@ -133,7 +132,7 @@ export function BottomSheet() {
   const summaryProps = { routes, selected, onSelect: tripActions.routeSelected, loading };
   const body = useRef<HTMLDivElement>(null);
   const touchY = useRef(0);
-  const touchScrollTop = useRef(0); // タッチ開始時の body.scrollTop
+  const touchScrollTop = useRef(0);
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     touchY.current = e.touches[0]?.clientY ?? 0;
     touchScrollTop.current = body.current?.scrollTop ?? 0;
@@ -143,7 +142,7 @@ export function BottomSheet() {
     if (Math.abs(dy) < SWIPE_PX) return;
     // 途中からのスクロールで先頭に戻っても閉じない。先頭にいる状態で始めた下スワイプだけ閉じる
     if (dy > 0 && touchScrollTop.current > 0) return;
-    tripActions.setSheet(dy < 0); // 上スワイプで開く、下スワイプで閉じる
+    tripActions.setSheet(dy < 0);
   };
   return (
     <div

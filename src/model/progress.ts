@@ -101,7 +101,6 @@ export function signWord(ins: Instruction): string {
 const isGuidePoint = (i: Instruction) => i.sign !== 0; // 案内地点（sign 0 = 直進の区間境界）
 type StepResult = { state: NavState; events: NavEvent[] };
 
-/** s より先にある最初の案内地点の index。無ければ -1 */
 function nextInstruction(route: RouteModel, s: number): number {
   return route.instructions.findIndex((i) => isGuidePoint(i) && route.cum[i.from]! > s);
 }
@@ -178,7 +177,6 @@ function passVias(route: RouteModel, st: NavState, events: NavEvent[]): void {
   if (st.passedVia > before) events.push({ type: "speak", text: "経由地を通過しました" });
 }
 
-/** 次の案内地点: 予告・直前の発話と hud */
 function guide(route: RouteModel, st: NavState, events: NavEvent[]): void {
   const { cum, instructions } = route;
   const { s, announced } = st;
@@ -206,7 +204,6 @@ function guide(route: RouteModel, st: NavState, events: NavEvent[]): void {
   events.push({ type: "hud", instruction: ins, remaining, next: nextNext(route, idx) });
 }
 
-/** idx の次の案内地点。idx から 次の次表示上限 以内のときだけ */
 function nextNext(route: RouteModel, idx: number): NextNext | null {
   const { cum, instructions } = route;
   const nn = instructions.find((i, k) => k > idx && isGuidePoint(i));
@@ -215,7 +212,6 @@ function nextNext(route: RouteModel, idx: number): NextNext | null {
   return distance <= NEXT_NEXT_MAX ? { instruction: nn, distance } : null;
 }
 
-/** 細い道: 手前で警告、走行中の区間を narrow event で出す */
 function warnNarrow(
   route: RouteModel,
   narrow: NarrowSegment[],

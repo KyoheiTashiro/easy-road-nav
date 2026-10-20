@@ -1,4 +1,3 @@
-// Map の React 非依存部分: タイルスタイル、マーカー DOM、GeoJSON 生成、source / layer 定義
 import * as stylex from "@stylexjs/stylex";
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-gl";
 import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
@@ -77,7 +76,6 @@ export function fixFeatures(fix: Fix | null): FixFC {
   };
 }
 
-/** 描画分割: roadClass の各範囲を LineString に、kind を property に */
 export function routeFeatures(route: RouteModel): FC {
   return {
     type: "FeatureCollection",
@@ -102,7 +100,6 @@ export function altFeatures(routes: RouteModel[], selected: number): FC {
   };
 }
 
-/** geojson source のデータ差し替え。map 未生成・source 未作成なら何もしない */
 export function setSourceData(map: maplibregl.Map | null, id: string, data: FC | FixFC): void {
   (map?.getSource(id) as GeoJSONSource | undefined)?.setData(data);
 }
@@ -158,7 +155,7 @@ export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC
     },
     beforeId,
   );
-  // 現在地: 精度円 + 青ドット。最前面
+  // 現在地は最前面
   map.addSource("fix", { type: "geojson", data: data.fix });
   map.addLayer({
     id: "fix-accuracy",
@@ -191,7 +188,7 @@ export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC
   });
 }
 
-/** 自宅マーカーの要素。HomeIcon は Map が portal で描く */
+/** 中身（アイコン）は portal で描く */
 export function homeMarkerElement(): HTMLDivElement {
   const el = document.createElement("div");
   el.className = stylex.props(styles.homeMarker).className ?? "";

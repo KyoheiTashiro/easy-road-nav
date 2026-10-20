@@ -37,7 +37,7 @@ const styles = stylex.create({ map: { position: "fixed", inset: 0 } });
 
 export function Map() {
   const mode = useTrip((s) => s.mode);
-  const nav = useNav((s) => s.nav); // follow / heading / zoom を読む
+  const nav = useNav((s) => s.nav);
   const from = useTrip((s) => s.from);
   const to = useTrip((s) => s.to);
   const vias = useTrip((s) => s.vias);
@@ -45,7 +45,7 @@ export function Map() {
   const fix = useTrip((s) => s.fix);
   const routes = useTrip(selectRoutes);
   const selected = useTrip((s) => s.selected);
-  const fitVersion = useTrip((s) => s.fitVersion); // 増えたら選択経路に fitBounds
+  const fitVersion = useTrip((s) => s.fitVersion);
   const popup = useTrip((s) => s.popup);
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -54,7 +54,6 @@ export function Map() {
   const [popupDiv] = useState(() => document.createElement("div"));
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  // 自宅マーカー: HomeIcon を portal で描く要素を Marker に渡す
   const [homeDiv] = useState(homeMarkerElement);
   const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   // 方位アイコン（押下で北上）。ナビ中は heading 追従と衝突するので外す
@@ -124,7 +123,7 @@ export function Map() {
     setSourceData(mapRef.current, "alt", data.alt);
   }, [routes, selected]);
 
-  // 現在地。初回 fix で URL に地点が無ければ easeTo（あれば探索後の fitBounds が優先）
+  // 初回 fix: URL に地点があれば探索後の fitBounds を優先し easeTo しない
   useEffect(() => {
     const data = fixFeatures(fix);
     dataRef.current = { ...dataRef.current, fix: data };
@@ -136,7 +135,6 @@ export function Map() {
     }
   }, [fix]);
 
-  // 地点マーカー: 変化のたびに作り直す
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -183,7 +181,7 @@ export function Map() {
       map && home ? new maplibregl.Marker({ element: homeDiv }).setLngLat(home).addTo(map) : null;
   }, [home, homeDiv]);
 
-  // ポップアップ 1 個。地点ポップアップ優先、どちらも無ければ remove
+  // ポップアップは 1 個。地点ポップアップ優先
   useEffect(() => {
     const map = mapRef.current;
     const target = popup?.p ?? markerPopup?.p;

@@ -33,7 +33,7 @@ export function narrowSegments(
     .filter((s) => s.length >= ignoreBelow);
 }
 
-/** 指示の interval 内で細い道区間が始まるか（StepList の「⚠ 細い道」） */
+/** 指示の interval 内で細い道区間が始まるか */
 export function entersNarrow(instr: Instruction, segs: NarrowSegment[]): boolean {
   return segs.some((s) => instr.from <= s.from && s.from < instr.to);
 }

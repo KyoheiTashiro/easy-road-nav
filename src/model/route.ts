@@ -171,7 +171,6 @@ export function segmentBearing(route: RouteModel, i: number): number {
   return bearing(vertex(route, i), vertex(route, i + 1));
 }
 
-/** toll.value == "all" の合計 m */
 export function tollDistance(route: RouteModel): number {
   return route.toll
     .filter((t) => t.value === TOLL.ALL)

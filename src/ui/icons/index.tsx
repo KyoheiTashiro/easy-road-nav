@@ -29,27 +29,22 @@ function Icon({ src, size, transform = "" }: { src: string; size: number; transf
   return <span {...stylex.props(styles.icon(src, size, transform || null))} aria-hidden />;
 }
 
-// 出発地（白抜き丸）
 export function FromIcon({ size = 24 }: { size?: number }) {
   return <Icon src={circle} size={size} />;
 }
 
-// 到着地（ピン）
 export function ToIcon({ size = 24 }: { size?: number }) {
   return <Icon src={pin} size={size} />;
 }
 
-// 自宅（家）
 export function HomeIcon({ size = 24 }: { size?: number }) {
   return <Icon src={home} size={size} />;
 }
 
-// 音声あり（スピーカー + 波）
 export function VolumeIcon({ size = 24 }: { size?: number }) {
   return <Icon src={volume} size={size} />;
 }
 
-// ミュート中（スピーカー + ×）
 export function VolumeOffIcon({ size = 24 }: { size?: number }) {
   return <Icon src={volumeOff} size={size} />;
 }
@@ -74,7 +69,7 @@ const ICON: Record<number, DirIcon> = {
 };
 
 export function DirectionIcon({ sign, size = 24 }: { sign: number; size?: number }) {
-  const { src, deg = 0 } = ICON[Math.abs(sign)] ?? STRAIGHT; // 未知の sign は直進
+  const { src, deg = 0 } = ICON[Math.abs(sign)] ?? STRAIGHT;
   const parts = [];
   if (sign < 0) parts.push("scaleX(-1)");
   if (deg) parts.push(`rotate(${deg}deg)`);

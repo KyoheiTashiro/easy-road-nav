@@ -80,23 +80,21 @@ type Result = { q: string; hits: SavedPoint[] }; // 結果はクエリ付き。�
 
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 
-/** edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ。App が key={mode} で入力 state を捨てる */
 export function SearchBox() {
   const mode = useTrip((s) => (s.mode === MODE.HOME ? MODE.HOME : MODE.EDIT));
   const from = useTrip((s) => s.from);
   const to = useTrip((s) => s.to);
-  const fix = useTrip((s) => (s.gpsError ? null : s.fix)); // 候補「現在地」の表示条件
-  const home = useSaved((s) => s.home); // 空欄候補「自宅」（home モードでは出さない）
-  const history = useSaved((s) => s.history); // 空欄候補（新しい順）
-  const [active, setActive] = useState<PickRole | null>(null); // フォーカス中の欄
+  const fix = useTrip((s) => (s.gpsError ? null : s.fix));
+  const home = useSaved((s) => s.home);
+  const history = useSaved((s) => s.history);
+  const [active, setActive] = useState<PickRole | null>(null);
   const [query, setQuery] = useState("");
-  const [gsi, setGsi] = useState<Result | null>(null); // 住所検索
-  const [poi, setPoi] = useState<Result | null>(null); // 施設名検索
-  const [searched, setSearched] = useState<string | null>(null); // 最後に検索したクエリ。未検索なら「🔍 で検索」行を出す
+  const [gsi, setGsi] = useState<Result | null>(null);
+  const [poi, setPoi] = useState<Result | null>(null);
+  const [searched, setSearched] = useState<string | null>(null);
   const q = query.trim();
   const inflight = useRef<AbortController | null>(null);
 
-  // Enter（スマホの「検索」キー）か「🔍 で検索」行で住所検索と施設名検索を 1 回ずつ並行して呼ぶ。前回の飛行中リクエストは中断（失敗扱いにしない）
   function search() {
     if (!q) return;
     setSearched(q);
@@ -115,7 +113,6 @@ export function SearchBox() {
       });
   }
 
-  // label null = 逆ジオへ
   function pick(role: PickRole, p: LatLng, label: string | null) {
     setQuery("");
     setSearched(null);
@@ -143,9 +140,7 @@ export function SearchBox() {
             ←
           </button>
         ) : (
-          <span {...stylex.props(styles.role)}>
-            {icon}
-          </span>
+          <span {...stylex.props(styles.role)}>{icon}</span>
         )}
         <div {...stylex.props(styles.inputWrap)}>
           <input
@@ -183,7 +178,6 @@ export function SearchBox() {
     );
   }
 
-  // 候補リスト。フォーカス中の欄があるときだけ組み、空なら出さない
   const rows: ReactNode[] = [];
   if (active) {
     const row = (key: string, node: ReactNode) => rows.push(<li key={key}>{node}</li>);
@@ -198,7 +192,6 @@ export function SearchBox() {
         </button>,
       );
     }
-    // 入力が空のときだけ出す固定候補: 自宅（edit のみ）→ 履歴
     if (q === "") {
       if (active !== ROLE.HOME && home) {
         row(

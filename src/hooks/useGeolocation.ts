@@ -2,10 +2,7 @@ import { useEffect } from "react";
 import { navActions } from "@/store/nav.ts";
 import { tripActions } from "@/store/trip.ts";
 
-/**
- * 起動時から常時 watchPosition。fix は trip store へ、続けてナビの step へ（ナビ中でなければ no-op）。
- * 失敗は trip.gpsFailed（fix は前回値を保持。トーストは立ち上がりで 1 回）
- */
+/** 失敗時も fix は前回値を保持 */
 export function useGeolocation(): void {
   useEffect(() => {
     if (!navigator.geolocation) return;

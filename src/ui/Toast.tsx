@@ -21,10 +21,9 @@ const styles = stylex.create({
     zIndex: 10,
   },
   // defineConsts の値はコンパイル時に文字列で埋まるので JS で足さず calc に並べる
-  nav: { top: `calc(env(safe-area-inset-top) + ${layout.hud}px + ${layout.next}px + 16px)` }, // HUD の下
+  nav: { top: `calc(env(safe-area-inset-top) + ${layout.hud}px + ${layout.next}px + 16px)` },
 });
 
-/** 1 つだけ。4 秒で消去。ナビ中は HUD の下に出す */
 export function Toast() {
   const message = useToast();
   const navMode = useTrip((s) => s.mode === MODE.NAV);

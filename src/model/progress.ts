@@ -143,6 +143,7 @@ export function step(
     heading: segmentBearing(route, segmentIndex),
     lastFix: fix,
     offRouteCount: 0,
+    announced: new Set(state.announced), // 入力 state を変異させない
   };
   const { announced } = next;
 

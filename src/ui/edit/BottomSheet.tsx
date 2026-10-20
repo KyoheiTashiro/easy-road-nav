@@ -23,7 +23,6 @@ const styles = stylex.create({
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
-    paddingBottom: "env(safe-area-inset-bottom)",
     backgroundColor: colors.bg,
     color: colors.fg,
     borderRadius: "16px 16px 0 0",
@@ -32,11 +31,12 @@ const styles = stylex.create({
     zIndex: 5,
   },
   expanded: { maxHeight: `${layout.half}vh` },
-  header: { flexShrink: 0, minHeight: `${layout.peek}px` }, // ピーク時に body が覗かないよう高さを揃える
+  // ピーク時に body が覗かないよう高さを揃える。ホームインジケータ分は空けず、ボタンをその直上に置く
+  header: { flexShrink: 0, minHeight: `${layout.peek}px` },
   handle: {
     display: "block",
     width: "100%",
-    padding: "10px 0 6px",
+    padding: "8px 0 4px",
     borderWidth: 0,
     backgroundColor: "transparent",
     cursor: "pointer",
@@ -51,7 +51,7 @@ const styles = stylex.create({
     minHeight: 0,
     overflowY: "auto",
     overscrollBehavior: "contain", // 地図への連鎖・Android の pull-to-refresh を防ぐ
-    padding: "0 16px 16px",
+    padding: "0 16px calc(16px + env(safe-area-inset-bottom))", // 末尾までスクロールしたときだけホームインジケータを避ける
     display: "flex",
     flexDirection: "column",
     gap: 12,

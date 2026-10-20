@@ -413,7 +413,7 @@ props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過�
 
 スワイプは `onTouchStart` で開始 Y・body の `scrollTop`・シートの現在高を取り、`onTouchMove` で inline `max-height` を `[layout.peek, innerHeight × layout.half / 100]` にクランプして追従（`transition: none`）、`onTouchEnd` で inline を外し 30px 以上なら `setSheet(dy < 0)`。下方向は開始時 `scrollTop > 0` なら無視。`useEffect([expanded])` で展開時に `scrollTop = 0`。
 
-内部に地点リスト（タイムライン。別ファイルにしない）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル・自宅行）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
+内部に地点リスト（タイムライン。別ファイルにしない。記号は `FromIcon` / 番号 / `ToIcon` を `marker` 色で塗る）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル・自宅行）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
 
 ## `src/ui/edit/RouteSummary.tsx`
 

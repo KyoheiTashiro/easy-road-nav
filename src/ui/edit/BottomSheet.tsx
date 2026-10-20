@@ -7,7 +7,7 @@ import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from
 import { RouteSummary } from "@/ui/edit/RouteSummary.tsx";
 import { StepList } from "@/ui/edit/StepList.tsx";
 import { button } from "@/ui/button.stylex.ts";
-import { HomeIcon } from "@/ui/icons/index.tsx";
+import { FromIcon, HomeIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors, marker } from "@/ui/tokens.stylex.ts";
 const SWIPE_PX = 30;
@@ -65,7 +65,7 @@ const styles = stylex.create({
     borderTopStyle: "solid",
     borderTopColor: colors.border,
   },
-  // 地点リスト: マーカーと同じ色の丸を縦線で繋ぐ
+  // 地点リスト: 検索欄と同じ記号（出発地 = 中空の丸、到着地 = ピン、経由地 = 番号）をマーカー色で塗り縦線で繋ぐ
   timeline: {
     listStyle: "none",
     margin: 0,
@@ -85,26 +85,22 @@ const styles = stylex.create({
     },
   },
   row: { display: "flex", alignItems: "center", gap: 8, minHeight: 36 },
-  dot: {
+  mark: {
     position: "relative",
     flexShrink: 0,
-    boxSizing: "border-box",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     width: DOT,
     height: DOT,
-    borderRadius: "50%",
-    borderWidth: 3,
-    borderStyle: "solid",
-    borderColor: colors.bg,
-    backgroundColor: colors.border,
-    color: "#fff",
-    fontSize: 11,
+    backgroundColor: colors.bg, // 縦線を隠す
+    color: colors.border, // 未設定
+    fontSize: 14,
     fontWeight: 700,
-    lineHeight: `${DOT - 6}px`,
-    textAlign: "center",
   },
-  from: { backgroundColor: marker.from },
-  via: { backgroundColor: marker.via },
-  to: { backgroundColor: marker.to },
+  from: { color: marker.from },
+  via: { color: marker.via },
+  to: { color: marker.to },
   passed: { opacity: 0.5 },
   note: { flexShrink: 0, fontSize: 12 },
   name: {
@@ -137,8 +133,10 @@ function Row({
 }) {
   return (
     <li {...stylex.props(styles.row, passed && styles.passed)}>
-      <span {...stylex.props(styles.dot, p && styles[dot])} aria-label={role}>
-        {text}
+      <span {...stylex.props(styles.mark, p && styles[dot])} aria-label={role}>
+        {dot === "from" && <FromIcon size={20} />}
+        {dot === "via" && text}
+        {dot === "to" && <ToIcon size={20} />}
       </span>
       {p ? (
         <>

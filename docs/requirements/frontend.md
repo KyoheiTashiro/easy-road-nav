@@ -73,7 +73,7 @@ src/
     layout.stylex.ts        # 部品の高さ（peek / navbar / hud / next）
     icons/                  # アイコン。SVG は形だけ持ち、index.tsx が mask + currentColor で着色
       index.tsx             # FromIcon / ToIcon / HomeIcon / DirectionIcon
-      *.svg                 # arrow / uturn / keep / pin / pin-dot / roundabout / home / circle（viewBox 24、stroke 2）
+      *.svg                 # arrow / uturn / keep / pin / pin-dot / roundabout / home / circle / volume / volume-off（viewBox 24、stroke 2）
       compass.svg           # コンパス（maplibre.css が background-image で参照。独自の色を持つ）
     Toast.tsx
     map/                    # 全モードに出る地図

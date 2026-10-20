@@ -4,6 +4,7 @@ import { remainingTime } from "@/model/progress.ts";
 import { navActions, useNav } from "@/store/nav.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
+import { VolumeIcon, VolumeOffIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
 
@@ -28,6 +29,7 @@ const styles = stylex.create({
   info: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" },
   time: { fontSize: 18, fontWeight: 700 },
   eta: { fontSize: 13, opacity: 0.7 },
+  mute: { width: 44, height: 44, display: "grid", placeItems: "center" },
 });
 
 export function NavBar() {
@@ -53,11 +55,12 @@ export function NavBar() {
         </button>
       )}
       <button
-        {...stylex.props(button.base, muted && button.active)}
+        {...stylex.props(button.base, button.icon, styles.mute, muted && button.active)}
         onClick={navActions.toggleMute}
         aria-pressed={muted}
+        aria-label="ミュート"
       >
-        {muted ? "ミュート中" : "ミュート"}
+        {muted ? <VolumeOffIcon /> : <VolumeIcon />}
       </button>
       <button {...stylex.props(button.base, button.danger)} onClick={() => navActions.end(true)}>
         終了

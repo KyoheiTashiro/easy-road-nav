@@ -448,6 +448,8 @@ props なし。nav store の `nav` `muted`、trip store の `selectRoute` `fix` 
 export function FromIcon(props: { size?: number }): JSX.Element; // 出発地 = 丸
 export function ToIcon(props: { size?: number }): JSX.Element; // 到着地 = ピン
 export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・ボトムシート自宅行
+export function VolumeIcon(props: { size?: number }): JSX.Element; // NavBar ミュートトグル（音声あり）
+export function VolumeOffIcon(props: { size?: number }): JSX.Element; // 同（ミュート中）
 export function DirectionIcon(props: { sign: number; size?: number }): JSX.Element;
 ```
 

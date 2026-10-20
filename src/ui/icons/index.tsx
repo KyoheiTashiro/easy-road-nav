@@ -7,6 +7,8 @@ import pin from "./pin.svg";
 import pinDot from "./pin-dot.svg";
 import roundabout from "./roundabout.svg";
 import uturn from "./uturn.svg";
+import volume from "./volume.svg";
+import volumeOff from "./volume-off.svg";
 
 // SVG は形だけ持ち、色は mask + currentColor で親の color に従う
 const styles = stylex.create({
@@ -40,6 +42,16 @@ export function ToIcon({ size = 24 }: { size?: number }) {
 // 自宅（家）
 export function HomeIcon({ size = 24 }: { size?: number }) {
   return <Icon src={home} size={size} />;
+}
+
+// 音声あり（スピーカー + 波）
+export function VolumeIcon({ size = 24 }: { size?: number }) {
+  return <Icon src={volume} size={size} />;
+}
+
+// ミュート中（スピーカー + ×）
+export function VolumeOffIcon({ size = 24 }: { size?: number }) {
+  return <Icon src={volumeOff} size={size} />;
 }
 
 type DirIcon = { src: string; deg?: number };

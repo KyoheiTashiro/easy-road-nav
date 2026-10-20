@@ -56,10 +56,13 @@ type RouteSummaryProps = {
 export function RouteSummary({ routes, selected, onSelect, loading, compact }: RouteSummaryProps) {
   if (compact) {
     const route = routes[selected];
+    let text = "出発地と到着地を設定してください";
+    if (loading) text = "探索中…";
+    else if (route) text = summaryText(route);
     return (
       <div {...stylex.props(styles.compact)}>
         {loading && <div {...stylex.props(styles.spinner)} />}
-        {loading ? "探索中…" : route ? summaryText(route) : "出発地と到着地を設定してください"}
+        {text}
       </div>
     );
   }

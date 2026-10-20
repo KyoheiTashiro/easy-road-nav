@@ -78,10 +78,7 @@ const styles = stylex.create({
 
 type Result = { q: string; hits: SavedPoint[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
 
-const skipAbort = (e: unknown) => {
-  if (e instanceof DOMException && e.name === "AbortError") return;
-  throw e;
-};
+const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 
 /** edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ。App が key={mode} で入力 state を捨てる */
 export function SearchBox() {
@@ -97,39 +94,25 @@ export function SearchBox() {
   const [poi, setPoi] = useState<Result | null>(null); // 施設名検索
   const [searched, setSearched] = useState<string | null>(null); // 最後に検索したクエリ。未検索なら「🔍 で検索」行を出す
   const q = query.trim();
-  const gsiHits = active && gsi?.q === q ? gsi.hits : [];
-  const poiHits = active && poi?.q === q ? poi.hits : [];
-  const showCurrent = (active === ROLE.FROM || active === ROLE.HOME) && !!fix;
-  // 入力が空のときだけ出す固定候補: 自宅（edit のみ）→ 履歴
-  const empty = !!active && q === "";
-  const showHome = empty && active !== ROLE.HOME && home;
-  const saved = empty ? history : [];
-  const showSearchRow = !!active && q !== "" && searched !== q;
-  const showList =
-    !!active &&
-    (showCurrent ||
-      !!showHome ||
-      saved.length > 0 ||
-      showSearchRow ||
-      gsiHits.length > 0 ||
-      poiHits.length > 0);
-
   const inflight = useRef<AbortController | null>(null);
 
-  // Enter（スマホの「検索」キー）か「🔍 で検索」行で住所検索と施設名検索を 1 回ずつ並行して呼ぶ。前回の飛行中リクエストは中断
+  // Enter（スマホの「検索」キー）か「🔍 で検索」行で住所検索と施設名検索を 1 回ずつ並行して呼ぶ。前回の飛行中リクエストは中断（失敗扱いにしない）
   function search() {
     if (!q) return;
     setSearched(q);
     inflight.current?.abort();
-    const ac = (inflight.current = new AbortController());
+    const ac = new AbortController();
+    inflight.current = ac;
     searchAddress(q, ac.signal)
       .then((hits) => setGsi({ q, hits }))
-      .catch(skipAbort)
-      .catch(() => showToast("住所検索に失敗しました"));
+      .catch((e) => {
+        if (!isAbort(e)) showToast("住所検索に失敗しました");
+      });
     searchPoi(q, ac.signal)
       .then((hits) => setPoi({ q, hits }))
-      .catch(skipAbort)
-      .catch(() => showToast("施設検索に失敗しました"));
+      .catch((e) => {
+        if (!isAbort(e)) showToast("施設検索に失敗しました");
+      });
   }
 
   // label null = 逆ジオへ
@@ -142,6 +125,7 @@ export function SearchBox() {
 
   function field(role: PickRole, point: Point | null, name: string, icon: ReactNode) {
     const focused = active === role;
+    const shown = point ? (point.label ?? "…") : ""; // label null = 逆ジオ待ち
     return (
       <form
         {...stylex.props(styles.row, role === ROLE.TO && styles.divider)}
@@ -169,7 +153,7 @@ export function SearchBox() {
             type="search"
             enterKeyHint="search"
             placeholder={`${name}を検索`}
-            value={focused ? query : (point && (point.label ?? "…")) || ""}
+            value={focused ? query : shown}
             onFocus={() => {
               setActive(role);
               setQuery("");
@@ -199,6 +183,86 @@ export function SearchBox() {
     );
   }
 
+  // 候補リスト。フォーカス中の欄があるときだけ組み、空なら出さない
+  const rows: ReactNode[] = [];
+  if (active) {
+    const row = (key: string, node: ReactNode) => rows.push(<li key={key}>{node}</li>);
+    if ((active === ROLE.FROM || active === ROLE.HOME) && fix) {
+      row(
+        "current",
+        <button
+          {...stylex.props(button.base, button.ghost, styles.current)}
+          onClick={() => pick(active, { lat: fix.lat, lng: fix.lng }, null)}
+        >
+          現在地
+        </button>,
+      );
+    }
+    // 入力が空のときだけ出す固定候補: 自宅（edit のみ）→ 履歴
+    if (q === "") {
+      if (active !== ROLE.HOME && home) {
+        row(
+          "home",
+          <button
+            {...stylex.props(button.base, button.ghost)}
+            onClick={() => pick(active, home, home.label)}
+          >
+            自宅<span {...stylex.props(styles.sub)}>{home.label}</span>
+          </button>,
+        );
+      }
+      history.forEach((h, i) =>
+        row(
+          `history-${i}`,
+          <button
+            {...stylex.props(button.base, button.ghost)}
+            onClick={() => pick(active, h, h.label)}
+          >
+            {h.label}
+          </button>,
+        ),
+      );
+    } else if (searched !== q) {
+      row(
+        "search",
+        <button
+          {...stylex.props(button.base, button.ghost, styles.current)}
+          // 入力欄の blur（→ リスト非表示）を防ぐ
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={search}
+        >
+          🔍 「{q}」で検索
+        </button>,
+      );
+    }
+    const gsiHits = gsi?.q === q ? gsi.hits : [];
+    const poiHits = poi?.q === q ? poi.hits : [];
+    [...poiHits, ...gsiHits].forEach((h, i) =>
+      row(
+        `hit-${i}`,
+        <button
+          {...stylex.props(button.base, button.ghost)}
+          onClick={() => {
+            savedActions.historyPushed(h); // 住所 / 施設名の候補だけ履歴に残す
+            pick(active, { lat: h.lat, lng: h.lng }, h.label);
+          }}
+        >
+          {h.label}
+        </button>,
+      ),
+    );
+    if (gsiHits.length > 0 || poiHits.length > 0) {
+      rows.push(
+        <li key="credit" {...stylex.props(styles.divider, styles.credit)}>
+          {gsiHits.length > 0 && <a href="https://www.gsi.go.jp/">出典: 国土地理院</a>}
+          {poiHits.length > 0 && (
+            <a href="https://developer.yahoo.co.jp/sitemap/">Webサービス by Yahoo! JAPAN</a>
+          )}
+        </li>,
+      );
+    }
+  }
+
   return (
     <div {...stylex.props(styles.box)}>
       <div {...stylex.props(styles.card)}>
@@ -211,73 +275,7 @@ export function SearchBox() {
           </>
         )}
       </div>
-      {showList && (
-        <ul {...stylex.props(styles.list)}>
-          {showCurrent && (
-            <li>
-              <button
-                {...stylex.props(button.base, button.ghost, styles.current)}
-                onClick={() => pick(active, { lat: fix.lat, lng: fix.lng }, null)}
-              >
-                現在地
-              </button>
-            </li>
-          )}
-          {showHome && (
-            <li>
-              <button
-                {...stylex.props(button.base, button.ghost)}
-                onClick={() => pick(active, home, home.label)}
-              >
-                自宅<span {...stylex.props(styles.sub)}>{home.label}</span>
-              </button>
-            </li>
-          )}
-          {saved.map((h, i) => (
-            <li key={i}>
-              <button
-                {...stylex.props(button.base, button.ghost)}
-                onClick={() => pick(active, h, h.label)}
-              >
-                {h.label}
-              </button>
-            </li>
-          ))}
-          {showSearchRow && (
-            <li>
-              <button
-                {...stylex.props(button.base, button.ghost, styles.current)}
-                // 入力欄の blur（→ リスト非表示）を防ぐ
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={search}
-              >
-                🔍 「{q}」で検索
-              </button>
-            </li>
-          )}
-          {[...poiHits, ...gsiHits].map((h, i) => (
-            <li key={i}>
-              <button
-                {...stylex.props(button.base, button.ghost)}
-                onClick={() => {
-                  savedActions.historyPushed(h); // 住所 / 施設名の候補だけ履歴に残す
-                  pick(active, { lat: h.lat, lng: h.lng }, h.label);
-                }}
-              >
-                {h.label}
-              </button>
-            </li>
-          ))}
-          {(gsiHits.length > 0 || poiHits.length > 0) && (
-            <li {...stylex.props(styles.divider, styles.credit)}>
-              {gsiHits.length > 0 && <a href="https://www.gsi.go.jp/">出典: 国土地理院</a>}
-              {poiHits.length > 0 && (
-                <a href="https://developer.yahoo.co.jp/sitemap/">Webサービス by Yahoo! JAPAN</a>
-              )}
-            </li>
-          )}
-        </ul>
-      )}
+      {rows.length > 0 && <ul {...stylex.props(styles.list)}>{rows}</ul>}
     </div>
   );
 }

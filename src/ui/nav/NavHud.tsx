@@ -61,6 +61,7 @@ export function NavHud() {
   const instruction = hud?.instruction ?? null; // null = 案内地点が残っていない → 「目的地まで」
   const remaining = hud?.remaining ?? route.distance - nav.s; // 初回 hud event 前は経路末尾まで
   const next = hud?.next ?? null; // 次の次。null なら行は空のまま（高さ固定）
+  const name = instruction ? instruction.streetName : "目的地まで";
   return (
     <div {...stylex.props(styles.hud)}>
       <div {...stylex.props(styles.main)}>
@@ -69,13 +70,7 @@ export function NavHud() {
         </span>
         <div {...stylex.props(styles.col)}>
           <span {...stylex.props(styles.dist)}>{formatDistance(remaining)}</span>
-          {instruction ? (
-            instruction.streetName && (
-              <span {...stylex.props(styles.name)}>{instruction.streetName}</span>
-            )
-          ) : (
-            <span {...stylex.props(styles.name)}>目的地まで</span>
-          )}
+          {name && <span {...stylex.props(styles.name)}>{name}</span>}
         </div>
       </div>
       <div {...stylex.props(styles.next)}>

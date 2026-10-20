@@ -1,7 +1,9 @@
 import * as stylex from "@stylexjs/stylex";
+import { Fragment, type ReactNode } from "react";
 import { formatDuration, formatKm } from "@/model/format.ts";
 import type { NarrowSegment } from "@/model/narrow.ts";
 import { tollDistance, turnCount, type RouteModel } from "@/model/route.ts";
+import { NarrowIcon, TurnsIcon } from "@/ui/icons/index.tsx";
 import { colors } from "@/ui/tokens.stylex.ts";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
@@ -36,16 +38,32 @@ const styles = stylex.create({
     cursor: "pointer",
   },
   selected: { borderColor: colors.accent, boxShadow: `inset 0 0 0 1px ${colors.accent}` },
+  stat: { display: "inline-flex", alignItems: "center", gap: 2, verticalAlign: "bottom" },
+  narrow: { color: colors.narrow },
+  none: { opacity: 0.5 },
 });
 
-function summaryText(route: RouteModel, narrow: NarrowSegment[]): string {
-  const parts = [formatKm(route.distance), formatDuration(route.time)];
+function Summary({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
+  const parts: ReactNode[] = [formatKm(route.distance), formatDuration(route.time)];
   const toll = tollDistance(route);
   if (toll > 0) parts.push(`有料区間 ${formatKm(toll)}`);
   const narrowM = narrow.reduce((sum, s) => sum + s.length, 0);
-  parts.push(narrowM > 0 ? `細い道 ${formatKm(narrowM)}` : "細い道なし");
-  parts.push(`右左折 ${turnCount(route)} 回`);
-  return parts.join(" / ");
+  parts.push(
+    <span {...stylex.props(styles.stat, styles.narrow, narrowM === 0 && styles.none)}>
+      <NarrowIcon size={18} />
+      {narrowM > 0 ? formatKm(narrowM) : "なし"}
+    </span>,
+    <span {...stylex.props(styles.stat)}>
+      <TurnsIcon size={18} />
+      {turnCount(route)}
+    </span>,
+  );
+  return parts.map((p, i) => (
+    <Fragment key={i}>
+      {i > 0 && " / "}
+      {p}
+    </Fragment>
+  ));
 }
 
 type RouteSummaryProps = {
@@ -67,9 +85,9 @@ export function RouteSummary({
 }: RouteSummaryProps) {
   if (compact) {
     const route = routes[selected];
-    let text = "出発地と到着地を設定してください";
+    let text: ReactNode = "出発地と到着地を設定してください";
     if (loading) text = "探索中…";
-    else if (route) text = summaryText(route, narrows[selected] ?? []);
+    else if (route) text = <Summary route={route} narrow={narrows[selected] ?? []} />;
     return (
       <div {...stylex.props(styles.compact)}>
         {loading && <div {...stylex.props(styles.spinner)} />}
@@ -88,7 +106,7 @@ export function RouteSummary({
           aria-pressed={i === selected}
         >
           {i === 0 ? "推奨: " : `代替 ${i}: `}
-          {summaryText(r, narrows[i] ?? [])}
+          <Summary route={r} narrow={narrows[i] ?? []} />
         </button>
       ))}
     </div>

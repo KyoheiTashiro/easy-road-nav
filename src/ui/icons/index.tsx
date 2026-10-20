@@ -3,9 +3,11 @@ import arrow from "./arrow.svg";
 import circle from "./circle.svg";
 import home from "./home.svg";
 import keep from "./keep.svg";
+import narrow from "./narrow.svg";
 import pin from "./pin.svg";
 import pinDot from "./pin-dot.svg";
 import roundabout from "./roundabout.svg";
+import turns from "./turns.svg";
 import uturn from "./uturn.svg";
 import volume from "./volume.svg";
 import volumeOff from "./volume-off.svg";
@@ -39,6 +41,14 @@ export function ToIcon({ size = 24 }: { size?: number }) {
 
 export function HomeIcon({ size = 24 }: { size?: number }) {
   return <Icon src={home} size={size} />;
+}
+
+export function NarrowIcon({ size = 24 }: { size?: number }) {
+  return <Icon src={narrow} size={size} />;
+}
+
+export function TurnsIcon({ size = 24 }: { size?: number }) {
+  return <Icon src={turns} size={size} />;
 }
 
 export function VolumeIcon({ size = 24 }: { size?: number }) {

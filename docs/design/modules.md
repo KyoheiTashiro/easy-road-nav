@@ -426,7 +426,7 @@ type RouteSummaryProps = {
 };
 ```
 
-`compact` = ピーク行（選択経路 1 行）。展開時は代替カード（最大 3 枚）。表示は `format.ts`。各行 = 距離 / 時間 / 有料区間（あれば）/ 細い道 x.x km（0 なら「細い道なし」）/ 右左折 n 回。
+`compact` = ピーク行（選択経路 1 行）。展開時は代替カード（最大 3 枚）。表示は `format.ts`。各行 = 距離 / 時間 / 有料区間（あれば）/ `NarrowIcon` + 細い道合計 x.x km（0 なら薄色 + 「なし」）/ `TurnsIcon` + 右左折回数。
 
 ## `src/ui/edit/StepList.tsx`
 
@@ -450,6 +450,8 @@ props なし。nav store の `nav` `muted`、trip store の `selectRoute` `fix` 
 export function FromIcon(props: { size?: number }): JSX.Element; // 出発地 = 丸
 export function ToIcon(props: { size?: number }): JSX.Element; // 到着地 = ピン
 export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・ボトムシート自宅行
+export function NarrowIcon(props: { size?: number }): JSX.Element; // 細い道 = 狭い道路線画。経路サマリ
+export function TurnsIcon(props: { size?: number }): JSX.Element; // 右左折 = 左右に分かれる T 字矢印。経路サマリ
 export function VolumeIcon(props: { size?: number }): JSX.Element; // NavBar ミュートトグル（音声あり）
 export function VolumeOffIcon(props: { size?: number }): JSX.Element; // 同（ミュート中）
 export function DirectionIcon(props: { sign: number; size?: number }): JSX.Element;

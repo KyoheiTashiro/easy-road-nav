@@ -2,11 +2,11 @@
 
 ## 方針
 
-- 状態ライブラリ・ルーター不使用。React `useState` と props のみ。状態の一覧は [design/ui.md](../design/ui.md)
+- 状態は zustand の store（`src/store/`）に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。Effect は `src/hooks/`（外部システムとの同期）にだけ書く。ルーター不使用。状態の一覧は [design/ui.md](../design/ui.md)
 - URL クエリ（[map-display.md](map-display.md)）が地点 + notoll の正。編集で `history.replaceState`、読み込み時に復元して探索
-- `src/model/` は React・DOM 非依存の純ロジック。UI → model の一方向 import
-- Vitest は `src/model/` と `src/url.ts` `src/saved.ts` のみ。UI・API 呼び出しは手動確認
-- ライブラリは React / Vite / TypeScript / MapLibre GL JS / Vitest + StyleX（CSS）のみ。追加しない（turf 不採用: 必要な計算は `geo.ts` 数十行）
+- 依存方向は `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` と `model/` は React・DOM 非依存
+- Vitest は `src/model/` `src/store/` `src/url.ts` のみ。UI・API 呼び出しは手動確認
+- ライブラリは React / Vite / TypeScript / MapLibre GL JS / Vitest + StyleX（CSS）+ zustand（状態）+ React Compiler（babel plugin）のみ。追加しない（turf 不採用: 必要な計算は `geo.ts` 数十行）
 - CSS: StyleX。`@stylexjs/postcss-plugin` + `@vitejs/plugin-react`（5 系、`babel.configFile: true`）が共通の `babel.config.js` から `@stylexjs/babel-plugin` を読む。色トークンは `src/ui/tokens.stylex.ts`（`defineVars`、ダーク値は `@media (prefers-color-scheme: dark)`）
 - StyleX は `border` `background` 等のショートハンドを**黙って捨てる**（CSS に出ない → ブラウザ既定の枠が見える）。`borderWidth` / `borderStyle` / `borderColor`、`backgroundColor` の longhand で書く
 - 各ファイルの export・シグネチャは [design/modules.md](../design/modules.md)
@@ -14,7 +14,7 @@
 ## 開発ツール
 
 - 型検査: `tsc --noEmit`（`strict`、`noUncheckedIndexedAccess`）
-- Lint: oxlint（`react-hooks` プラグイン）。Format: oxfmt。ESLint / Prettier は入れない
+- Lint: oxlint（`react-hooks` プラグイン）。Format: oxfmt。ESLint / Prettier は入れない。`exhaustive-deps` の無効化コメントは書かない（React Compiler がそのコンポーネントをスキップする）
 - スマホ実機検証: Geolocation は HTTPS 必須。Mac を tailnet に入れ `tailscale serve --bg 5173` で Vite dev を `https://<mac>.<tailnet>.ts.net` に公開。GraphHopper は Vite の `/gh` proxy 経由で一緒に届く。HMR は追加設定なしで wss になる。`tailscale serve` は Host ヘッダを透過するので `vite.config.ts` に `server.allowedHosts: [".ts.net"]` が必須（ないと "Blocked request"。先頭 `.` はサフィックス一致なのでホスト名を書かなくてよい）
 
 ## ディレクトリ
@@ -32,15 +32,25 @@ scripts/
   heap-check.sh           # ヒープ実測（infrastructure.md）
 .env.local                  # VITE_YAHOO_APPID（gitignore。ビルド時に埋め込む）
 vite.config.ts              # react(babel.configFile)、/gh proxy、allowedHosts、vitest
-babel.config.js             # @stylexjs/babel-plugin（vite / postcss 共用）
+babel.config.js             # React Compiler + @stylexjs/babel-plugin（vite / postcss 共用）
 postcss.config.js           # @stylexjs/postcss-plugin
 src/
   main.tsx
-  App.tsx                   # 状態の置き場。画面モード（編集 / ナビ）の切替
+  App.tsx                   # hooks の呼び出しと画面モード別のレイアウトだけ
   url.ts                    # クエリ ↔ 地点・notoll
-  saved.ts                  # 自宅・検索履歴の localStorage 読み書き（search.md）
-  useUpdateCheck.ts         # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
   stylex.css                # @stylex; のみ（StyleX 出力先）
+  store/                    # zustand。React 非依存、セレクタとアクションだけ export
+    trip.ts                 # 地点・notoll・探索結果・mode・popup・fix
+    nav.ts                  # NavState・hud。start / onFix / end（design/nav.md）
+    saved.ts                # 自宅・検索履歴（localStorage、search.md）
+    toast.ts                # メッセージ 1 つ
+  hooks/                    # Effect はここだけ（外部システムとの同期）
+    useRouteSearch.ts       # 地点・notoll → fetchRoute → store
+    useReverseGeocode.ts    # label null の地点 → 逆ジオ
+    useUrlSync.ts           # 地点・notoll → history.replaceState
+    useGeolocation.ts       # watchPosition（起動時から常時）→ trip.fixUpdated + nav.onFix
+    useWakeLock.ts
+    useUpdateCheck.ts       # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
   api/
     graphhopper.ts          # fetch + 例外変換（契約は design/route-model.md）
     gsi.ts                  # 住所検索・逆ジオ（search.md）
@@ -54,9 +64,7 @@ src/
     __fixtures__/           # GraphHopper 実応答 JSON
     *.test.ts               # 実装と同居
   nav/
-    useGeolocation.ts       # watchPosition（起動時から常時）
-    useSpeech.ts            # speechSynthesis キュー
-    useWakeLock.ts
+    speech.ts               # speechSynthesis の薄いラッパ（関数）
   ui/
     tokens.stylex.ts        # 色トークン（ライト / ダーク）
     Map.tsx                 # MapLibre、スタイル切替・ラベル上書き、経路レイヤー、マーカー、追従・回転
@@ -75,4 +83,4 @@ src/
 
 - `*.test.ts` を実装ファイルの隣に置く
 - fixture は `src/model/__fixtures__/`（[route-model.md](../design/route-model.md)）
-- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）
+- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`store/saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）、`store/nav.ts`（`fetchRoute` を差し替え、開始 → 経路外れ 3 回 → リルート → 到着）

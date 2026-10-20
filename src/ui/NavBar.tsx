@@ -1,5 +1,8 @@
 import * as stylex from "@stylexjs/stylex";
 import { formatClock, formatDuration } from "../model/format.ts";
+import { remainingTime } from "../model/progress.ts";
+import { navActions, useNav } from "../store/nav.ts";
+import { selectRoute, useTrip } from "../store/trip.ts";
 import { button } from "./button.stylex.ts";
 import { colors } from "./tokens.stylex.ts";
 
@@ -29,44 +32,36 @@ const styles = stylex.create({
   eta: { fontSize: 13, opacity: 0.7 },
 });
 
-type NavBarProps = {
-  remainingMs: number;
-  arrivalAt: number; // 到着予想 epoch ms（fix.t + remainingMs。render 内で Date.now を呼ばない）
-  muted: boolean;
-  onMute(): void;
-  onEnd(): void;
-  follow: boolean;
-  onFollow(): void;
-};
-
-export function NavBar({
-  remainingMs,
-  arrivalAt,
-  muted,
-  onMute,
-  onEnd,
-  follow,
-  onFollow,
-}: NavBarProps) {
+export function NavBar() {
+  const nav = useNav((s) => s.nav);
+  const muted = useNav((s) => s.muted);
+  const route = useTrip(selectRoute);
+  const fix = useTrip((s) => s.fix);
+  if (!nav || !route || !fix) return null;
+  const remainingMs = remainingTime(route, nav.s);
+  const arrivalAt = fix.t + remainingMs; // 到着予想 epoch ms。render 内で Date.now を呼ばない
   return (
     <div {...stylex.props(styles.bar)}>
       <div {...stylex.props(styles.info)}>
         <span {...stylex.props(styles.time)}>{formatDuration(remainingMs)}</span>
         <span {...stylex.props(styles.eta)}>{formatClock(new Date(arrivalAt))} 到着予定</span>
       </div>
-      {!follow && (
-        <button {...stylex.props(button.base, button.active)} onClick={onFollow}>
+      {!nav.follow && (
+        <button
+          {...stylex.props(button.base, button.active)}
+          onClick={() => navActions.setFollow(true)}
+        >
           現在地
         </button>
       )}
       <button
         {...stylex.props(button.base, muted && button.active)}
-        onClick={onMute}
+        onClick={navActions.toggleMute}
         aria-pressed={muted}
       >
         {muted ? "ミュート中" : "ミュート"}
       </button>
-      <button {...stylex.props(button.base, button.danger)} onClick={onEnd}>
+      <button {...stylex.props(button.base, button.danger)} onClick={() => navActions.end(true)}>
         終了
       </button>
     </div>

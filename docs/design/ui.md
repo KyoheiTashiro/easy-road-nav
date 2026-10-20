@@ -4,7 +4,7 @@
 
 ## 画面モード
 
-`edit`（経路編集）・`nav`（案内中）・`home`（自宅設定）の 3 つ。`App.tsx` の `mode` state で切替。
+`edit`（経路編集）・`nav`（案内中）・`home`（自宅設定）の 3 つ。trip store の `mode` で切替。
 
 - `edit` → `nav`: 「案内開始」（[nav.md](nav.md) の開始手順）
 - `nav` → `edit`: 「終了」（確認なし）または到着。経路・地点はそのまま残り、再度「案内開始」できる。GPS watch は継続
@@ -107,7 +107,7 @@ MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（�
 - 飛行中リクエストは `AbortController` で中断してから次を投げる。中断はトーストしない
 - ローディング表示: サマリ行にスピナー 1 個
 - 経由地なし → `alternative_route` 最大 3 本、あり → 1 本（[route-model.md](route-model.md) の契約）
-- 新しい経路が返ったら `fitBounds`（下パディング = シートのピーク高さ）。代替切替・トグル変更・再探索の結果でもカメラは動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（App が地点集合の変化を検知して増やし、Map が `useEffect` で fit）
+- 新しい経路が返ったら `fitBounds`（下パディング = シートのピーク高さ）。代替切替・トグル変更・再探索の結果でもカメラは動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（trip store が `routesLoaded` で地点集合の変化を検知して増やし、Map が `useEffect` で fit）
 - 失敗（400 / ネットワーク）→ トースト 1 種「経路を探索できません」。経路表示は空にする
 
 ## 経路レイヤー
@@ -122,44 +122,43 @@ GeoJSON source 2 つ、line layer 3 つ。描画分割は [route-model.md](route
 
 `route` source の feature は `kind` プロパティで filter。短区間無視は描画に適用しない。
 
-## 状態（App.tsx）
+## 状態（src/store/）
 
-`useState` を関心ごとに分ける。reducer は使わない。
+zustand の store を関心ごとに分ける。UI は 1 値 1 セレクタで購読し、操作はアクション（起きた事象の名前）で行う。Effect は `src/hooks/` にだけ置く。シグネチャは [modules.md](modules.md)。
 
 ```ts
 type Point = { lat: number; lng: number; label: string | null }; // label null = 逆ジオ中
 
-const [mode, setMode] = useState<"edit" | "nav" | "home">("edit");
-const [from, setFrom] = useState<Point | null>(null);
-const [to, setTo] = useState<Point | null>(null);
-const [vias, setVias] = useState<Point[]>([]);
-const [notoll, setNotoll] = useState(true);
-const [result, setResult] = useState<{ key: string; routes: RouteModel[] } | null>(null); // 探索結果 + リクエストキー
-const [selected, setSelected] = useState(0); // routes の index
-const [fix, setFix] = useState<Fix | null>(null); // 最新 GPS fix
-const [gpsError, setGpsError] = useState(false);
-const [muted, setMuted] = useState(false); // セッション内のみ
-const [nav, setNav] = useState<NavState | null>(null); // nav.md
-const [toast, setToast] = useState<string | null>(null);
-const [fitVersion, setFitVersion] = useState(0); // fitBounds トリガ
-const [sheetExpanded, setSheetExpanded] = useState(false);
-const [popup, setPopup] = useState<{ p: LatLng; label: string | null } | null>(null); // 地図タップ専用
-const [hud, setHud] = useState<{ instruction: Instruction | null; remaining: number; next: NextNext | null } | null>(null);
-const [inNarrow, setInNarrow] = useState(false);
-const [home, setHome] = useState<SavedPoint | null>(loadHome); // 自宅。更新時に saveHome
-const [history, setHistory] = useState<SavedPoint[]>(loadHistory); // 検索履歴（新しい順、最大 5）。更新時に saveHistory
+// trip.ts
+mode: "edit" | "nav" | "home";
+from: Point | null; to: Point | null; vias: Point[]; notoll: boolean;
+result: { key: string; routes: RouteModel[]; narrows: NarrowSegment[][] } | null; // 探索結果 + リクエストキー
+selected: number; // routes の index
+fittedKey: string; fitVersion: number; // fitBounds 済みの地点集合キー / fitBounds トリガ
+sheetExpanded: boolean;
+popup: { p: LatLng; label: string | null } | null; // 地図タップ専用
+fix: Fix | null; gpsError: boolean; // 最新 GPS fix
+fromDefaulted: boolean; // 出発地の既定（初回 fix）を適用済み
+passedVia: number; // 現在の経路より前に通過した経由地数
+// nav.ts
+nav: NavState | null; // nav.md
+hud: { instruction: Instruction | null; remaining: number; next: NextNext | null } | null;
+inNarrow: boolean; muted: boolean; starting: boolean; // muted はセッション内のみ
+// saved.ts
+home: SavedPoint | null; history: SavedPoint[]; // localStorage が正。URL には入れない
+// toast.ts
+message: string | null;
 ```
 
-- `fix` `gpsError` は `useGeolocation()` の戻り値
-- `home` `history` は `localStorage`（[modules.md](modules.md) の `saved.ts`）。URL には入れない
-- 派生値（`useMemo`）: 選択中 `RouteModel`、各経路の細い道区間（`NarrowSegment[][]`）、サマリ数値、URL クエリ
-- URL: `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
-- 探索は `useEffect([pointsKey, reqKey])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）、`reqKey` = `pointsKey` + notoll。cleanup で `abort()`
+- `fix` `gpsError` は `hooks/useGeolocation` が `fixUpdated` / `gpsFailed` で入れる
+- 派生値はセレクタ（`selectRoutes` `selectNarrows` `selectLoading` `selectRoute`）。`useMemo` は書かない（React Compiler）
+- URL: `hooks/useUrlSync` が `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
+- 探索は `hooks/useRouteSearch` の `useEffect([reqKey])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）、`reqKey` = `pointsKey` + notoll。cleanup で `abort()`
 - `routes` `loading` は派生値: `routes` = 地点が揃い `result.key === reqKey` のときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い `result.key !== reqKey`。effect 内で同期 setState しない（地点欠けで即空になる）
 
 ## トースト
 
-1 つだけ。新しいメッセージで置換。4 秒で自動消去。画面上部（ナビ中は NavHud の下）。
+1 つだけ。新しいメッセージで置換。4 秒で自動消去（タイマーは `Toast.tsx`）。画面上部（ナビ中は NavHud の下）。
 
 ## PWA
 

@@ -1,7 +1,8 @@
 import * as stylex from "@stylexjs/stylex";
 import { formatDistance } from "../model/format.ts";
-import { signWord, type NextNext } from "../model/progress.ts";
-import type { Instruction } from "../model/route.ts";
+import { signWord } from "../model/progress.ts";
+import { useNav } from "../store/nav.ts";
+import { selectRoute, useTrip } from "../store/trip.ts";
 import { DirectionIcon } from "./icons.tsx";
 import { colors } from "./tokens.stylex.ts";
 
@@ -54,15 +55,15 @@ const styles = stylex.create({
   reroute: { backgroundColor: colors.surface, color: colors.fg },
 });
 
-type NavHudProps = {
-  instruction: Instruction | null; // null = 案内地点が残っていない → 「目的地まで」
-  remaining: number; // m
-  next: NextNext | null; // 次の次。null なら行は空のまま（高さ固定）
-  inNarrow: boolean;
-  rerouting: boolean;
-};
-
-export function NavHud({ instruction, remaining, next, inNarrow, rerouting }: NavHudProps) {
+export function NavHud() {
+  const nav = useNav((s) => s.nav);
+  const hud = useNav((s) => s.hud);
+  const inNarrow = useNav((s) => s.inNarrow);
+  const route = useTrip(selectRoute);
+  if (!nav || !route) return null;
+  const instruction = hud?.instruction ?? null; // null = 案内地点が残っていない → 「目的地まで」
+  const remaining = hud?.remaining ?? route.distance - nav.s; // 初回 hud event 前は経路末尾まで
+  const next = hud?.next ?? null; // 次の次。null なら行は空のまま（高さ固定）
   return (
     <div {...stylex.props(styles.hud)}>
       <div {...stylex.props(styles.main)}>
@@ -92,7 +93,7 @@ export function NavHud({ instruction, remaining, next, inNarrow, rerouting }: Na
         )}
       </div>
       {inNarrow && <div {...stylex.props(styles.banner, styles.narrow)}>細い道を走行中</div>}
-      {rerouting && <div {...stylex.props(styles.banner, styles.reroute)}>再探索中…</div>}
+      {nav.rerouting && <div {...stylex.props(styles.banner, styles.reroute)}>再探索中…</div>}
     </div>
   );
 }

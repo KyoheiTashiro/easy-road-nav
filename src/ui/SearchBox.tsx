@@ -2,7 +2,10 @@ import * as stylex from "@stylexjs/stylex";
 import { useRef, useState } from "react";
 import { searchAddress, type SearchHit } from "../api/gsi.ts";
 import { searchPoi } from "../api/yahoo.ts";
-import type { Fix, LatLng, Point, SavedPoint } from "../model/route.ts";
+import type { LatLng, Point } from "../model/route.ts";
+import { savedActions, useSaved } from "../store/saved.ts";
+import { showToast } from "../store/toast.ts";
+import { tripActions, useTrip } from "../store/trip.ts";
 import { button } from "./button.stylex.ts";
 import { PointIcon } from "./icons.tsx";
 import { colors } from "./tokens.stylex.ts";
@@ -81,22 +84,14 @@ const skipAbort = (e: unknown) => {
   throw e;
 };
 
-type SearchBoxProps = {
-  mode: "edit" | "home"; // edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ
-  from: Point | null;
-  to: Point | null;
-  fix: Fix | null; // 候補「現在地」の表示条件
-  home: SavedPoint | null; // 空欄候補「自宅」（home モードでは出さない）
-  history: SavedPoint[]; // 空欄候補（新しい順）
-  onSet(role: Role, p: LatLng, label: string | null): void; // label null = 逆ジオへ
-  onPick(p: SavedPoint): void; // 住所 / 施設名の候補タップ（履歴に追加）。onSet の直前
-  onClear(role: "from" | "to"): void;
-  onBack(): void; // home モードの「戻る」
-  onError(msg: string): void; // トースト
-};
-
-export function SearchBox(props: SearchBoxProps) {
-  const { mode, from, to, fix, home, history, onSet, onPick, onClear, onBack, onError } = props;
+/** edit = 出発地 / 到着地の 2 欄、home = 「戻る」+ 自宅欄 1 つ。App が key={mode} で入力 state を捨てる */
+export function SearchBox() {
+  const mode = useTrip((s) => (s.mode === "home" ? "home" : "edit"));
+  const from = useTrip((s) => s.from);
+  const to = useTrip((s) => s.to);
+  const fix = useTrip((s) => (s.gpsError ? null : s.fix)); // 候補「現在地」の表示条件
+  const home = useSaved((s) => s.home); // 空欄候補「自宅」（home モードでは出さない）
+  const history = useSaved((s) => s.history); // 空欄候補（新しい順）
   const [active, setActive] = useState<Role | null>(null); // フォーカス中の欄
   const [query, setQuery] = useState("");
   const [gsi, setGsi] = useState<Result | null>(null); // 住所検索
@@ -131,18 +126,19 @@ export function SearchBox(props: SearchBoxProps) {
     searchAddress(q, ac.signal)
       .then((hits) => setGsi({ q, hits }))
       .catch(skipAbort)
-      .catch(() => onError("住所検索に失敗しました"));
+      .catch(() => showToast("住所検索に失敗しました"));
     searchPoi(q, ac.signal)
       .then((hits) => setPoi({ q, hits }))
       .catch(skipAbort)
-      .catch(() => onError("施設検索に失敗しました"));
+      .catch(() => showToast("施設検索に失敗しました"));
   }
 
+  // label null = 逆ジオへ
   function pick(role: Role, p: LatLng, label: string | null) {
     setQuery("");
     setSearched(null);
     setActive(null);
-    onSet(role, p, label);
+    tripActions.searchPicked(role, p, label);
   }
 
   function field(role: Role, point: Point | null, name: string) {
@@ -158,7 +154,7 @@ export function SearchBox(props: SearchBoxProps) {
         {role === "home" ? (
           <button
             {...stylex.props(button.base, button.icon, styles.back)}
-            onClick={onBack}
+            onClick={tripActions.editReturned}
             aria-label="戻る"
           >
             ←
@@ -193,7 +189,7 @@ export function SearchBox(props: SearchBoxProps) {
           {!focused && point && role !== "home" && (
             <button
               {...stylex.props(button.base, button.icon, styles.clear)}
-              onClick={() => onClear(role)}
+              onClick={() => tripActions.pointDeleted(role)}
               aria-label={`${name}を削除`}
             >
               ×
@@ -265,7 +261,7 @@ export function SearchBox(props: SearchBoxProps) {
               <button
                 {...stylex.props(button.base, button.ghost)}
                 onClick={() => {
-                  onPick({ lat: h.lat, lng: h.lng, label: h.title });
+                  savedActions.historyPushed({ lat: h.lat, lng: h.lng, label: h.title }); // 住所 / 施設名の候補だけ履歴に残す
                   pick(active, { lat: h.lat, lng: h.lng }, h.title);
                 }}
               >

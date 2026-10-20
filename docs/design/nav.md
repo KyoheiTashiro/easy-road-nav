@@ -54,11 +54,11 @@ function step(
 ): { state: NavState; events: NavEvent[] };
 ```
 
-React・DOM 非依存。`App` が `useEffect([fix])` で呼び、events を発話・表示・fetch に変換する。テストは fix 列 → events 列で書く。処理順に書いていない境界条件（経路外れ中の `heading` 更新、複数経由地の同時通過、案内地点が残っていない場合等）は [modules.md](modules.md) の `progress.ts` 節。
+React・DOM 非依存。nav store の `onFix` が fix ごとに呼び、events を発話・表示・fetch に変換する。テストは fix 列 → events 列で書く。処理順に書いていない境界条件（経路外れ中の `heading` 更新、複数経由地の同時通過、案内地点が残っていない場合等）は [modules.md](modules.md) の `progress.ts` 節。
 
 処理順（1 fix ごと）:
 
-1. **精度フィルタ**: `fix.accuracy >= 進捗採用精度` なら state を返すだけ（events 空）。マーカー位置は App が fix から直接描く
+1. **精度フィルタ**: `fix.accuracy >= 進捗採用精度` なら state を返すだけ（events 空）。マーカー位置は Map が trip store の fix から直接描く
 2. **最近傍点**: `nearest(route, fix)` → `{ s, distanceToRoute, segmentIndex }`（[route-model.md](route-model.md)）
 3. **経路外れ判定**: `distanceToRoute > 経路外れ距離` かつ直前 fix から 方位算出最小移動 以上動いていれば `offRouteCount++`（停車中は数えない。出発前の準備中や途中停車で連発するのを防ぐ）。`>= リルート連続回数` かつ `!rerouting` なら `reroute` event、`rerouting = true`。経路外れ中は進捗更新せず、`heading` は直近 2 fix の方位（移動 ≥ 方位算出最小移動 のときのみ更新）。以降の手順は飛ばす。経路内なら `offRouteCount = 0`
 4. **進捗更新**: `s` は単調増加。`nearest.s < state.s` なら据え置き（後戻りは無視）。`heading` = 線分 `segmentIndex` の方位
@@ -71,9 +71,9 @@ React・DOM 非依存。`App` が `useEffect([fix])` で呼び、events を発�
 8. **細い道**: `narrow` 区間 j で `cum[seg.from] - s` が `(0, 細い道警告距離]` かつ `"narrow:j"` 未発火 → 警告発話。先頭区間（出発地に接する）は警告しない。末尾区間（到着地に接する）は「この先細い道、目的地付近です」。走行中判定: `cum[seg.from] <= s < cum[seg.to]` の区間を `narrow` event で通知
 9. 同一 fix で 7 と 8 が両方発火したら発話順は 案内 → 細い道警告
 
-## 発話（`src/nav/useSpeech.ts`）
+## 発話（`src/nav/speech.ts`）
 
-`speechSynthesis`、`lang = "ja-JP"`、rate 1。キューは `speechSynthesis` 内蔵のもの（発話中は待って順に全部言う）。直前の文字列がまだ再生・待機中なら同一文字列は捨てる。ミュート中は `speak` event を捨てる（キューにも入れない）。iOS 向けに「案内開始」の click 内で空発話（`unlock`）してから再探索する。
+`speechSynthesis`、`lang = "ja-JP"`、rate 1。キューは `speechSynthesis` 内蔵のもの（発話中は待って順に全部言う）。直前の文字列がまだ再生・待機中なら同一文字列は捨てる。ミュート中は nav store が `speak` event を捨てる（キューにも入れない）。iOS 向けに「案内開始」の click 内で空発話（`unlock`）してから再探索する。
 
 テンプレ（sign → 語）:
 

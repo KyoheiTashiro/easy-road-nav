@@ -1,7 +1,9 @@
 import * as stylex from "@stylexjs/stylex";
 import { useRef } from "react";
-import type { NarrowSegment } from "../model/narrow.ts";
-import type { Point, PointRole, RouteModel, SavedPoint } from "../model/route.ts";
+import type { Point } from "../model/route.ts";
+import { navActions, useNav } from "../store/nav.ts";
+import { useSaved } from "../store/saved.ts";
+import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "../store/trip.ts";
 import { RouteSummary } from "./RouteSummary.tsx";
 import { StepList } from "./StepList.tsx";
 import { button } from "./button.stylex.ts";
@@ -79,28 +81,6 @@ const styles = stylex.create({
   toggle: { display: "flex", alignItems: "center", gap: 8, fontSize: 14 },
 });
 
-type BottomSheetProps = {
-  expanded: boolean;
-  onExpand(v: boolean): void; // 上スワイプで true、下スワイプで false
-  from: Point | null;
-  to: Point | null;
-  vias: Point[];
-  passedVia: number; // 通過済 表示用（先頭からこの数の経由地）
-  onDelete(role: PointRole): void;
-  onMoveVia(index: number, dir: -1 | 1): void;
-  notoll: boolean;
-  onNotoll(v: boolean): void;
-  home: SavedPoint | null;
-  onHomeSetup(): void; // 「自宅を設定」/「変更」→ 自宅設定モード
-  routes: RouteModel[];
-  narrows: NarrowSegment[][];
-  selected: number;
-  onSelect(i: number): void;
-  loading: boolean;
-  canStart: boolean; // 経路あり かつ GPS fix あり
-  onStart(): void;
-};
-
 function Row({
   role,
   p,
@@ -137,12 +117,22 @@ function Row({
   );
 }
 
-export function BottomSheet(props: BottomSheetProps) {
-  const { expanded, onExpand, from, to, vias, passedVia, onDelete, onMoveVia } = props;
-  const { notoll, onNotoll, home, onHomeSetup } = props;
-  const { routes, narrows, selected, onSelect, loading, canStart, onStart } = props;
+export function BottomSheet() {
+  const expanded = useTrip((s) => s.sheetExpanded);
+  const from = useTrip((s) => s.from);
+  const to = useTrip((s) => s.to);
+  const vias = useTrip((s) => s.vias);
+  const passedVia = useTrip((s) => s.passedVia); // 通過済 表示用（先頭からこの数の経由地）
+  const notoll = useTrip((s) => s.notoll);
+  const home = useSaved((s) => s.home);
+  const routes = useTrip(selectRoutes);
+  const narrows = useTrip(selectNarrows);
+  const selected = useTrip((s) => s.selected);
+  const starting = useNav((s) => s.starting);
+  const loading = useTrip(selectLoading) || starting;
+  const canStart = useTrip((s) => s.fix !== null && !s.gpsError) && routes.length > 0 && !starting;
   const route = routes[selected];
-  const summaryProps = { routes, selected, onSelect, loading };
+  const summaryProps = { routes, selected, onSelect: tripActions.routeSelected, loading };
   const body = useRef<HTMLDivElement>(null);
   const touchY = useRef(0);
   const touchScrollTop = useRef(0); // タッチ開始時の body.scrollTop
@@ -155,7 +145,7 @@ export function BottomSheet(props: BottomSheetProps) {
     if (Math.abs(dy) < SWIPE_PX) return;
     // 途中からのスクロールで先頭に戻っても閉じない。先頭にいる状態で始めた下スワイプだけ閉じる
     if (dy > 0 && touchScrollTop.current > 0) return;
-    onExpand(dy < 0);
+    tripActions.setSheet(dy < 0); // 上スワイプで開く、下スワイプで閉じる
   };
   return (
     <div
@@ -174,7 +164,7 @@ export function BottomSheet(props: BottomSheetProps) {
           <button
             {...stylex.props(button.base, button.primary, styles.start)}
             disabled={!canStart}
-            onClick={onStart}
+            onClick={navActions.start}
           >
             案内開始
           </button>
@@ -182,19 +172,19 @@ export function BottomSheet(props: BottomSheetProps) {
       </div>
       <div ref={body} {...stylex.props(styles.body)}>
         <ul {...stylex.props(styles.list)}>
-          <Row role="出発地" p={from} onDelete={() => onDelete("from")} />
+          <Row role="出発地" p={from} onDelete={() => tripActions.pointDeleted("from")} />
           {vias.map((v, i) => (
             <Row
               key={i}
               role={`経由地 ${i + 1}`}
               p={v}
               passed={i < passedVia}
-              onDelete={() => onDelete({ via: i })}
+              onDelete={() => tripActions.pointDeleted({ via: i })}
             >
               <button
                 {...stylex.props(button.base, button.icon)}
                 disabled={i === 0}
-                onClick={() => onMoveVia(i, -1)}
+                onClick={() => tripActions.viaMoved(i, -1)}
                 aria-label="上へ"
               >
                 ▲
@@ -202,17 +192,21 @@ export function BottomSheet(props: BottomSheetProps) {
               <button
                 {...stylex.props(button.base, button.icon)}
                 disabled={i === vias.length - 1}
-                onClick={() => onMoveVia(i, 1)}
+                onClick={() => tripActions.viaMoved(i, 1)}
                 aria-label="下へ"
               >
                 ▼
               </button>
             </Row>
           ))}
-          <Row role="到着地" p={to} onDelete={() => onDelete("to")} />
+          <Row role="到着地" p={to} onDelete={() => tripActions.pointDeleted("to")} />
         </ul>
         <label {...stylex.props(styles.toggle)}>
-          <input type="checkbox" checked={notoll} onChange={(e) => onNotoll(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={notoll}
+            onChange={(e) => tripActions.notollToggled(e.target.checked)}
+          />
           高速・有料を避ける
         </label>
         <div {...stylex.props(styles.row)}>
@@ -220,12 +214,12 @@ export function BottomSheet(props: BottomSheetProps) {
           {home ? (
             <>
               <span {...stylex.props(styles.name)}>{home.label}</span>
-              <button {...stylex.props(button.base)} onClick={onHomeSetup}>
+              <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
                 変更
               </button>
             </>
           ) : (
-            <button {...stylex.props(button.base)} onClick={onHomeSetup}>
+            <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
               自宅を設定
             </button>
           )}

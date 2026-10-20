@@ -450,7 +450,7 @@ props なし。nav store の `nav` `muted`、trip store の `selectRoute` `fix` 
 export function FromIcon(props: { size?: number }): JSX.Element; // 出発地 = 丸
 export function ToIcon(props: { size?: number }): JSX.Element; // 到着地 = ピン
 export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・ボトムシート自宅行
-export function NarrowIcon(props: { size?: number }): JSX.Element; // 細い道 = 狭い道路線画。経路サマリ
+export function NarrowIcon(props: { size?: number }): JSX.Element; // 細い道 = 狭い道路線画。経路サマリ・HUD 細い道バナー
 export function TurnsIcon(props: { size?: number }): JSX.Element; // 右左折 = 左右に分かれる T 字矢印。経路サマリ
 export function VolumeIcon(props: { size?: number }): JSX.Element; // NavBar ミュートトグル（音声あり）
 export function VolumeOffIcon(props: { size?: number }): JSX.Element; // 同（ミュート中）

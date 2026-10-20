@@ -3,7 +3,7 @@ import { formatDistance } from "@/model/format.ts";
 import { signWord } from "@/model/progress.ts";
 import { useNav } from "@/store/nav.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
-import { DirectionIcon } from "@/ui/icons/index.tsx";
+import { DirectionIcon, NarrowIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
 
@@ -47,7 +47,15 @@ const styles = stylex.create({
     color: colors.fg,
     opacity: 0.85,
   },
-  banner: { padding: "8px 16px", fontSize: 15, fontWeight: 600, textAlign: "center" },
+  banner: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "8px 16px",
+    fontSize: 15,
+    fontWeight: 600,
+  },
   narrow: { backgroundColor: colors.narrow, color: "#fff" },
   reroute: { backgroundColor: colors.surface, color: colors.fg },
 });
@@ -84,7 +92,12 @@ export function NavHud() {
           </>
         )}
       </div>
-      {inNarrow && <div {...stylex.props(styles.banner, styles.narrow)}>細い道を走行中</div>}
+      {inNarrow && (
+        <div {...stylex.props(styles.banner, styles.narrow)}>
+          <NarrowIcon size={20} />
+          細い道を走行中
+        </div>
+      )}
       {nav.rerouting && <div {...stylex.props(styles.banner, styles.reroute)}>再探索中…</div>}
     </div>
   );

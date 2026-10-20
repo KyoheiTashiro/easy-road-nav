@@ -7,7 +7,7 @@ import { savedActions, useSaved } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
 import { MODE, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
-import { FromIcon, ToIcon } from "@/ui/icons/index.tsx";
+import { FromIcon, HomeIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { colors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
@@ -53,6 +53,7 @@ const styles = stylex.create({
   },
   back: { marginRight: 4 },
   sub: { marginLeft: 8, fontSize: 13, opacity: 0.6 },
+  home: { display: "flex", alignItems: "center", gap: 8 },
   // 出典行。Yahoo のクレジットは色・サイズを変えられない（ガイドライン）ので国土地理院側も同じ見た目に揃える
   credit: {
     display: "flex",
@@ -197,9 +198,10 @@ export function SearchBox() {
         row(
           "home",
           <button
-            {...stylex.props(button.base, button.ghost)}
+            {...stylex.props(button.base, button.ghost, styles.home)}
             onClick={() => pick(active, home, home.label)}
           >
+            <HomeIcon size={20} />
             自宅<span {...stylex.props(styles.sub)}>{home.label}</span>
           </button>,
         );

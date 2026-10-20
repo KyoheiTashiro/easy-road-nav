@@ -6,8 +6,9 @@
     <title>easy-road-nav</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon.png" />
-    <meta name="theme-color" content="#1a73e8" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- iOS standalone: ステータスバーを透明にして地図を下に回り込ませる。UI は env(safe-area-inset-top) で避ける -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <style>
       /* 起動 splash: JS 到着まで #root 内の静的 HTML を表示。React の render が上書きして消える。
          背景は manifest の background_color と同じにし、Android のネイティブ splash から途切れず繋ぐ */

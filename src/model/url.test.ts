@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQuery, parseQuery } from "@/url.ts";
+import { buildQuery, parseQuery } from "@/model/url.ts";
 
 describe("parseQuery", () => {
   it("全部なしは空", () => {

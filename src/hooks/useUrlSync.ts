@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTrip } from "@/store/trip.ts";
-import { buildQuery } from "@/url.ts";
+import { buildQuery } from "@/model/url.ts";
 
 /** 地点 + notoll を URL クエリに書く（URL が正。map-display.md） */
 export function useUrlSync(): void {

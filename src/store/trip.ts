@@ -4,7 +4,7 @@ import { reverseGeocode } from "@/api/gsi.ts";
 import { narrowSegments, type NarrowSegment } from "@/model/narrow.ts";
 import type { Fix, LatLng, Point, PointRole } from "@/model/point.ts";
 import type { RouteModel } from "@/model/route.ts";
-import { parseQuery } from "@/url.ts";
+import { parseQuery } from "@/model/url.ts";
 import { savedActions } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
 

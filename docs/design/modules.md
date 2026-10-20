@@ -426,7 +426,7 @@ type RouteSummaryProps = {
 };
 ```
 
-`compact` = ピーク行（選択経路 1 行）。展開時は代替カード（最大 3 枚）。表示は `format.ts`。各行 = 距離 / 時間 / 有料区間（あれば）/ `NarrowIcon` + 細い道合計 x.x km（0 なら薄色 + 「なし」）/ `TurnsIcon` + 右左折回数。
+`compact` = ピーク行（選択経路）。表示は `format.ts`。2 行構成を `Main`（所要時間 20px 太字 + 距離 14px。代替カードでは先頭にラベル）と `Stats`（細い道合計 > 0 なら `colors.narrow` 背景のチップ「`NarrowIcon` 細い道 x.x km」、0 なら `colors.ok` 色「細い道なし」/ 有料 x.x km（あれば）/ `TurnsIcon` + 右左折回数）で共有。compact で `loading` か経路なしならスピナー +「探索中…」/「出発地と到着地を設定してください」。`compact=false` は代替カード（`routes.length < 2` なら null。`<button aria-pressed>`、`borderLeftWidth 4`、選択中は `borderColor: accent`）。
 
 ## `src/ui/edit/StepList.tsx`
 
@@ -434,7 +434,7 @@ type RouteSummaryProps = {
 type StepListProps = { route: RouteModel; narrow: NarrowSegment[] };
 ```
 
-`instructions` を全部表示（`sign 0` 含む）。各行: `DirectionIcon` / `formatDistance(distance)` / `text` / `streetName`。`entersNarrow` が真なら先頭に「⚠ 細い道」。
+`instructions` を全部表示（`sign 0` 含む）。各行: `DirectionIcon` / `formatDistance(distance)` / `text` / `streetName`。`entersNarrow` が真なら先頭に「⚠ 細い道」、行背景 `colors.narrowBg`（`margin ±8` で本文の余白まで広げる）。行の上罫線は `:first-child` で消す（section の上罫線と重ねない）。
 
 ## `src/ui/nav/NavHud.tsx`
 
@@ -467,7 +467,7 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ。`layou
 
 ## `src/ui/tokens.stylex.ts`
 
-`defineVars` で色トークン。ライト値 + `@media (prefers-color-scheme: dark)` のダーク値。経路線の色（青・オレンジ）は MapLibre 側なのでここに置かない。
+`defineVars` で色トークン `colors`（`bg` `fg` `surface` `border` `accent` `narrow` `narrowBg` `ok` `danger`）。ライト値 + `@media (prefers-color-scheme: dark)` のダーク値。`narrowBg` は細い道行の背景、`ok` は「細い道なし」の緑。経路線の色（青・オレンジ）は MapLibre 側なのでここに置かない。
 
 `defineConsts` で `marker`（`from` 緑 / `via` 青 / `to` 赤。ライト / ダーク共通）。地図の DOM マーカーとボトムシートの地点リストで共有。
 

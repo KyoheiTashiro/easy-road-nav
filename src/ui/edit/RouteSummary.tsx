@@ -1,5 +1,4 @@
 import * as stylex from "@stylexjs/stylex";
-import { Fragment, type ReactNode } from "react";
 import { formatDuration, formatKm } from "@/model/format.ts";
 import type { NarrowSegment } from "@/model/narrow.ts";
 import { tollDistance, turnCount, type RouteModel } from "@/model/route.ts";
@@ -9,11 +8,26 @@ import { colors } from "@/ui/tokens.stylex.ts";
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 
 const styles = stylex.create({
-  compact: { display: "flex", alignItems: "center", gap: 8, fontSize: 15, lineHeight: "24px" },
+  compact: { display: "flex", flexDirection: "column", gap: 2 },
+  placeholder: { fontSize: 15, lineHeight: "24px" },
+  main: { display: "flex", alignItems: "baseline", gap: 8, lineHeight: "26px" },
+  time: { fontSize: 20, fontWeight: 700 },
+  km: { fontSize: 14, opacity: 0.8 },
+  sub: { display: "flex", alignItems: "center", gap: 10, fontSize: 13, lineHeight: "18px" },
+  stat: { display: "inline-flex", alignItems: "center", gap: 3 },
+  narrowChip: {
+    padding: "0 6px",
+    borderRadius: 4,
+    backgroundColor: colors.narrow,
+    color: "#fff",
+    fontWeight: 600,
+  },
+  ok: { color: colors.ok, fontWeight: 600 },
   spinner: {
     width: 16,
     height: 16,
     flexShrink: 0,
+    alignSelf: "center",
     borderWidth: 2,
     borderStyle: "solid",
     borderColor: colors.border,
@@ -26,10 +40,13 @@ const styles = stylex.create({
   },
   cards: { display: "flex", flexDirection: "column", gap: 6 },
   card: {
-    padding: "10px 12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    padding: "8px 12px",
     textAlign: "left",
-    fontSize: 14,
     borderWidth: 1,
+    borderLeftWidth: 4,
     borderStyle: "solid",
     borderColor: colors.border,
     borderRadius: 8,
@@ -37,33 +54,41 @@ const styles = stylex.create({
     color: colors.fg,
     cursor: "pointer",
   },
-  selected: { borderColor: colors.accent, boxShadow: `inset 0 0 0 1px ${colors.accent}` },
-  stat: { display: "inline-flex", alignItems: "center", gap: 2, verticalAlign: "bottom" },
-  narrow: { color: colors.narrow },
-  none: { opacity: 0.5 },
+  selected: { borderColor: colors.accent },
+  label: { fontSize: 12, fontWeight: 600, opacity: 0.7, marginRight: 4 },
 });
 
-function Summary({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
-  const parts: ReactNode[] = [formatKm(route.distance), formatDuration(route.time)];
+/** 2 行目: 細い道（主役）/ 有料 / 右左折。ピーク行と代替カードで共通 */
+function Stats({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
   const toll = tollDistance(route);
-  if (toll > 0) parts.push(`有料区間 ${formatKm(toll)}`);
   const narrowM = narrow.reduce((sum, s) => sum + s.length, 0);
-  parts.push(
-    <span {...stylex.props(styles.stat, styles.narrow, narrowM === 0 && styles.none)}>
-      <NarrowIcon size={18} />
-      {narrowM > 0 ? formatKm(narrowM) : "なし"}
-    </span>,
-    <span {...stylex.props(styles.stat)}>
-      <TurnsIcon size={18} />
-      {turnCount(route)}
-    </span>,
+  return (
+    <div {...stylex.props(styles.sub)}>
+      {narrowM > 0 ? (
+        <span {...stylex.props(styles.stat, styles.narrowChip)}>
+          <NarrowIcon size={14} />
+          細い道 {formatKm(narrowM)}
+        </span>
+      ) : (
+        <span {...stylex.props(styles.stat, styles.ok)}>細い道なし</span>
+      )}
+      {toll > 0 && <span>有料 {formatKm(toll)}</span>}
+      <span {...stylex.props(styles.stat)}>
+        <TurnsIcon size={16} />
+        {turnCount(route)}
+      </span>
+    </div>
   );
-  return parts.map((p, i) => (
-    <Fragment key={i}>
-      {i > 0 && " / "}
-      {p}
-    </Fragment>
-  ));
+}
+
+function Main({ route, label }: { route: RouteModel; label?: string }) {
+  return (
+    <div {...stylex.props(styles.main)}>
+      {label && <span {...stylex.props(styles.label)}>{label}</span>}
+      <span {...stylex.props(styles.time)}>{formatDuration(route.time)}</span>
+      <span {...stylex.props(styles.km)}>{formatKm(route.distance)}</span>
+    </div>
+  );
 }
 
 type RouteSummaryProps = {
@@ -72,7 +97,7 @@ type RouteSummaryProps = {
   selected: number;
   onSelect(i: number): void;
   loading: boolean;
-  compact: boolean; // true = ピーク行（選択経路 1 行）、false = 代替カード
+  compact: boolean; // true = ピーク行（選択経路。所要時間が主役）、false = 代替カード
 };
 
 export function RouteSummary({
@@ -85,13 +110,20 @@ export function RouteSummary({
 }: RouteSummaryProps) {
   if (compact) {
     const route = routes[selected];
-    let text: ReactNode = "出発地と到着地を設定してください";
-    if (loading) text = "探索中…";
-    else if (route) text = <Summary route={route} narrow={narrows[selected] ?? []} />;
+    if (loading || !route) {
+      return (
+        <div {...stylex.props(styles.main)}>
+          {loading && <div {...stylex.props(styles.spinner)} />}
+          <span {...stylex.props(styles.placeholder)}>
+            {loading ? "探索中…" : "出発地と到着地を設定してください"}
+          </span>
+        </div>
+      );
+    }
     return (
       <div {...stylex.props(styles.compact)}>
-        {loading && <div {...stylex.props(styles.spinner)} />}
-        {text}
+        <Main route={route} />
+        <Stats route={route} narrow={narrows[selected] ?? []} />
       </div>
     );
   }
@@ -105,8 +137,8 @@ export function RouteSummary({
           onClick={() => onSelect(i)}
           aria-pressed={i === selected}
         >
-          {i === 0 ? "推奨: " : `代替 ${i}: `}
-          <Summary route={r} narrow={narrows[i] ?? []} />
+          <Main route={r} label={i === 0 ? "推奨" : `代替 ${i}`} />
+          <Stats route={r} narrow={narrows[i] ?? []} />
         </button>
       ))}
     </div>

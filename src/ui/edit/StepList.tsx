@@ -10,11 +10,15 @@ const styles = stylex.create({
   row: {
     display: "flex",
     gap: 10,
-    padding: "8px 0",
-    borderTopWidth: 1,
+    padding: "8px 8px",
+    marginLeft: -8, // 背景色を本文の余白まではみ出させる
+    marginRight: -8,
+    borderRadius: 6,
+    borderTopWidth: { default: 1, ":first-child": 0 }, // 区切りは BottomSheet の section が引く
     borderTopStyle: "solid",
     borderTopColor: colors.border,
   },
+  narrowRow: { backgroundColor: colors.narrowBg }, // 経路線の細い道（オレンジ）と対応
   icon: { flexShrink: 0, color: colors.accent, paddingTop: 2 },
   body: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 },
   warn: { fontSize: 12, fontWeight: 600, color: colors.narrow },
@@ -27,21 +31,24 @@ export function StepList({ route, narrow }: { route: RouteModel; narrow: NarrowS
   const { cum } = route;
   return (
     <ol {...stylex.props(styles.list)}>
-      {route.instructions.map((ins, i) => (
-        <li key={i} {...stylex.props(styles.row)}>
-          <span {...stylex.props(styles.icon)}>
-            <DirectionIcon sign={ins.sign} />
-          </span>
-          <div {...stylex.props(styles.body)}>
-            {entersNarrow(ins, narrow) && <span {...stylex.props(styles.warn)}>⚠ 細い道</span>}
-            <span {...stylex.props(styles.text)}>{ins.text}</span>
-            <span {...stylex.props(styles.meta)}>
-              {formatDistance(cum[ins.to]! - cum[ins.from]!)}
-              {ins.streetName && ` · ${ins.streetName}`}
+      {route.instructions.map((ins, i) => {
+        const enters = entersNarrow(ins, narrow);
+        return (
+          <li key={i} {...stylex.props(styles.row, enters && styles.narrowRow)}>
+            <span {...stylex.props(styles.icon)}>
+              <DirectionIcon sign={ins.sign} />
             </span>
-          </div>
-        </li>
-      ))}
+            <div {...stylex.props(styles.body)}>
+              {enters && <span {...stylex.props(styles.warn)}>⚠ 細い道</span>}
+              <span {...stylex.props(styles.text)}>{ins.text}</span>
+              <span {...stylex.props(styles.meta)}>
+                {formatDistance(cum[ins.to]! - cum[ins.from]!)}
+                {ins.streetName && ` · ${ins.streetName}`}
+              </span>
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }

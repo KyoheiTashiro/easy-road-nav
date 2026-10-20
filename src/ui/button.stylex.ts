@@ -17,7 +17,7 @@ export const button = stylex.create({
     ":disabled": { opacity: 0.4, cursor: "default" },
   },
   primary: { borderWidth: 0, backgroundColor: colors.accent, color: "#fff", fontWeight: 600 },
-  danger: { color: colors.danger },
+  danger: { borderWidth: 0, backgroundColor: colors.danger, color: "#fff", fontWeight: 600 },
   active: { color: colors.accent, borderColor: colors.accent },
   icon: { width: 36, height: 36, padding: 0, flexShrink: 0 },
   ghost: {

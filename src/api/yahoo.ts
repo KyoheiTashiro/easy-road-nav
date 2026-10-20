@@ -28,31 +28,31 @@ export async function searchPoi(q: string, signal: AbortSignal): Promise<SavedPo
   const w = window as unknown as Record<string, unknown>;
   const script = document.createElement("script");
   return new Promise<SavedPoint[]>((resolve, reject) => {
-    const done = (f: () => void) => () => {
+    // 決着（成功・失敗・中断）したら必ず後始末。どの経路も 1 回しか通らない
+    const cleanup = () => {
       clearTimeout(timer);
       signal.removeEventListener("abort", onAbort);
       script.remove();
       delete w[cb];
-      f();
     };
-    const onAbort = done(() => reject(new DOMException("aborted", "AbortError")));
-    const timer = setTimeout(
-      done(() => reject(new Error("timeout"))),
-      TIMEOUT,
-    );
+    const fail = (e: Error) => {
+      cleanup();
+      reject(e);
+    };
+    const onAbort = () => fail(new DOMException("aborted", "AbortError"));
+    const timer = setTimeout(() => fail(new Error("timeout")), TIMEOUT);
     signal.addEventListener("abort", onAbort);
-    script.onerror = done(() => reject(new Error("script error")));
-    w[cb] = (res: Response) =>
-      done(() => {
-        if (res.ResultInfo.Status !== 200)
-          return reject(new Error(`Status ${res.ResultInfo.Status}`));
-        resolve(
-          (res.Feature ?? []).map((f) => {
-            const [lng = NaN, lat = NaN] = f.Geometry.Coordinates.split(",").map(Number);
-            return { label: f.Name, lat, lng };
-          }),
-        );
-      })();
+    script.onerror = () => fail(new Error("script error"));
+    w[cb] = (res: Response) => {
+      if (res.ResultInfo.Status !== 200) return fail(new Error(`Status ${res.ResultInfo.Status}`));
+      cleanup();
+      resolve(
+        (res.Feature ?? []).map((f) => {
+          const [lng = NaN, lat = NaN] = f.Geometry.Coordinates.split(",").map(Number);
+          return { label: f.Name, lat, lng };
+        }),
+      );
+    };
     const params = new URLSearchParams({
       appid,
       output: "json",

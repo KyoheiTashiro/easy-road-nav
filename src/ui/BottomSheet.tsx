@@ -21,6 +21,8 @@ const styles = stylex.create({
     bottom: 0,
     maxHeight: PEEK_HEIGHT,
     overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
     paddingBottom: "env(safe-area-inset-bottom)",
     backgroundColor: colors.bg,
     color: colors.fg,
@@ -29,7 +31,8 @@ const styles = stylex.create({
     transition: "max-height 0.25s ease",
     zIndex: 5,
   },
-  expanded: { maxHeight: "70vh", overflowY: "auto" },
+  expanded: { maxHeight: "70vh" },
+  header: { flexShrink: 0, minHeight: PEEK_HEIGHT }, // ピーク時に body が覗かないよう高さを揃える
   handle: { padding: "10px 0 6px" },
   bar: { width: 40, height: 4, borderRadius: 2, margin: "0 auto", backgroundColor: colors.border },
   summary: {
@@ -42,7 +45,17 @@ const styles = stylex.create({
   },
   summaryText: { flex: 1, minWidth: 0 },
   start: { flexShrink: 0 },
-  body: { padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 12 },
+  // スクロールは常に body。overflow を切り替えると iOS がタッチ開始時にスクロール対象を取り違える
+  body: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
+    overscrollBehavior: "contain", // 地図への連鎖・Android の pull-to-refresh を防ぐ
+    padding: "0 16px 16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  },
   list: {
     listStyle: "none",
     margin: 0,
@@ -130,35 +143,44 @@ export function BottomSheet(props: BottomSheetProps) {
   const { routes, narrows, selected, onSelect, loading, canStart, onStart } = props;
   const route = routes[selected];
   const summaryProps = { routes, selected, onSelect, loading };
+  const body = useRef<HTMLDivElement>(null);
   const touchY = useRef(0);
+  const touchScrollTop = useRef(0); // タッチ開始時の body.scrollTop
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    touchY.current = e.touches[0]?.clientY ?? 0;
+    touchScrollTop.current = body.current?.scrollTop ?? 0;
+  };
   const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     const dy = (e.changedTouches[0]?.clientY ?? touchY.current) - touchY.current;
     if (Math.abs(dy) < SWIPE_PX) return;
-    if (dy > 0 && e.currentTarget.scrollTop > 0) return; // リストのスクロール中は閉じない
+    // 途中からのスクロールで先頭に戻っても閉じない。先頭にいる状態で始めた下スワイプだけ閉じる
+    if (dy > 0 && touchScrollTop.current > 0) return;
     onExpand(dy < 0);
   };
   return (
     <div
       {...stylex.props(styles.sheet, expanded && styles.expanded)}
-      onTouchStart={(e) => (touchY.current = e.touches[0]?.clientY ?? 0)}
+      onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div {...stylex.props(styles.handle)}>
-        <div {...stylex.props(styles.bar)} />
-      </div>
-      <div {...stylex.props(styles.summary)}>
-        <div {...stylex.props(styles.summaryText)}>
-          <RouteSummary {...summaryProps} compact />
+      <div {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.handle)}>
+          <div {...stylex.props(styles.bar)} />
         </div>
-        <button
-          {...stylex.props(button.base, button.primary, styles.start)}
-          disabled={!canStart}
-          onClick={onStart}
-        >
-          案内開始
-        </button>
+        <div {...stylex.props(styles.summary)}>
+          <div {...stylex.props(styles.summaryText)}>
+            <RouteSummary {...summaryProps} compact />
+          </div>
+          <button
+            {...stylex.props(button.base, button.primary, styles.start)}
+            disabled={!canStart}
+            onClick={onStart}
+          >
+            案内開始
+          </button>
+        </div>
       </div>
-      <div {...stylex.props(styles.body)}>
+      <div ref={body} {...stylex.props(styles.body)}>
         <ul {...stylex.props(styles.list)}>
           <Row role="出発地" p={from} onDelete={() => onDelete("from")} />
           {vias.map((v, i) => (

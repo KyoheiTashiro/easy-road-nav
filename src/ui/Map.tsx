@@ -10,9 +10,8 @@ import type { RouteModel } from "@/model/route.ts";
 import { navActions, useNav } from "@/store/nav.ts";
 import { useSaved } from "@/store/saved.ts";
 import { URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
-import { PEEK_HEIGHT } from "@/ui/BottomSheet.tsx";
-import { NAVBAR_HEIGHT } from "@/ui/NavBar.tsx";
 import { button } from "@/ui/button.stylex.ts";
+import { layout } from "@/ui/layout.stylex.ts";
 import { PointPopup } from "@/ui/PointPopup.tsx";
 import { HomeIcon } from "@/ui/icons.tsx";
 
@@ -377,7 +376,7 @@ export function Map() {
       const h = map.getContainer().clientHeight;
       map.jumpTo({
         pitch: NAV_PITCH,
-        padding: { top: Math.round(h / 3), bottom: NAVBAR_HEIGHT, left: 0, right: 0 },
+        padding: { top: Math.round(h / 3), bottom: layout.navbar, left: 0, right: 0 },
       });
     } else {
       map.touchZoomRotate.enableRotation();
@@ -410,7 +409,7 @@ export function Map() {
     const route = routes[selected];
     if (route) {
       mapRef.current?.fitBounds(bounds(route), {
-        padding: { top: 40, left: 40, right: 40, bottom: PEEK_HEIGHT + 40 },
+        padding: { top: 40, left: 40, right: 40, bottom: layout.peek + 40 },
       });
     }
   });

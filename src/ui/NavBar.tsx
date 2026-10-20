@@ -4,10 +4,8 @@ import { remainingTime } from "@/model/progress.ts";
 import { navActions, useNav } from "@/store/nav.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
+import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
-
-/** 下部バーの高さ（px、safe area 除く）。Map のナビ時パディングに使う */
-export const NAVBAR_HEIGHT = 64;
 
 const styles = stylex.create({
   bar: {
@@ -15,7 +13,7 @@ const styles = stylex.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: NAVBAR_HEIGHT,
+    height: layout.navbar,
     paddingBottom: "env(safe-area-inset-bottom)",
     display: "flex",
     alignItems: "center",

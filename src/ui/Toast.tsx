@@ -2,6 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useEffect } from "react";
 import { clearToast, useToast } from "@/store/toast.ts";
 import { useTrip } from "@/store/trip.ts";
+import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
@@ -19,8 +20,8 @@ const styles = stylex.create({
     boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
     zIndex: 10,
   },
-  // 120 = NavHud の HUD_HEIGHT + NEXT_HEIGHT。stylex.create 内では .stylex.* 以外の import 値を使えないため直書き
-  nav: { top: "calc(env(safe-area-inset-top) + 136px)" },
+  // defineConsts の値はコンパイル時に文字列で埋まるので JS で足さず calc に並べる
+  nav: { top: `calc(env(safe-area-inset-top) + ${layout.hud}px + ${layout.next}px + 16px)` }, // HUD の下
 });
 
 /** 1 つだけ。4 秒で消去。ナビ中は HUD の下に出す */

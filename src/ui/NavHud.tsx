@@ -4,11 +4,8 @@ import { signWord } from "@/model/progress.ts";
 import { useNav } from "@/store/nav.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
 import { DirectionIcon } from "@/ui/icons.tsx";
+import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
-
-/** HUD 本体・次の次行の高さ（px、バナー除く）。合計を Toast.tsx のナビ時 top と揃える */
-const HUD_HEIGHT = 88;
-const NEXT_HEIGHT = 32;
 
 const styles = stylex.create({
   hud: {
@@ -24,7 +21,7 @@ const styles = stylex.create({
     display: "flex",
     alignItems: "center",
     gap: 16,
-    height: HUD_HEIGHT,
+    height: layout.hud,
     padding: "0 16px",
     backgroundColor: colors.bg,
     color: colors.fg,
@@ -43,7 +40,7 @@ const styles = stylex.create({
     display: "flex",
     alignItems: "center",
     gap: 8,
-    height: NEXT_HEIGHT,
+    height: layout.next,
     padding: "0 16px",
     fontSize: 14,
     backgroundColor: colors.surface,

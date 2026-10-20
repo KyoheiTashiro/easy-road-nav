@@ -8,10 +8,8 @@ import { RouteSummary } from "@/ui/RouteSummary.tsx";
 import { StepList } from "@/ui/StepList.tsx";
 import { button } from "@/ui/button.stylex.ts";
 import { HomeIcon } from "@/ui/icons.tsx";
+import { layout } from "@/ui/layout.stylex.ts";
 import { colors } from "@/ui/tokens.stylex.ts";
-
-/** ピーク時の高さ（px）。Map の fitBounds 下パディングに使う */
-export const PEEK_HEIGHT = 80;
 /** スワイプ判定の最小移動量（px） */
 const SWIPE_PX = 30;
 
@@ -21,7 +19,7 @@ const styles = stylex.create({
     left: 0,
     right: 0,
     bottom: 0,
-    maxHeight: PEEK_HEIGHT,
+    maxHeight: layout.peek,
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
@@ -34,7 +32,7 @@ const styles = stylex.create({
     zIndex: 5,
   },
   expanded: { maxHeight: "70vh" },
-  header: { flexShrink: 0, minHeight: PEEK_HEIGHT }, // ピーク時に body が覗かないよう高さを揃える
+  header: { flexShrink: 0, minHeight: layout.peek }, // ピーク時に body が覗かないよう高さを揃える
   handle: { padding: "10px 0 6px" },
   bar: { width: 40, height: 4, borderRadius: 2, margin: "0 auto", backgroundColor: colors.border },
   summary: {

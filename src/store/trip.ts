@@ -46,7 +46,8 @@ export type TripState = {
   passedVia: number; // 現在の経路より前に通過した経由地数（リルートで加算、終了時に nav.passedVia を畳む）
 };
 
-const unlabeled = (p: LatLng | null): Point | null => p && { lat: p.lat, lng: p.lng, label: null };
+const unlabeled = (p: LatLng | null): Point | null =>
+  p ? { lat: p.lat, lng: p.lng, label: null } : null;
 
 const useStore = create<TripState>(() => ({
   mode: MODE.EDIT,
@@ -176,11 +177,11 @@ export const tripActions = {
     pending.add(key);
     resolveLabel(p).then((label) => {
       pending.delete(key);
-      const hit = (x: Point | null) => x !== null && x.label === null && same(x, p);
-      const apply = <T extends Point | null>(x: T): T => (hit(x) ? ({ ...x, label } as T) : x);
+      const hit = (x: Point) => x.label === null && same(x, p);
+      const apply = (x: Point): Point => (hit(x) ? { ...x, label } : x);
       set((s) => ({
-        from: apply(s.from),
-        to: apply(s.to),
+        from: s.from && apply(s.from),
+        to: s.to && apply(s.to),
         vias: s.vias.some(hit) ? s.vias.map(apply) : s.vias,
       }));
     });

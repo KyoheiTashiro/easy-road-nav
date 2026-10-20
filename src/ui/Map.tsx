@@ -1,203 +1,37 @@
 import * as stylex from "@stylexjs/stylex";
-import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NavState } from "@/model/progress.ts";
-import { MAX_VIAS, type Fix, type LatLng, type Point, type PointRole } from "@/model/point.ts";
-import type { RouteModel } from "@/model/route.ts";
+import { MAX_VIAS, type LatLng, type Point, type PointRole } from "@/model/point.ts";
 import { navActions, useNav } from "@/store/nav.ts";
 import { useSaved } from "@/store/saved.ts";
 import { URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { layout } from "@/ui/layout.stylex.ts";
+import {
+  DARK_MQ,
+  EMPTY,
+  EMPTY_FIX,
+  MARKER_COLOR,
+  STYLE,
+  TOKYO_STATION,
+  altFeatures,
+  applyStyleExtras,
+  bounds,
+  fixFeatures,
+  homeMarkerElement,
+  markerElement,
+  routeFeatures,
+} from "@/ui/mapLayers.ts";
 import { PointPopup } from "@/ui/PointPopup.tsx";
 import { HomeIcon } from "@/ui/icons.tsx";
 
 /** ナビ中のカメラ pitch（nav.md「カメラ」節。zoom は store/nav.ts の NAV_ZOOM） */
 export const NAV_PITCH = 50;
 
-const STYLE = {
-  light: "https://tiles.openfreemap.org/styles/liberty",
-  dark: "https://tiles.openfreemap.org/styles/dark",
-};
-const DARK_MQ = "(prefers-color-scheme: dark)";
-const TOKYO_STATION: [number, number] = [139.7671, 35.6812];
-
-const MARKER_COLOR = { from: "#188038", to: "#d93025", via: "#1a73e8" };
-
-const styles = stylex.create({
-  map: { position: "fixed", inset: 0 },
-  marker: {
-    width: 26,
-    height: 26,
-    borderRadius: "50%",
-    borderWidth: 3,
-    borderStyle: "solid",
-    borderColor: "#fff",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: "20px",
-    textAlign: "center",
-    cursor: "pointer",
-  },
-  homeMarker: {
-    width: 28,
-    height: 28,
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-    color: "#5f6368",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-  },
-});
-
-function markerElement(color: string, text: string, onClick: () => void): HTMLDivElement {
-  const el = document.createElement("div");
-  el.className = stylex.props(styles.marker).className ?? "";
-  el.style.backgroundColor = color;
-  el.textContent = text;
-  // マーカータップは地図 click に伝播させない（onTap が走ると地点ポップアップが開く）
-  el.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    onClick();
-  });
-  return el;
-}
-
-type FC = FeatureCollection<LineString>;
-type FixFC = FeatureCollection<GeoPoint>;
-const EMPTY: FC = { type: "FeatureCollection", features: [] };
-const EMPTY_FIX: FixFC = { type: "FeatureCollection", features: [] };
-
-/** 精度円: zoom 0 での px 半径 r0 を持たせ、layer 側で 2^zoom 倍する */
-function fixFeatures(fix: Fix | null): FixFC {
-  if (!fix) return EMPTY_FIX;
-  const r0 = fix.accuracy / (156543.03 * Math.cos((fix.lat * Math.PI) / 180));
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: { r0 },
-        geometry: { type: "Point", coordinates: [fix.lng, fix.lat] },
-      },
-    ],
-  };
-}
-
-/** 描画分割: roadClass の各範囲を LineString に、kind を property に */
-function routeFeatures(route: RouteModel): FC {
-  return {
-    type: "FeatureCollection",
-    features: route.roadClass.map((r) => ({
-      type: "Feature",
-      properties: { kind: r.kind },
-      geometry: { type: "LineString", coordinates: route.points.slice(r.from, r.to + 1) },
-    })),
-  };
-}
-
-function altFeatures(routes: RouteModel[], selected: number): FC {
-  return {
-    type: "FeatureCollection",
-    features: routes
-      .filter((_, i) => i !== selected)
-      .map((r) => ({
-        type: "Feature",
-        properties: {},
-        geometry: { type: "LineString", coordinates: r.points },
-      })),
-  };
-}
-
-function bounds(route: RouteModel): LngLatBoundsLike {
-  const b = new maplibregl.LngLatBounds();
-  for (const p of route.points) b.extend(p);
-  return b;
-}
-
-/** style.load のたびに呼ぶ: ラベル上書き + 経路・現在地 source / layer。初期化とダーク切替で同じ */
-function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC; fix: FixFC }) {
-  const layers = map.getStyle().layers;
-  for (const l of layers) {
-    const tf = l.type === "symbol" ? l.layout?.["text-field"] : undefined;
-    if (tf === undefined || JSON.stringify(tf).includes('"ref"')) continue;
-    map.setLayoutProperty(l.id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]]);
-  }
-  // 経路線は地名ラベルの下に置く
-  const beforeId = layers.find((l) => l.type === "symbol")?.id;
-  map.addSource("alt", { type: "geojson", data: data.alt });
-  map.addSource("route", { type: "geojson", data: data.route });
-  map.addLayer(
-    {
-      id: "alt-line",
-      type: "line",
-      source: "alt",
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#1a73e8", "line-width": 4, "line-opacity": 0.35 },
-    },
-    beforeId,
-  );
-  map.addLayer(
-    {
-      id: "route-wide",
-      type: "line",
-      source: "route",
-      filter: ["==", ["get", "kind"], "wide"],
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#1a73e8", "line-width": 6 },
-    },
-    beforeId,
-  );
-  map.addLayer(
-    {
-      id: "route-narrow",
-      type: "line",
-      source: "route",
-      filter: ["!=", ["get", "kind"], "wide"],
-      layout: { "line-join": "round" },
-      paint: { "line-color": "#e8710a", "line-width": 8, "line-dasharray": [1.5, 1.2] },
-    },
-    beforeId,
-  );
-  // 現在地: 精度円 + 青ドット。最前面
-  map.addSource("fix", { type: "geojson", data: data.fix });
-  map.addLayer({
-    id: "fix-accuracy",
-    type: "circle",
-    source: "fix",
-    paint: {
-      "circle-radius": [
-        "interpolate",
-        ["exponential", 2],
-        ["zoom"],
-        0,
-        ["get", "r0"],
-        22,
-        ["*", ["get", "r0"], 4194304],
-      ],
-      "circle-color": "#1a73e8",
-      "circle-opacity": 0.15,
-    },
-  });
-  map.addLayer({
-    id: "fix-dot",
-    type: "circle",
-    source: "fix",
-    paint: {
-      "circle-radius": 7,
-      "circle-color": "#1a73e8",
-      "circle-stroke-color": "#fff",
-      "circle-stroke-width": 2,
-    },
-  });
-}
+const styles = stylex.create({ map: { position: "fixed", inset: 0 } });
 
 export function Map() {
   const mode = useTrip((s) => s.mode);
@@ -219,12 +53,7 @@ export function Map() {
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   // 自宅マーカー: HomeIcon を portal で描く要素を Marker に渡す
-  const [homeDiv] = useState(() => {
-    const el = document.createElement("div");
-    el.className = stylex.props(styles.homeMarker).className ?? "";
-    el.addEventListener("click", (ev) => ev.stopPropagation());
-    return el;
-  });
+  const [homeDiv] = useState(homeMarkerElement);
   const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   // 方位アイコン（押下で北上）。ナビ中は heading 追従と衝突するので外す
   const compassRef = useRef(

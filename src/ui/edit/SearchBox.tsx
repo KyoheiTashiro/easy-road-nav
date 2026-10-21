@@ -7,7 +7,7 @@ import { savedActions, useSaved } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
 import { MODE, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
-import { FromIcon, HomeIcon, ToIcon } from "@/ui/icons/index.tsx";
+import { FromIcon, HomeIcon, SettingsIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { colors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
@@ -26,6 +26,22 @@ const styles = stylex.create({
     color: colors.fg,
     borderRadius: 12,
     boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+  },
+  // カード下の丸ボタン。コンパス（右 10px・40px）と縦に揃える
+  gear: {
+    alignSelf: "flex-end",
+    marginRight: -2,
+    width: 40,
+    height: 40,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 0,
+    borderRadius: "50%",
+    backgroundColor: colors.bg,
+    color: colors.fg,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    cursor: "pointer",
   },
   row: { display: "flex", alignItems: "center", height: 44, padding: "0 8px" },
   divider: { borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: colors.border },
@@ -135,7 +151,7 @@ export function SearchBox() {
         {role === ROLE.HOME ? (
           <button
             {...stylex.props(button.base, button.icon, styles.back)}
-            onClick={tripActions.editReturned}
+            onClick={tripActions.backPressed}
             aria-label="戻る"
           >
             ←
@@ -270,7 +286,19 @@ export function SearchBox() {
           </>
         )}
       </div>
-      {rows.length > 0 && <ul {...stylex.props(styles.list)}>{rows}</ul>}
+      {rows.length > 0 ? (
+        <ul {...stylex.props(styles.list)}>{rows}</ul>
+      ) : (
+        mode === MODE.EDIT && (
+          <button
+            {...stylex.props(styles.gear)}
+            onClick={tripActions.settingsEntered}
+            aria-label="設定"
+          >
+            <SettingsIcon size={24} />
+          </button>
+        )
+      )}
     </div>
   );
 }

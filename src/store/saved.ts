@@ -5,6 +5,7 @@ import type { SavedPoint } from "@/model/point.ts";
 export const HISTORY_MAX = 5;
 const HOME_KEY = "home";
 const HISTORY_KEY = "history";
+const ICON_ONLY_KEY = "iconOnly";
 
 function valid(x: unknown): x is SavedPoint {
   if (typeof x !== "object" || x === null) return false;
@@ -54,10 +55,14 @@ export function pushHistory(list: SavedPoint[], p: SavedPoint): SavedPoint[] {
   return [p, ...list.filter((x) => x.lat !== p.lat || x.lng !== p.lng)].slice(0, HISTORY_MAX);
 }
 
-type SavedState = { home: SavedPoint | null; history: SavedPoint[] };
+type SavedState = { home: SavedPoint | null; history: SavedPoint[]; iconOnly: boolean };
 
-// 自宅・検索履歴。localStorage が正で store はその写し（URL には入れない）
-const useStore = create<SavedState>(() => ({ home: loadHome(), history: loadHistory() }));
+// 自宅・検索履歴・アイコンのみ表示。localStorage が正で store はその写し（URL には入れない）
+const useStore = create<SavedState>(() => ({
+  home: loadHome(),
+  history: loadHistory(),
+  iconOnly: read(ICON_ONLY_KEY) === true,
+}));
 
 export function useSaved<T>(selector: (s: SavedState) => T): T {
   return useStore(selector);
@@ -73,5 +78,9 @@ export const savedActions = {
     const history = pushHistory(useStore.getState().history, p);
     write(HISTORY_KEY, history);
     useStore.setState({ history });
+  },
+  iconOnlyToggled(iconOnly: boolean): void {
+    write(ICON_ONLY_KEY, iconOnly);
+    useStore.setState({ iconOnly });
   },
 };

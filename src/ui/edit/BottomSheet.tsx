@@ -2,12 +2,11 @@ import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef } from "react";
 import { ROLE, type Point } from "@/model/point.ts";
 import { navActions, useNav } from "@/store/nav.ts";
-import { useSaved } from "@/store/saved.ts";
 import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { RouteSummary } from "@/ui/edit/RouteSummary.tsx";
 import { StepList } from "@/ui/edit/StepList.tsx";
 import { button } from "@/ui/button.stylex.ts";
-import { FromIcon, HomeIcon, ToIcon } from "@/ui/icons/index.tsx";
+import { FromIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors, marker } from "@/ui/tokens.stylex.ts";
 const SWIPE_PX = 30;
@@ -166,7 +165,6 @@ export function BottomSheet() {
   const vias = useTrip((s) => s.vias);
   const passedVia = useTrip((s) => s.passedVia);
   const notoll = useTrip((s) => s.notoll);
-  const home = useSaved((s) => s.home);
   const routes = useTrip(selectRoutes);
   const narrows = useTrip(selectNarrows);
   const selected = useTrip((s) => s.selected);
@@ -299,21 +297,6 @@ export function BottomSheet() {
             />
             高速・有料を避ける
           </label>
-          <div {...stylex.props(styles.row)}>
-            <HomeIcon size={20} />
-            {home ? (
-              <>
-                <span {...stylex.props(styles.name)}>{home.label}</span>
-                <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
-                  変更
-                </button>
-              </>
-            ) : (
-              <button {...stylex.props(button.base)} onClick={tripActions.homeSetupEntered}>
-                自宅を設定
-              </button>
-            )}
-          </div>
         </div>
         {routes.length > 1 && (
           <div {...stylex.props(styles.section)}>

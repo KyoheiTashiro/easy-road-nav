@@ -10,16 +10,16 @@
   line-height: 1;
 }
 
-/* MapLibre コントロール: 検索欄・HUD の下、ボトムシートの上に避ける */
-.maplibregl-ctrl-top-right {
+/* MapLibre コントロール: コンパスは検索欄の下（歯車は右側なので左に置く）、縮尺・出典はボトムシートの直上 */
+.maplibregl-ctrl-top-left {
   margin-top: calc(env(safe-area-inset-top) + 113px);
 }
 .maplibregl-ctrl-bottom-left {
-  margin-bottom: calc(env(safe-area-inset-bottom) + 92px);
+  margin-bottom: calc(env(safe-area-inset-bottom) + 80px);
 }
 /* コンパス: 赤い北針の円形アイコン。針は MapLibre が bearing に合わせて回す。
    円形アイコン自体が輪郭を持つので MapLibre の白地・影は消す */
-.maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+.maplibregl-ctrl-top-left .maplibregl-ctrl-group {
   background: none;
   box-shadow: none;
 }

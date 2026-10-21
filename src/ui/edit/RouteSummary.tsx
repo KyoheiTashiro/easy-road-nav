@@ -2,6 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 import { formatDuration, formatKm } from "@/model/format.ts";
 import type { NarrowSegment } from "@/model/narrow.ts";
 import { tollDistance, turnCount, type RouteModel } from "@/model/route.ts";
+import { useSaved } from "@/store/saved.ts";
 import { NarrowIcon, TurnsIcon } from "@/ui/icons/index.tsx";
 import { colors } from "@/ui/tokens.stylex.ts";
 
@@ -58,24 +59,27 @@ const styles = stylex.create({
   label: { fontSize: 12, fontWeight: 600, opacity: 0.7, marginRight: 4 },
 });
 
-/** 2 行目: 細い道（主役）/ 有料 / 右左折。ピーク行と代替カードで共通 */
+/** 2 行目: 細い道（主役）/ 有料 / 右左折。ピーク行と代替カードで共通。iconOnly は文言を落とし aria-label に残す */
 function Stats({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
+  const iconOnly = useSaved((s) => s.iconOnly);
   const toll = tollDistance(route);
   const narrowM = narrow.reduce((sum, s) => sum + s.length, 0);
+  const narrowText = `細い道 ${formatKm(narrowM)}`;
+  const turnsText = `右左折 ${turnCount(route)} 回`;
   return (
     <div {...stylex.props(styles.sub)}>
       {narrowM > 0 ? (
-        <span {...stylex.props(styles.stat, styles.narrowChip)}>
+        <span {...stylex.props(styles.stat, styles.narrowChip)} aria-label={narrowText}>
           <NarrowIcon size={14} />
-          細い道 {formatKm(narrowM)}
+          {iconOnly ? formatKm(narrowM) : narrowText}
         </span>
       ) : (
-        <span {...stylex.props(styles.stat, styles.ok)}>細い道なし</span>
+        !iconOnly && <span {...stylex.props(styles.stat, styles.ok)}>細い道なし</span>
       )}
       {toll > 0 && <span>有料 {formatKm(toll)}</span>}
-      <span {...stylex.props(styles.stat)}>
+      <span {...stylex.props(styles.stat)} aria-label={turnsText}>
         <TurnsIcon size={16} />
-        右左折 {turnCount(route)} 回
+        {iconOnly ? turnCount(route) : turnsText}
       </span>
     </div>
   );

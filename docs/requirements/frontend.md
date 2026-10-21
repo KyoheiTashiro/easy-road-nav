@@ -43,7 +43,7 @@ src/
   store/                    # zustand。React 非依存、セレクタとアクションだけ export
     trip.ts                 # 地点・notoll・探索結果・mode・popup・fix
     nav.ts                  # NavState・hud。start / onFix / end（design/nav.md）
-    saved.ts                # 自宅・検索履歴（localStorage、search.md）
+    saved.ts                # 自宅・検索履歴・アイコンのみ表示（localStorage、search.md / map-display.md）
     toast.ts                # メッセージ 1 つ
   hooks/                    # Effect はここだけ（外部システムとの同期）
     useRouteSearch.ts       # 地点・notoll → fetchRoute → store
@@ -72,8 +72,8 @@ src/
     button.stylex.ts        # ボタンの共通スタイル
     layout.stylex.ts        # 部品の高さ（peek / navbar / hud / next）
     icons/                  # アイコン。SVG は形だけ持ち、index.tsx が mask + currentColor で着色
-      index.tsx             # FromIcon / ToIcon / HomeIcon / DirectionIcon
-      *.svg                 # arrow / uturn / keep / pin / pin-dot / roundabout / home / circle / volume / volume-off（viewBox 24、stroke 2）
+      index.tsx             # FromIcon / ToIcon / HomeIcon / SettingsIcon / DirectionIcon
+      *.svg                 # arrow / uturn / keep / pin / pin-dot / roundabout / home / gear / circle / volume / volume-off（viewBox 24、stroke 2）
       compass.svg           # コンパス（maplibre.css が background-image で参照。独自の色を持つ）
     Toast.tsx
     map/                    # 全モードに出る地図
@@ -82,8 +82,9 @@ src/
       PointPopup.tsx        # 出発地 / 到着地 / 経由地に追加。自宅設定モードでは「自宅にする」（Map が portal で描く）
       maplibre.css          # MapLibre 既定 UI の上書き（Map.tsx が maplibre-gl.css の次に読む）
     edit/                   # 経路編集モード
-      SearchBox.tsx         # 出発地 / 到着地 検索欄。自宅設定モードでは自宅欄 1 つ
-      BottomSheet.tsx       # 2 段、地点リスト・トグル・自宅行・代替カード・StepList を内包
+      SearchBox.tsx         # 出発地 / 到着地 検索欄 + 設定画面への歯車。自宅設定モードでは自宅欄 1 つ
+      BottomSheet.tsx       # 2 段、地点リスト・トグル・代替カード・StepList を内包
+      Settings.tsx          # 設定画面（自宅行・アイコンのみ表示トグル）。settings モードで App が描く
       RouteSummary.tsx      # 距離 / 時間 / 細い道 / 有料、代替経路の切替
       StepList.tsx
     nav/                    # ナビモード

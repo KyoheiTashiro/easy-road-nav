@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import arrow from "./arrow.svg";
 import circle from "./circle.svg";
+import gear from "./gear.svg";
 import home from "./home.svg";
 import keep from "./keep.svg";
 import narrow from "./narrow.svg";
@@ -41,6 +42,10 @@ export function ToIcon({ size = 24 }: { size?: number }) {
 
 export function HomeIcon({ size = 24 }: { size?: number }) {
   return <Icon src={home} size={size} />;
+}
+
+export function SettingsIcon({ size = 24 }: { size?: number }) {
+  return <Icon src={gear} size={size} />;
 }
 
 export function NarrowIcon({ size = 24 }: { size?: number }) {

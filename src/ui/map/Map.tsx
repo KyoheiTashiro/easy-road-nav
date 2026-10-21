@@ -94,7 +94,7 @@ export function Map() {
     });
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.addControl(new maplibregl.ScaleControl(), "bottom-left"); // 出典と縦積み。右下だと展開した出典と重なる
-    map.addControl(compassRef.current, "top-right");
+    map.addControl(compassRef.current, "top-left");
     map.on("style.load", () => applyStyleExtras(map, dataRef.current));
     map.on("click", (e) => onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
     map.on("dragstart", (e) => {
@@ -233,7 +233,7 @@ export function Map() {
       map.touchZoomRotate.enableRotation();
       map.touchPitch.enable();
       map.dragRotate.enable();
-      if (!map.hasControl(compassRef.current)) map.addControl(compassRef.current, "top-right");
+      if (!map.hasControl(compassRef.current)) map.addControl(compassRef.current, "top-left");
       map.jumpTo({ bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
     }
     if (mode === MODE.HOME) easeToHome(map);

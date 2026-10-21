@@ -22,7 +22,7 @@ const INIT = parseQuery(typeof location === "undefined" ? "" : location.search);
 /** 初回 fix のカメラ（Map）: URL に地点が無ければ現在地へ easeTo。あれば探索後の fitBounds が優先 */
 export const URL_HAD_POINTS = INIT.from !== null || INIT.to !== null;
 
-export const MODE = { EDIT: "edit", NAV: "nav", HOME: "home" } as const;
+export const MODE = { EDIT: "edit", NAV: "nav", HOME: "home", SETTINGS: "settings" } as const;
 export type Mode = (typeof MODE)[keyof typeof MODE];
 export type Popup = { p: LatLng; label: string | null };
 type Result = { key: string; routes: RouteModel[]; narrows: NarrowSegment[][] };
@@ -227,13 +227,17 @@ export const tripActions = {
   homeChosen(p: LatLng, label: string): void {
     savedActions.homeSaved({ lat: p.lat, lng: p.lng, label });
     showToast("自宅を登録しました");
-    set({ popup: null, mode: MODE.EDIT });
+    set({ popup: null, mode: MODE.SETTINGS });
+  },
+  settingsEntered(): void {
+    set({ popup: null, sheetExpanded: false, mode: MODE.SETTINGS });
   },
   homeSetupEntered(): void {
-    set({ popup: null, sheetExpanded: false, mode: MODE.HOME });
+    set({ popup: null, mode: MODE.HOME });
   },
-  editReturned(): void {
-    set({ popup: null, mode: MODE.EDIT });
+  /** 「戻る」。home → settings → edit */
+  backPressed(): void {
+    set((s) => ({ popup: null, mode: s.mode === MODE.HOME ? MODE.SETTINGS : MODE.EDIT }));
   },
   setSheet(sheetExpanded: boolean): void {
     set({ sheetExpanded });

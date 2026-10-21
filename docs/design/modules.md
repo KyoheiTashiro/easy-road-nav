@@ -23,20 +23,24 @@ export const MAX_VIAS = 5; // 経由地の上限（CONTEXT.md）
 
 ## `src/store/saved.ts`
 
-自宅・検索履歴。`localStorage`（キー `home` `history`）が正で、store は起動時に読んだ写し。壊れた JSON・形式違いは `null` / `[]` として読む（例外を投げない。`localStorage` 不可の環境も同じ）。
+自宅・検索履歴・アイコンのみ表示。`localStorage`（キー `home` `history` `iconOnly`）が正で、store は起動時に読んだ写し。壊れた JSON・形式違いは `null` / `[]` / `false` として読む（例外を投げない。`localStorage` 不可の環境も同じ）。
 
 ```ts
 export const HISTORY_MAX = 5; // 検索履歴件数（CONTEXT.md）
 export function pushHistory(list: SavedPoint[], p: SavedPoint): SavedPoint[]; // 純関数。同座標（lat・lng 一致）を除いて先頭に追加、HISTORY_MAX 件に切る
-export function useSaved<T>(selector: (s: { home: SavedPoint | null; history: SavedPoint[] }) => T): T;
+type SavedState = { home: SavedPoint | null; history: SavedPoint[]; iconOnly: boolean };
+export function useSaved<T>(selector: (s: SavedState) => T): T;
 export const getSaved: () => SavedState;
 export const savedActions: {
   homeSaved(p: SavedPoint): void; // 保存 → store
   historyPushed(p: SavedPoint): void; // pushHistory → 保存 → store
+  iconOnlyToggled(v: boolean): void; // 保存 → store
 };
 ```
 
-読み込み時の検証: `lat` `lng` が有限数で範囲内（`url.ts` の `parseLatLng` と同じ条件）、`label` が文字列。満たさない要素は捨てる。
+読み込み時の検証: `lat` `lng` が有限数で範囲内（`url.ts` の `parseLatLng` と同じ条件）、`label` が文字列。満たさない要素は捨てる。`iconOnly` は `read("iconOnly") === true` のときだけ true（それ以外の値は既定 false）。
+
+テスト `saved.test.ts`: `iconOnly` の読み込み（未保存 → false、`"true"` → true、壊れた値 → false）と `iconOnlyToggled` の保存を既存の自宅・履歴のケースに足す。
 
 ## `src/api/graphhopper.ts`
 
@@ -251,6 +255,7 @@ export function clearToast(): void; // Toast.tsx の 4 秒タイマーが呼ぶ
 地点・探索結果・画面モード・GPS fix。フィールドは ui.md「状態」。
 
 ```ts
+export const MODE = { EDIT: "edit", NAV: "nav", SETTINGS: "settings", HOME: "home" } as const;
 export const URL_HAD_POINTS: boolean; // 起動時の URL に from か to があった。Map の初回 fix easeTo を抑止
 export function useTrip<T>(selector: (s: TripState) => T): T;
 export const getTrip: () => TripState; // async 関数・Effect 内の最新値読み
@@ -287,11 +292,12 @@ export const tripActions: {
   popupClosed(): void;
   popupActionTaken(role: PointRole): void;
   popupHomeTaken(): void; // 「自宅にする」。label 未確定（逆ジオ中）なら何もしない
-  // 検索・自宅
+  // 検索・設定・自宅
   searchPicked(role: PickRole, p: LatLng, label: string | null): void; // home かつ label null（現在地）は popupOpened で逆ジオを待つ
-  homeChosen(p: LatLng, label: string): void; // savedActions.homeSaved → トースト「自宅を登録しました」→ mode edit
-  homeSetupEntered(): void; // mode home、popup null
-  editReturned(): void;
+  homeChosen(p: LatLng, label: string): void; // savedActions.homeSaved → トースト「自宅を登録しました」→ mode settings
+  settingsEntered(): void; // edit → settings。popup null、sheetExpanded false
+  homeSetupEntered(): void; // settings → home。popup null
+  backPressed(): void; // home → settings、settings → edit。popup null。それ以外のモードでは何もしない（旧 editReturned）
   setSheet(v: boolean): void;
   // ナビ（nav store が呼ぶ）
   navStarted(origin: Point, route: RouteModel): void; // from = origin、result = { key: 新 reqKey, routes: [route] }、fittedKey 更新（探索 effect の再 fetch と fitVersion++ を抑止）、mode nav
@@ -365,7 +371,7 @@ export function Map(): JSX.Element;
 - 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `URL_HAD_POINTS` が false なら `easeTo(zoom 15)`（1 回だけ。`fixUpdated` が `from` と `fix` を同時に入れるので `from` の null では判定できない）
 - カメラ: `useEffect([fitVersion])`（`fitVersion > 0` のみ）と `useEffect([sheetExpanded])` で `fitBounds`。edit モードのみ。padding は 40、下はそれに シートの高さ（展開時 `clientHeight × layout.half / 100`、収納時 `layout.peek`）を足す。routes / selected は `useEffectEvent` で読む。ナビ中は `useEffect([nav])` で `easeTo`（nav.md「カメラ」。fix は `useEffectEvent` で読む）。ナビ開始・終了で `jumpTo`（`pitch: NAV_PITCH` / 0、padding）/ ジェスチャ制限の切替
 - イベント: `click` `dragstart` `zoomend`（`originalEvent` あり）は map 生成時に 1 回登録し、ハンドラは `useEffectEvent`（`click`: edit で `sheetExpanded` なら `setSheet(false)` だけ、それ以外 edit / home なら `popupOpened`。`dragstart` → `setFollow(false)`、`zoomend` → `setZoom`）
-- コントロール: `ScaleControl`（bottom-right、帰属表示の上）、`NavigationControl`（コンパスのみ、top-right。`useEffect([mode])` でナビ中は `removeControl`、戻りで `addControl`）。位置の余白は `ui/map/maplibre.css` でオーバーレイを避ける
+- コントロール: `ScaleControl`（bottom-left、帰属表示の上）、`NavigationControl`（コンパスのみ、top-left。`useEffect([mode])` でナビ中は `removeControl`、戻りで `addControl`）。位置の余白は `ui/map/maplibre.css` でオーバーレイを避ける
 
 ## `src/ui/map/mapLayers.ts`
 
@@ -375,7 +381,7 @@ export function Map(): JSX.Element;
 
 ## `src/ui/edit/SearchBox.tsx`
 
-props なし。`App` が `key={mode}` で入力 state を捨てる。購読: `mode`（`home` なら「戻る」+ 自宅欄 1 つ、それ以外は出発地 / 到着地の 2 欄）、`from` `to`、`fix`（`gpsError` 中は null。候補「現在地」の表示条件）、saved store の `home` `history`。操作: 候補選択 → `tripActions.searchPicked(role, p, label)`（label null = 逆ジオへ）、× → `pointDeleted(role)`、「戻る」→ `editReturned`、住所 / 施設名の候補タップ → `savedActions.historyPushed` の直後に `searchPicked`、失敗 → `showToast`。
+props なし。`App` が `key={mode}` で入力 state を捨てる。購読: `mode`（`home` なら「戻る」+ 自宅欄 1 つ、それ以外は出発地 / 到着地の 2 欄）、`from` `to`、`fix`（`gpsError` 中は null。候補「現在地」の表示条件）、saved store の `home` `history`。操作: 候補選択 → `tripActions.searchPicked(role, p, label)`（label null = 逆ジオへ）、× → `pointDeleted(role)`、「戻る」→ `backPressed`、歯車（edit かつ候補リスト非表示のとき描画）→ `settingsEntered`、住所 / 施設名の候補タップ → `savedActions.historyPushed` の直後に `searchPicked`、失敗 → `showToast`。
 
 空欄候補: `active` あり かつ `query.trim() === ""` のとき、検索結果の代わりに固定行を出す。出発地欄 = 現在地 → 自宅 → 履歴、到着地欄 = 自宅 → 履歴、自宅欄 = 現在地 → 履歴。「現在地」は `fix` あり、「自宅」は `home` ありのときだけ。自宅・履歴行のタップは `searchPicked(role, p, p.label)`（履歴には積まない）。
 
@@ -409,11 +415,17 @@ type PointPopupProps = {
 
 ## `src/ui/edit/BottomSheet.tsx`
 
-props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、`gpsOk`（= fix あり かつ gpsError でない）、nav store の `starting`、saved store の `home`。`loading` = `selectLoading || starting`。「案内開始」は routes があるときだけ描画し、`!gpsOk`（文言「GPS 待ち」）か `starting` で disabled。操作: ハンドル / サマリ文字部のタップ・スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、「自宅を設定」/「変更」→ `homeSetupEntered`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
+props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、`gpsOk`（= fix あり かつ gpsError でない）、nav store の `starting`。saved store は購読しない（自宅行は Settings へ移した）。`loading` = `selectLoading || starting`。「案内開始」は routes があるときだけ描画し、`!gpsOk`（文言「GPS 待ち」）か `starting` で disabled。操作: ハンドル / サマリ文字部のタップ・スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
 
 スワイプは `onTouchStart` で開始 Y・body の `scrollTop`・シートの現在高を取り、`onTouchMove` で inline `max-height` を `[layout.peek, innerHeight × layout.half / 100]` にクランプして追従（`transition: none`）、`onTouchEnd` で inline を外し 30px 以上なら `setSheet(dy < 0)`。下方向は開始時 `scrollTop > 0` なら無視。`useEffect([expanded])` で展開時に `scrollTop = 0`。
 
-内部に地点リスト（タイムライン。別ファイルにしない。記号は `FromIcon` / 番号 / `ToIcon` を `marker` 色で塗る）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル・自宅行）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
+内部に地点リスト（タイムライン。別ファイルにしない。記号は `FromIcon` / 番号 / `ToIcon` を `marker` 色で塗る）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
+
+## `src/ui/edit/Settings.tsx`
+
+props なし。`settings` モードで `App` が `Map` の上に描く全画面パネル（ui.md「設定画面」）。購読: saved store の `home` `iconOnly`。操作: 「戻る」→ `tripActions.backPressed`、「自宅を設定」/「変更」→ `tripActions.homeSetupEntered`、トグル → `savedActions.iconOnlyToggled(e.target.checked)`。
+
+行は `<label>` + `<input type="checkbox">`（BottomSheet の `toggle` スタイルと同じ。共有が 2 箇所になるので `button.stylex.ts` の隣に `toggle` を出すか、BottomSheet 側に `export` するかは実装時に決める。新規 stylex ファイルは増やさない）。
 
 ## `src/ui/edit/RouteSummary.tsx`
 
@@ -428,7 +440,7 @@ type RouteSummaryProps = {
 };
 ```
 
-`compact` = ピーク行（選択経路）。表示は `format.ts`。2 行構成を `Main`（所要時間 20px 太字 + 距離 14px。代替カードでは先頭にラベル）と `Stats`（細い道合計 > 0 なら `colors.narrow` 背景のチップ「`NarrowIcon` 細い道 x.x km」、0 なら `colors.ok` 色「細い道なし」/ 有料 x.x km（あれば）/ 「`TurnsIcon` 右左折 n 回」）で共有。compact で `loading` か経路なしならスピナー +「探索中…」/「出発地と到着地を設定してください」。`compact=false` は代替カード（`routes.length < 2` なら null。`<button aria-pressed>`、`borderLeftWidth 4`、選択中は `borderColor: accent`）。
+`compact` = ピーク行（選択経路）。表示は `format.ts`。2 行構成を `Main`（所要時間 20px 太字 + 距離 14px。代替カードでは先頭にラベル）と `Stats`（細い道合計 > 0 なら `colors.narrow` 背景のチップ「`NarrowIcon` 細い道 x.x km」、0 なら `colors.ok` 色「細い道なし」/ 有料 x.x km（あれば）/ 「`TurnsIcon` 右左折 n 回」）で共有。`Stats` は saved store の `iconOnly` を購読し、true なら 細い道チップ「`NarrowIcon` x.x km」（0 なら何も出さない）/ 有料 / 「`TurnsIcon` n 回」。文言を落とした `span` には `aria-label`（「細い道 1.2 km」「右左折 5 回」）。compact で `loading` か経路なしならスピナー +「探索中…」/「出発地と到着地を設定してください」。`compact=false` は代替カード（`routes.length < 2` なら null。`<button aria-pressed>`、`borderLeftWidth 4`、選択中は `borderColor: accent`）。
 
 ## `src/ui/edit/StepList.tsx`
 
@@ -436,11 +448,11 @@ type RouteSummaryProps = {
 type StepListProps = { route: RouteModel; narrow: NarrowSegment[] };
 ```
 
-`instructions` を全部表示（`sign 0` 含む）。各行: `DirectionIcon` / `formatDistance(distance)` / `text` / `streetName`。`entersNarrow` が真なら先頭に「⚠ 細い道」、行背景 `colors.narrowBg`（`margin ±8` で本文の余白まで広げる）。行の上罫線は `:first-child` で消す（section の上罫線と重ねない）。
+`instructions` を全部表示（`sign 0` 含む）。各行: `DirectionIcon` / `formatDistance(distance)` / `text` / `streetName`。`entersNarrow` が真なら先頭に「⚠ 細い道」（saved store の `iconOnly` が true なら `NarrowIcon size={14}` だけ、`aria-label`「細い道」）、行背景 `colors.narrowBg`（`margin ±8` で本文の余白まで広げる）。行の上罫線は `:first-child` で消す（section の上罫線と重ねない）。
 
 ## `src/ui/nav/NavHud.tsx`
 
-props なし。nav store の `nav` `hud` `inNarrow`、trip store の `selectRoute` を購読。`nav` か経路が無ければ描画しない。残り距離は `hud.remaining`、hud 未着なら `route.distance − nav.s`。`hud.instruction` null → 「目的地まで」+ 残り距離。`hud.next` null なら「その先」行は空（高さ固定）。`nav.rerouting` で「再探索中」。
+props なし。nav store の `nav` `hud` `inNarrow`、trip store の `selectRoute` を購読。`nav` か経路が無ければ描画しない。残り距離は `hud.remaining`、hud 未着なら `route.distance − nav.s`。`hud.instruction` null → 「目的地まで」+ 残り距離。`hud.next` null なら「その先」行は空（高さ固定）。`nav.rerouting` で「再探索中」。細い道バナーはアイコンのみ表示の対象外（常に文言あり）。
 
 ## `src/ui/nav/NavBar.tsx`
 
@@ -451,7 +463,7 @@ props なし。nav store の `nav` `muted`、trip store の `selectRoute` `fix` 
 ```ts
 export function FromIcon(props: { size?: number }): JSX.Element; // 出発地 = 丸
 export function ToIcon(props: { size?: number }): JSX.Element; // 到着地 = ピン
-export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・ボトムシート自宅行
+export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・設定画面の自宅行
 export function NarrowIcon(props: { size?: number }): JSX.Element; // 細い道 = 狭い道路線画。経路サマリ・HUD 細い道バナー
 export function TurnsIcon(props: { size?: number }): JSX.Element; // 右左折 = 左右に分かれる T 字矢印。経路サマリ
 export function VolumeIcon(props: { size?: number }): JSX.Element; // NavBar ミュートトグル（音声あり）
@@ -483,7 +495,7 @@ export const layout = stylex.defineConsts({ peek: 80, half: 70, navbar: 64, hud:
 
 ## `src/App.tsx`
 
-状態を持たない。`useGeolocation()` `useRouteSearch()` `useReverseGeocode()` `useUrlSync()` を呼び、`mode` を購読して `useWakeLock(mode === "nav")` `useUpdateCheck(mode === "nav")`。描画は `<Map />` + ナビ中 `<NavHud /> <NavBar />`、それ以外 `<SearchBox key={mode} />` と edit のとき `<BottomSheet />`、末尾に `<Toast />`。
+状態を持たない。`useGeolocation()` `useRouteSearch()` `useReverseGeocode()` `useUrlSync()` を呼び、`mode` を購読して `useWakeLock(mode === "nav")` `useUpdateCheck(mode === "nav")`。描画は `<Map />` + モード別: nav → `<NavHud /> <NavBar />`、settings → `<Settings />`、edit / home → `<SearchBox key={mode} />` と edit のとき `<BottomSheet />`。末尾に `<Toast />`（Settings より上に重ねる）。
 
 主要な流れ（どこで起きるか）:
 
@@ -491,7 +503,9 @@ export const layout = stylex.defineConsts({ peek: 80, half: 70, navbar: 64, hud:
 - 探索: `useRouteSearch`（ui.md「状態」）。`routesLoaded` が `pointsKey` と `fittedKey` を比べて `fitVersion++`
 - 逆ジオ: `useReverseGeocode` → `labelRequested`。重複排除と反映は store
 - ナビ: `navActions.start` → fix ごとに `useGeolocation` が `navActions.onFix` → `dispatch`。リルート・終了・到着は `store/nav.ts`
-- 自宅設定: `homeSetupEntered` → mode home。`home` モードのタップは edit と同じく `popupOpened`。保存は `homeChosen` 1 箇所（`popupHomeTaken` と `searchPicked(ROLE.HOME, …)` から）。`editReturned` で戻る
+- 設定: `settingsEntered` → mode settings。Settings は saved store だけ読み書きする（`iconOnlyToggled`）。`backPressed` で edit
+- 自宅設定: Settings の `homeSetupEntered` → mode home。`home` モードのタップは edit と同じく `popupOpened`。保存は `homeChosen` 1 箇所（`popupHomeTaken` と `searchPicked(ROLE.HOME, …)` から）→ mode settings。`backPressed` でも settings
+- アイコンのみ表示: `RouteSummary`（`Stats`）`StepList` が各自 `useSaved(s => s.iconOnly)` を購読。props で渡さない
 - 検索履歴: SearchBox が `savedActions.historyPushed`。edit・home どちらのモードでも同じ
 
 ## `src/main.tsx`

@@ -32,7 +32,12 @@ const styles = stylex.create({
   },
   expanded: { maxHeight: `${layout.half}dvh` }, // vh だと Safari のツールバー表示中に innerHeight とずれ、指追従の終わりで跳ねる
   // ピーク時に body が覗かないよう高さを揃える。ホームインジケータ分は空けず、ボタンをその直上に置く
-  header: { flexShrink: 0, minHeight: `${layout.peek}px` },
+  header: {
+    flexShrink: 0,
+    minHeight: `${layout.peek}px`,
+    display: "flex",
+    flexDirection: "column",
+  },
   handle: {
     display: "block",
     width: "100%",
@@ -42,7 +47,7 @@ const styles = stylex.create({
     cursor: "pointer",
   },
   bar: { width: 40, height: 4, borderRadius: 2, margin: "0 auto", backgroundColor: colors.border },
-  summary: { display: "flex", alignItems: "center", gap: 12, padding: "0 16px 12px" },
+  summary: { flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "0 16px 12px" },
   summaryText: { flex: 1, minWidth: 0, cursor: "pointer" },
   start: { flexShrink: 0, height: 52, padding: "0 20px", fontSize: 16 },
   // スクロールは常に body。overflow を切り替えると iOS がタッチ開始時にスクロール対象を取り違える

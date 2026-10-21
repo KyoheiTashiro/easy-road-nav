@@ -27,9 +27,10 @@ const styles = stylex.create({
     zIndex: 5,
   },
   info: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" },
-  time: { fontSize: 18, fontWeight: 700 },
-  eta: { fontSize: 13, opacity: 0.7 },
+  time: { fontSize: 24, fontWeight: 700 },
+  eta: { fontSize: 16, opacity: 0.7 },
   mute: { width: 44, height: 44, display: "grid", placeItems: "center" },
+  end: { height: 52, padding: "0 20px", fontSize: 16, marginLeft: 8 }, // 案内開始と同じ大きさ。ミュートとの間を bar の gap より広げる
 });
 
 export function NavBar() {
@@ -62,7 +63,10 @@ export function NavBar() {
       >
         {muted ? <VolumeOffIcon /> : <VolumeIcon />}
       </button>
-      <button {...stylex.props(button.base, button.danger)} onClick={() => navActions.end(true)}>
+      <button
+        {...stylex.props(button.base, button.danger, styles.end)}
+        onClick={() => navActions.end(true)}
+      >
         終了
       </button>
     </div>

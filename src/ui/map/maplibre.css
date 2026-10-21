@@ -12,10 +12,10 @@
 
 /* MapLibre コントロール: コンパスは検索欄の下（歯車は右側なので左に置く）、縮尺・出典はボトムシートの直上 */
 .maplibregl-ctrl-top-left {
-  margin-top: calc(env(safe-area-inset-top) + 113px);
+  margin-top: calc(env(safe-area-inset-top) + 97px);
 }
 .maplibregl-ctrl-bottom-left {
-  margin-bottom: calc(env(safe-area-inset-bottom) + 80px);
+  margin-bottom: 112px; /* シート peek（112px、safe-area 加算なし）の 10px 上。MapLibre 既定 margin 10px 込み */
 }
 /* コンパス: 赤い北針の円形アイコン。針は MapLibre が bearing に合わせて回す。
    円形アイコン自体が輪郭を持つので MapLibre の白地・影は消す */

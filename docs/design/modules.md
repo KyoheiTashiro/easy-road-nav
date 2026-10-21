@@ -488,7 +488,7 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ。`layou
 ## `src/ui/layout.stylex.ts`
 
 ```ts
-export const layout = stylex.defineConsts({ peek: 80, half: 70, navbar: 64, hud: 88, next: 36 }); // px。half のみ vh
+export const layout = stylex.defineConsts({ peek: 112, half: 70, navbar: 64, hud: 88, next: 36 }); // px。half のみ vh
 ```
 
 画面部品の高さ。`BottomSheet`（`peek` 収納時 / `half` 展開時）`NavBar` `NavHud` が自分の高さに使い、`Map` が fitBounds / ナビ時の padding、`Toast` がナビ時の `top` に使う。`defineConsts` の値はコンパイル時に文字列で埋まる。数値は単位なしのまま埋まる（vite dev では `max-height:80` が無効になる。build は lightningcss が px を補うので気づきにくい）ので、`stylex.create` 内では `${layout.peek}px` のように単位を付け、JS で足さず `calc()` に並べる。JS からは数値として読める。

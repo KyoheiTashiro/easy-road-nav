@@ -9,6 +9,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!-- iOS standalone: 不透明バー。black-translucent だと iOS 26 が web view をバー高分短く作り下端に描画不能の帯が出る（WebKit 301108）。変更はホーム画面に再追加しないと反映されない -->
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- 不透明バーを地図になじませる。値は tokens の colors.bg -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)" />
     <style>
       /* 起動 splash: JS 到着まで #root 内の静的 HTML を表示。React の render が上書きして消える。
          背景は manifest の background_color と同じにし、Android のネイティブ splash から途切れず繋ぐ */

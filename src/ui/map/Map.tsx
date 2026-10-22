@@ -119,15 +119,16 @@ export function Map() {
   }, []);
 
   useEffect(() => {
-    const route = routes[selected];
+    const hide = mode === MODE.HOME;
+    const route = hide ? undefined : routes[selected];
     const data = {
       route: route ? routeFeatures(route) : EMPTY,
-      alt: altFeatures(routes, selected),
+      alt: hide ? EMPTY : altFeatures(routes, selected),
     };
     dataRef.current = { ...dataRef.current, ...data };
     setSourceData(mapRef.current, "route", data.route);
     setSourceData(mapRef.current, "alt", data.alt);
-  }, [routes, selected]);
+  }, [routes, selected, mode]);
 
   // 初回 fix: URL に地点があれば探索後の fitBounds を優先し easeTo しない
   useEffect(() => {

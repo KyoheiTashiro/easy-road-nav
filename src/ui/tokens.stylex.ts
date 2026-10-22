@@ -8,6 +8,7 @@ export const colors = stylex.defineVars({
   surface: { default: "#f4f4f4", [DARK]: "#1e1e1e" },
   border: { default: "#d0d0d0", [DARK]: "#3a3a3a" },
   accent: { default: "#1a73e8", [DARK]: "#8ab4f8" },
+  accentBg: { default: "#e8f0fe", [DARK]: "#1f3a5f" },
   narrow: { default: "#e8710a", [DARK]: "#f5a04a" },
   narrowBg: { default: "#fdf0e3", [DARK]: "#3a2a16" },
   ok: { default: "#188038", [DARK]: "#81c995" },

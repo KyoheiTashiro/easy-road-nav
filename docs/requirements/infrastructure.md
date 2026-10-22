@@ -34,7 +34,7 @@ flowchart LR
     end
 
     subgraph MAC["Mac（開発機）"]
-        PBF[/"kanto-koshinetsu.osm.pbf（Geofabrik 関東 + 中部 3 県）"/]
+        PBF[/"kanto-koshinetsu.osm.pbf（Geofabrik 関東 + 中部 4 県）"/]
         IMP["GraphHopper import + CH"]
         DEP["npm run deploy（build + rsync）"]
         DEPG["npm run deploy:graph"]
@@ -90,7 +90,7 @@ VPS:
 - GraphHopper: Mac ローカル Docker（compose `serve`）。関東甲信越データでも Docker Desktop 既定メモリ（8 GB）で足りる。インポートのヒープは 4 GB 固定（6 GB にすると同居コンテナ次第で VM ごと OOM。2026-10-20 に exit 137 を確認）
 - フロント: Vite を Mac でネイティブ起動。`server.proxy` で `/gh` → `localhost:8989`（`rewrite` で prefix 除去）。Docker 化しない（bind mount 経由の HMR・ファイル監視が遅く、`node_modules` の扱いも面倒）
 - スマホ実機検証: Geolocation は HTTPS 必須なので Mac を tailnet に入れ `tailscale serve --bg 5173` で Vite dev を公開（詳細は [frontend.md](frontend.md)）
-- データ: `kanto-koshinetsu.osm.pbf`（約 670 MB）。対象は関東 1 都 6 県 + 山梨・長野・新潟。Geofabrik に県単位の pbf はないので、`make pbf`（`scripts/build-pbf.sh`）が関東 496 MB に、中部 489 MB から県境ポリゴンで切り出した山梨 22 MB・長野 70 MB・新潟 60 MB を `osmium merge` する。県境は `scripts/regions/*.geojson`（Nominatim の行政境界、簡略化済み）
+- データ: `kanto-koshinetsu.osm.pbf`（約 770 MB）。対象は関東 1 都 6 県 + 山梨・長野・新潟・静岡（ファイル名は歴史的経緯でそのまま）。Geofabrik に県単位の pbf はないので、`make pbf`（`scripts/build-pbf.sh`）が関東 496 MB に、中部 489 MB から県境ポリゴンで切り出した山梨 22 MB・長野 70 MB・新潟 60 MB・静岡を `osmium merge` する。県境は `scripts/regions/*.geojson`（Nominatim の行政境界、簡略化済み）
 - インポート目安: ヒープ 4 GB、約 22 分（関東甲信越、使用ヒープ最大 2.4 GB）。CH 2 プロファイル込み
 
 ## 公開
@@ -99,6 +99,7 @@ VPS:
 - ヒープ実測: VPS 契約前に Mac で `serve` を `-Xmx1g` + `mem_limit: 1.5g` で起動し、数十リクエストで OOM なしを確認。通れば 2 GB、落ちれば 4 GB（¥1,760）。VPS には swap 2 GB を置く（OOM kill 保険）
   - 実測（2026-10-09、`scripts/heap-check.sh` 50 周 = 600 リクエスト、関東 graph-cache 746 MB）: 1.17 GiB / 1.5 GiB、OOM なし、全件 200。→ 2 GB で決定
   - 実測（2026-10-20、関東甲信越 graph-cache 832 MB、`scripts/heap-check.sh` 12 ペア × 50 周 = 1,200 リクエスト、東京→新潟 316 km 含む）: 1.18 GiB / 1.5 GiB、OOM なし、全件 200。ヒープは `-Xms1g` 固定なので、グラフが増えて伸びるのは mmap ページ分だけ
+  - 実測（2026-10-22、関東甲信越 + 静岡 graph-cache 919 MB、15 ペア × 50 周 = 1,500 リクエスト）: 1.30 GiB / 1.5 GiB（86 %）、OOM なし、全件 200
 - 公開: `tailscale serve --bg`。`/` → 静的ディレクトリ、`/gh` → `http://127.0.0.1:8989`（prefix を剥がして転送）。HTTPS は `<host>.<tailnet>.ts.net` の証明書を自動発行・更新。ドメイン不要
 - 認証: Tailscale。VPS ノードを共有先の Tailscale アカウントへ共有（無料枠 6 ユーザーの枠外、見えるのは VPS のみ）。追加・削除は管理画面
 - ACL: 共有先（`autogroup:shared`）から VPS へは tcp:443 のみ。SSH は自分だけ。共有先に見えるのは HTTPS のみ

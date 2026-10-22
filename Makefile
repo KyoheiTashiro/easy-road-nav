@@ -40,7 +40,7 @@ import: ## graph-cache 再生成（pbf 必須、約 20 分）
 	rm -rf data/graph-cache
 	docker compose --profile import run --rm import
 
-pbf: ## 関東甲信越 pbf を作る（Geofabrik 取得 + 県切り出し + 結合。osmium-tool 必須）
+pbf: ## 関東甲信越 + 静岡 pbf を作る（Geofabrik 取得 + 県切り出し + 結合。osmium-tool 必須）
 	sh scripts/build-pbf.sh
 
 fixtures: ## GraphHopper 実応答を fixture に保存（serve 起動中）

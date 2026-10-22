@@ -1,7 +1,20 @@
 {
   "extracts": [
-    { "output": "yamanashi.osm.pbf", "polygon": { "file_name": "yamanashi.geojson", "file_type": "geojson" } },
-    { "output": "nagano.osm.pbf", "polygon": { "file_name": "nagano.geojson", "file_type": "geojson" } },
-    { "output": "niigata.osm.pbf", "polygon": { "file_name": "niigata.geojson", "file_type": "geojson" } }
+    {
+      "output": "yamanashi.osm.pbf",
+      "polygon": { "file_name": "yamanashi.geojson", "file_type": "geojson" }
+    },
+    {
+      "output": "nagano.osm.pbf",
+      "polygon": { "file_name": "nagano.geojson", "file_type": "geojson" }
+    },
+    {
+      "output": "niigata.osm.pbf",
+      "polygon": { "file_name": "niigata.geojson", "file_type": "geojson" }
+    },
+    {
+      "output": "shizuoka.osm.pbf",
+      "polygon": { "file_name": "shizuoka.geojson", "file_type": "geojson" }
+    }
   ]
 }

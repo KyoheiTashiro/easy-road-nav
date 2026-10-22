@@ -26,7 +26,23 @@ const styles = stylex.create({
   row: { display: "flex", alignItems: "center", gap: 8, minHeight: 36, fontSize: 14 },
   name: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   unset: { flex: 1, opacity: 0.5 },
+  note: { fontSize: 12, opacity: 0.7, lineHeight: 1.5 },
 });
+
+// 地図データの範囲（scripts/build-pbf.sh と揃える）
+const REGIONS = [
+  "東京",
+  "神奈川",
+  "埼玉",
+  "千葉",
+  "茨城",
+  "栃木",
+  "群馬",
+  "山梨",
+  "静岡",
+  "長野",
+  "新潟",
+];
 
 export function Settings() {
   const home = useSaved((s) => s.home);
@@ -62,6 +78,7 @@ export function Settings() {
         />
         細い道・右左折をアイコンだけで表示
       </label>
+      <p {...stylex.props(styles.note)}>対応地域: {REGIONS.join("・")}</p>
     </div>
   );
 }

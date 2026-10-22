@@ -82,7 +82,7 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
 
 ## 3. データ更新 / custom model 変更
 
-1. データ更新のみ: `make pbf`（Geofabrik から関東・中部を取得 → 山梨・長野・新潟を切り出し → 結合。`osmium-tool` が要る: `brew install osmium-tool`）。custom model 変更のみ（ペナルティ・速度係数とも）: `graphhopper/custom_models/*.json` を編集（pbf 再取得不要）。CH は custom model から作るので、どちらも再インポートが要る
+1. データ更新のみ: `make pbf`（Geofabrik から関東・中部を取得 → 山梨・長野・新潟・静岡を切り出し → 結合。`osmium-tool` が要る: `brew install osmium-tool`）。custom model 変更のみ（ペナルティ・速度係数とも）: `graphhopper/custom_models/*.json` を編集（pbf 再取得不要）。CH は custom model から作るので、どちらも再インポートが要る
 2. Mac でインポート（CH 2 プロファイル込み、十数分）
 
    ```sh
@@ -109,8 +109,8 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
 
 ## 5. 地域追加・全国化
 
-1. 県を足す: Nominatim から県境 GeoJSON を取得して `scripts/regions/` に置く（`https://nominatim.openstreetmap.org/search?q=<県名>&format=geojson&polygon_geojson=1&polygon_threshold=0.0005&limit=1`、Feature 1 件に整形）。`scripts/regions/extract.json` の extracts と `scripts/build-pbf.sh` の取得リージョン・`osmium merge` の引数に加える
-2. 3 章の手順。`deploy:graph` の前に Mac で `make heap-check` を回し、`mem_limit 1.5g` に収まるか見る（関東甲信越で 1.18 GiB。残り 300 MB が追加できる目安）
+1. 県を足す: Nominatim から県境 GeoJSON を取得して `scripts/regions/` に置く（`https://nominatim.openstreetmap.org/search?q=<県名>&format=geojson&polygon_geojson=1&polygon_threshold=0.0005&limit=1`、Feature 1 件に整形）。`scripts/regions/extract.json` の extracts と `scripts/build-pbf.sh` の取得リージョン・`osmium merge` の引数に加える。設定画面の「対応地域」（`src/ui/edit/Settings.tsx` の `REGIONS`）と [infrastructure.md](requirements/infrastructure.md)「開発環境」の県一覧も更新
+2. 3 章の手順。`deploy:graph` の前に Mac で `make heap-check` を回し、`mem_limit 1.5g` に収まるか見る（関東甲信越 + 静岡で 1.30 GiB、86 %。残り 200 MB が追加できる目安。超えたら全国化と同じく VPS 増設）
 3. 全国化: `japan-latest.osm.pbf`（2.4 GB）に差し替え。RAM 8 GB 必要 → VPS プランを 8 GB（¥3,410）へ変更してから `deploy:graph`
 
 ## 6. Yahoo! ローカルサーチ API の appid（初回のみ）

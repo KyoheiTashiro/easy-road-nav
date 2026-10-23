@@ -1,30 +1,15 @@
 # ローカル開発用。手順の詳細は docs/runbook.md
-.PHONY: help dev build preview test check lint fmt up down logs import pbf fixtures heap-check
+.PHONY: help dev check up down logs import pbf fixtures heap-check
 
 help: ## ターゲット一覧
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
-# --- web ---
+# --- web（build / test / lint / fmt は npm run）---
 dev: up ## GraphHopper 起動 + vite dev（/gh → :8989 プロキシ）
 	npm run dev
 
-build: ## 型チェック + vite build
-	npm run build
-
-preview: build ## build 結果をローカル配信
-	npm run preview
-
-test: ## vitest
-	npm test
-
 check: ## typecheck + lint + test
 	npm run typecheck && npm run lint && npm test
-
-lint: ## oxlint
-	npm run lint
-
-fmt: ## oxfmt
-	npm run fmt
 
 # --- GraphHopper ---
 up: ## serve 起動（:8989、graph-cache 必須）

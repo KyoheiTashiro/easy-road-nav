@@ -1,7 +1,7 @@
 # 経路モデル
 
 GraphHopper 応答をフロント内部の 1 構造（経路モデル）に変換し、細い道区間生成・描画分割・案内文・ナビ進捗のすべてがこれを入力にする。
-fetch は `src/api/graphhopper.ts`、変換（`fromGraphHopperPath`）・構造・計算は `src/model/route.ts`（fixture でテストするため変換も `model/` に置く。シグネチャは [modules.md](modules.md)）。
+fetch は `src/route/graphhopper.ts`、変換（`fromGraphHopperPath`）・構造・計算は `src/route/route.ts`（fixture でテストするため変換も React 非依存の `route.ts` に置く。シグネチャは [modules.md](modules.md)）。
 
 ## リクエスト契約
 
@@ -37,8 +37,8 @@ fetch は `src/api/graphhopper.ts`、変換（`fromGraphHopperPath`）・構造�
 type RouteModel = {
   points: [number, number][]; // P
   cumulativeDistances: number[]; // cumulativeDistances[k] = P[0]..P[k] の累積距離 m。cumulativeDistances[0] = 0、cumulativeDistances[n-1] = 総距離
-  roadClass: { from: number; to: number; kind: "wide" | "narrow" | "forbidden" }[];
-  toll: { from: number; to: number; value: "no" | "all" | "hgv" }[];
+  roadClass: { from: number; to: number; kind: "wide" | "narrow" }[];
+  toll: { from: number; to: number; value: string }[]; // "no" | "all" | "hgv"。使うのは "all" だけ
   instructions: {
     text: string;
     sign: number;
@@ -54,12 +54,12 @@ type RouteModel = {
 };
 ```
 
-- `kind` は CONTEXT.md の分類表で `road_class` 文字列から決める。`forbidden` は custom model で priority 0 なので通常現れないが型として持つ
+- `kind` は CONTEXT.md の分類表で `road_class` 文字列から決める。通行禁止（`track`）は custom model で priority 0 なので通常現れない。現れたら narrow
 - 経路上の位置はすべて「累積距離 s（m）」で表す。案内地点 = `cumulativeDistances[instruction.from]`、細い道区間開始 = `cumulativeDistances[segment.from]`、経由地 = `cumulativeDistances[viaIndex]`、到着地 = `cumulativeDistances[n-1]`
-- 分岐合成（`forkSign` / `addFork`）: GraphHopper は同格の分岐（高架下をくぐる vs 側道へ）で keep 指示を出さないことがある。`intersection` の各ノードで、`out` 以外に進入可能な道（`in` 除く）があり `out` との方位差が「分岐判定角」以下なら分岐。他方が右にあれば `-7`（左寄り）、左なら `7`（右寄り）。そのノードに既に `sign != 0` の指示があれば何もしない。`sign 0` の指示がそこから始まるなら sign・text を書き換え、指示の途中なら 2 つに分割（`time` は距離比で配分）。出発地（頂点 0）は対象外
-- 派生値: 細い道区間（`src/model/narrow.ts`、CONTEXT.md「細い道区間」の生成ルール）、有料距離（`toll.value == "all"` の範囲の `cumulativeDistances[to] - cumulativeDistances[from]` 合計）
+- 分岐合成（`forkSign` / `addFork`）: GraphHopper は同格の分岐（高架下をくぐる vs 側道へ）で keep 指示を出さないことがある。`intersection` の各ノードで、`out` 以外に進入可能な道（`in` 除く）があり `out` との方位差が「分岐判定角」以下なら分岐。他方が右にあれば `-7`（左寄り）、左なら `7`（右寄り）。そのノードに既に `sign != 0` の指示があれば何もしない。ラウンドアバウト（`sign 6`）の指示の途中も何もしない（周回中の出口を分岐と誤認する）。`sign 0` の指示がそこから始まるなら sign・text を書き換え、指示の途中なら 2 つに分割（`time` は距離比で配分）。出発地（頂点 0）は対象外
+- 派生値: 細い道区間（`src/route/narrow.ts`、CONTEXT.md「細い道区間」の生成ルール）、有料距離（`toll.value == "all"` の範囲の `cumulativeDistances[to] - cumulativeDistances[from]` 合計）
 
-## 幾何計算（`src/model/geo.ts`）
+## 幾何計算（`src/shared/geo.ts`）
 
 自前実装、外部ライブラリなし。
 
@@ -78,4 +78,4 @@ type RouteModel = {
 
 ## テスト fixture
 
-`src/model/__fixtures__/*.json` に GraphHopper 実応答（関東の短経路 1〜2 本、細い道区間・経由地・有料区間を含むもの）。`narrow.ts` `progress.ts` `route.ts` のテスト入力。
+`src/route/__fixtures__/*.json` に GraphHopper 実応答（関東の短経路 1〜2 本、細い道区間・経由地・有料区間を含むもの）。`narrow.ts` `progress.ts` `route.ts` のテスト入力。

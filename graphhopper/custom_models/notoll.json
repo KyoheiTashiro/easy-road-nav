@@ -1,5 +1,5 @@
 // car_notoll 差分。有料・高速を回避（禁止ではない）。
-// 調整値: docs/CONTEXT.md「有料ペナルティ」= 10 → priority 0.1。toll == HGV は大型車のみ有料なので対象外
+// 調整値（docs/CONTEXT.md）: 有料ペナルティ 10（有料・高速 1 km = 10 km 相当）→ priority 0.1。toll == HGV は大型車のみ有料なので対象外
 {
   "priority": [{ "if": "toll == ALL || road_class == MOTORWAY", "multiply_by": "0.1" }]
 }

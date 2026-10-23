@@ -1,18 +1,18 @@
-import { useGeolocation } from "@/hooks/useGeolocation.ts";
-import { useReverseGeocode } from "@/hooks/useReverseGeocode.ts";
-import { useRouteSearch } from "@/hooks/useRouteSearch.ts";
-import { useUpdateCheck } from "@/hooks/useUpdateCheck.ts";
-import { useUrlSync } from "@/hooks/useUrlSync.ts";
-import { useWakeLock } from "@/hooks/useWakeLock.ts";
+import { useGeolocation } from "@/useGeolocation.ts";
+import { useReverseGeocode } from "@/search/useReverseGeocode.ts";
+import { useRouteSearch } from "@/route/useRouteSearch.ts";
+import { useUpdateCheck } from "@/useUpdateCheck.ts";
+import { useUrlSync } from "@/trip/useUrlSync.ts";
+import { useWakeLock } from "@/navigation/useWakeLock.ts";
 import type { ReactElement } from "react";
-import { MODE, useTrip, type Mode } from "@/store/trip.ts";
-import { BottomSheet } from "@/ui/edit/BottomSheet.tsx";
-import { Settings } from "@/ui/edit/Settings.tsx";
-import { Map } from "@/ui/map/Map.tsx";
-import { NavigationBar } from "@/ui/navigation/NavigationBar.tsx";
-import { NavigationHud } from "@/ui/navigation/NavigationHud.tsx";
-import { SearchBox } from "@/ui/edit/SearchBox.tsx";
-import { Toast } from "@/ui/Toast.tsx";
+import { MODE, useTrip, type Mode } from "@/trip/trip.ts";
+import { BottomSheet } from "@/sheet/BottomSheet.tsx";
+import { Settings } from "@/settings/Settings.tsx";
+import { Map } from "@/map/Map.tsx";
+import { NavigationBar } from "@/navigation/NavigationBar.tsx";
+import { NavigationHud } from "@/navigation/NavigationHud.tsx";
+import { SearchBox } from "@/search/SearchBox.tsx";
+import { Toast } from "@/Toast.tsx";
 
 function screenOf(mode: Mode): ReactElement {
   switch (mode) {
@@ -37,12 +37,13 @@ function screenOf(mode: Mode): ReactElement {
   }
 }
 
-/** 外部システムとの同期（hooks/）とレイアウトだけ。状態は store/、各部品が自分で購読する */
+/** 外部システムとの同期とレイアウトだけ。状態は各機能の store、各部品が自分で購読する */
 export default function App() {
   useGeolocation();
   useRouteSearch();
   useReverseGeocode();
   useUrlSync();
+
   const mode = useTrip((state) => state.mode);
   useWakeLock(mode === MODE.NAVIGATION);
   useUpdateCheck(mode === MODE.NAVIGATION);

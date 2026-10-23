@@ -1,5 +1,5 @@
 // 広い道優先 + 所要時間補正（両プロファイル共通）。car.json の後にマージされる。
-// 調整値: docs/CONTEXT.md「細い道ペナルティ」= 5 → priority 0.2、「速度係数」4 種
+// 調整値（docs/CONTEXT.md）: 細い道ペナルティ 5（細い道 1 km = 広い道 5 km 相当）→ priority 0.2、速度係数 4 種は speed
 {
   // 所要時間補正。car.json の速度（独の既定値 primary 65 / secondary 60 km/h、maxspeed があれば ×0.9）は
   // 日本の実走より 2〜3 倍速い（信号・渋滞を含まない）。市街地判定 urban_density ごとに掛ける。

@@ -1,9 +1,9 @@
 #!/bin/sh
-# GraphHopper 実応答を src/model/__fixtures__/ に保存する（Step 1）。serve 起動中に実行。
+# GraphHopper 実応答を src/route/__fixtures__/ に保存する（Step 1）。serve 起動中に実行。
 # 使い方: sh scripts/fixtures.sh
 set -eu
 GH=http://127.0.0.1:8989
-OUT=src/model/__fixtures__
+OUT=src/route/__fixtures__
 
 route() { # name profile alt points-json
   name=$1 profile=$2 alt=$3 points=$4

@@ -34,7 +34,7 @@ GraphHopper 既定の速度（`car_average_speed`）はドイツ基準で、`pri
 | 東京駅 → 横浜駅（首都高）        | 34 km   | 33 分（国道 15 号） | 44 分              | 48 分       | 46 / 44 km/h                |
 | 熊谷 → 秩父（国道 140 号、郊外） | 42 km   | —                   | 74 分              | 72 分       | 35 / 35 km/h                |
 
-既定は都内一般道で 2〜3.5 倍、郊外国道で 1.5 倍前後速い。市街地と郊外で差が違うので、道路クラスではなく市街地判定 `urban_density` で係数を分ける。補正後（速度係数の初期値）は Google の 0.7〜1.2 倍に収まり、渋滞の無い深夜より遅め・夕方より速めになる。実走で合わなければ CONTEXT.md の速度係数を変え、再インポートする。
+既定は都内一般道で 2〜3.5 倍、郊外国道で 1.5 倍前後速い。市街地と郊外で差が違うので、道路クラスではなく市街地判定 `urban_density` で係数を分ける。補正後（速度係数の初期値）は Google の 0.7〜1.2 倍に収まり、渋滞の無い深夜より遅め・夕方より速めになる。実走で合わなければ `graphhopper/custom_models/wide.json` の速度係数を変え、再インポートする。
 
 ターンコスト: 両プロファイルで `turn_costs: { vehicle_types: [motorcar, motor_vehicle], u_turn_costs: 60 }`。OSM の右左折禁止 relation を守り、経路途中の U ターンにコストを乗せる。CH は edge-based になり graph-cache が 1.5〜2 倍・インポート時間増（[infrastructure.md](infrastructure.md)）。edge-based CH でも `alternative_route` は動く（GraphHopper `AlternativeRouteEdgeCH`）。
 

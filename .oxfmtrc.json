@@ -1,5 +1,5 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "printWidth": 100,
-  "ignorePatterns": ["src/model/__fixtures__"]
+  "ignorePatterns": ["src/route/__fixtures__"]
 }

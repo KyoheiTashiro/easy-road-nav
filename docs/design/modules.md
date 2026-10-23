@@ -3,9 +3,9 @@
 `src/` 各ファイルの export（型・シグネチャ）。分岐のある箇所だけ擬似コード。
 画面・状態は [ui.md](ui.md)、ナビの処理順は [navigation.md](navigation.md)、経路構造は [route-model.md](route-model.md)。ディレクトリは [frontend.md](../requirements/frontend.md)。
 
-依存方向: `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` `model/` は React・DOM 非依存（`store/` は fetch を呼ぶ）。`ui/` の下は `map/` `edit/` `navigation/` に分け、3 つは互いに import しない（共有するものは `ui/` 直下）。`src/` 内の import は `@/` からの絶対パス（`tsconfig.json` の `paths`、`vite.config.ts` の `resolve.alias`、`babel.config.js` の StyleX `aliases` で同じ対応を持つ）。
+配置・import の規約は [frontend.md](../requirements/frontend.md)「方針」。調整値は使うファイルの先頭に定数で置く（[CONTEXT.md](../CONTEXT.md)）。`src/` 内の import は `@/` からの絶対パス（`tsconfig.json` の `paths`、`vite.config.ts` の `resolve.alias`、`babel.config.js` の StyleX `aliases` で同じ対応を持つ）。
 
-## `src/model/point.ts`
+## `src/shared/point.ts`
 
 地点の共通型。経路の構造（`route.ts`）とは独立。
 
@@ -21,14 +21,14 @@ export type SavedPoint = LatLng & { label: string }; // 自宅・検索履歴・
 export const MAX_VIAS = 5; // 経由地の上限（CONTEXT.md）
 ```
 
-## `src/store/saved.ts`
+## `src/settings/saved.ts`
 
 自宅・検索履歴・アイコンのみ表示。`localStorage`（キー `home` `history` `iconOnly`）が正で、store は起動時に読んだ写し。壊れた JSON・形式違いは `null` / `[]` / `false` として読む（例外を投げない。`localStorage` 不可の環境も同じ）。
 
 ```ts
 export function pushHistory(list: SavedPoint[], point: SavedPoint): SavedPoint[]; // 純関数。同座標（lat・lng 一致）を除いて先頭に追加、HISTORY_MAX 件に切る
 type SavedState = { home: SavedPoint | null; history: SavedPoint[]; iconOnly: boolean };
-export function useSaved<T>(selector: (state: SavedState) => T): T;
+export const useSaved = useStore; // zustand の bound hook（selector で購読）
 export const getSaved: () => SavedState;
 export const savedActions: {
   homeSaved(point: SavedPoint): void; // 保存 → store
@@ -41,12 +41,11 @@ export const savedActions: {
 
 テスト `saved.test.ts`: `iconOnly` の読み込み（未保存 → false、`"true"` → true、壊れた値 → false）と `iconOnlyToggled` の保存を既存の自宅・履歴のケースに足す。
 
-## `src/api/graphhopper.ts`
+## `src/route/graphhopper.ts`
 
 ```ts
 export const PROFILE = { CAR: "car", NOTOLL: "car_notoll" } as const;
 export type Profile = (typeof PROFILE)[keyof typeof PROFILE];
-export class RouteError extends Error {} // 400 の message（"Cannot find point" 等）。ネットワーク不達は fetch の TypeError のまま
 
 export function fetchRoute(
   points: LatLng[], // 出発地 → 経由地 → 到着地
@@ -58,7 +57,7 @@ export function fetchRoute(
 
 リクエスト body は [route-model.md](route-model.md) の契約。10 秒で `TimeoutError`（失敗扱い）。`AbortError` は呼び出し側で握りつぶす（トーストしない）。
 
-## `src/api/gsi.ts`
+## `src/search/gsi.ts`
 
 ```ts
 export function rankHits(query: string, hits: SavedPoint[]): SavedPoint[]; // query を label に含む候補を先頭へ（安定）
@@ -68,7 +67,7 @@ export function reverseGeocode(point: LatLng, signal?: AbortSignal): Promise<str
 
 失敗・10 秒タイムアウト（`TimeoutError`）は throw。呼び出し側がトースト（検索）または座標表示にフォールバック（逆ジオ）。
 
-## `src/api/yahoo.ts`
+## `src/search/yahoo.ts`
 
 ```ts
 export function normalizePoiQuery(query: string): string; // （株）(株)（有）(有) を空白に → trim
@@ -79,8 +78,8 @@ JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受�
 
 - appid は `import.meta.env.VITE_YAHOO_APPID`。未設定なら即 throw（トースト「施設検索に失敗しました」になる）
 - 応答 `Feature[]` の `Name` を label、`Geometry.Coordinates`（`"lon,lat"` 文字列）を split して lng / lat。`Feature` が無ければ空配列
-- 失敗は throw: script の `error` イベント（非 2xx・ネットワーク断）、10 秒タイムアウト、`ResultInfo.Status !== 200`
-- `signal` の abort は `AbortError`（`DOMException`）で reject。呼び出し側は fetch と同じ扱いで握りつぶせる
+- 失敗は throw: script の `error` イベント（非 2xx・ネットワーク断）、`ResultInfo.Status !== 200`
+- `withTimeout(signal)` で打ち切る。`signal` の abort は `AbortError`、10 秒は `TimeoutError`（どちらも `DOMException`）で reject。呼び出し側は fetch と同じ扱いで abort だけ握りつぶせる
 - 終了理由を問わず script 要素と `window[callback]` を削除する
 
 ```
@@ -88,7 +87,7 @@ normalizePoiQuery: query.replace(/[（(][株有][）)]/g, " ").trim()
   「○○（株）△△事業所」 → 「○○ △△事業所」（削除して「○○△△事業所」にすると 0 件、空白なら 1 件。ADR-0003）
 ```
 
-## `src/api/timeout.ts`
+## `src/shared/timeout.ts`
 
 ```ts
 export function withTimeout(signal?: AbortSignal): AbortSignal; // signal と AbortSignal.timeout(10_000) の合成。打ち切りは TimeoutError
@@ -100,7 +99,7 @@ export const isAbortError: (error: unknown) => boolean; // 呼び出し側の ab
 
 `fetchRoute`・`searchAddress`・`reverseGeocode` が fetch に渡す。`TimeoutError` は `AbortError` と区別され、呼び出し側では失敗扱い（トースト・座標表示）になる。
 
-## `src/api/speech.ts`
+## `src/navigation/speech.ts`
 
 ```ts
 export function speak(text: string): void;
@@ -116,7 +115,7 @@ export function unlock(): void;
 - `unlock`: 空文字の発話。iOS Safari はユーザー操作内の `speak` が必要なため `navigationActions.start` の先頭（click ハンドラ内）で呼ぶ（再探索の await 後では操作文脈が切れる）
 - `speechSynthesis` 非対応環境では全て no-op
 
-## `src/model/geo.ts`
+## `src/shared/geo.ts`
 
 ```ts
 export function haversine(a: LatLng, b: LatLng): number; // m
@@ -130,28 +129,7 @@ export function projectToSegment(
 // 局所平面近似（x = Δlng·cos(lat_a)、y = Δlat、m 換算）。t は線分上パラメータを [0, 1] にクランプ、distance は point から射影点までの m
 ```
 
-## `src/model/tuning.ts`
-
-CONTEXT.md「調整値」のうちフロントで使う値。表と同じ順に並べる。細い道・有料ペナルティと速度係数は `graphhopper/config.yml`。
-
-```ts
-export const NARROW_IGNORE_BELOW = 30; // 短区間無視 m
-export const NARROW_MERGE_BELOW = 50; // 区間結合 m
-export const OFF_ROUTE = 50; // 経路外れ距離 m
-export const REROUTE_COUNT = 3; // リルート連続回数
-export const REROUTE_OFFSET = 30; // リルート前方オフセット m
-export const ACCURACY_MAX = 50; // 進捗採用精度 m
-export const ARRIVE = 30; // 到着判定 m
-export const ANNOUNCE_FAR = 300; // 案内トリガー距離（予告）m
-export const ANNOUNCE_NEAR = 50; // 案内トリガー距離（直前）m
-export const NARROW_WARN = 300; // 細い道警告距離 m
-export const MIN_MOVE = 5; // 方位算出最小移動 m
-export const NEXT_NEXT_MAX = 1000; // 次の次表示上限 m
-export const HISTORY_MAX = 5; // 検索履歴件数
-export const FORK_ANGLE = 45; // 分岐判定角 deg
-```
-
-## `src/model/route.ts`
+## `src/route/route.ts`
 
 ```ts
 export const SIGN = { U_TURN_UNKNOWN: -98, U_TURN_LEFT: -8, KEEP_LEFT: -7, SHARP_LEFT: -3, LEFT: -2, SLIGHT_LEFT: -1, CONTINUE: 0,
@@ -163,20 +141,20 @@ export type GraphHopperPath = { ... };                 // GraphHopper paths[] �
 export type GraphHopperIntersection = { bearings: number[]; entries: boolean[]; in?: number; out: number };
 
 export function fromGraphHopperPath(path: GraphHopperPath): RouteModel;
-  // cumulativeDistances: haversine 累積。roadClass: 文字列 → kind（CONTEXT.md の表。BUSWAY・OTHER は narrow、TRACK は forbidden）
+  // cumulativeDistances: haversine 累積。roadClass: 文字列 → kind（CONTEXT.md の表。BUSWAY・OTHER・TRACK は narrow）
   // viaIndices: SIGN.VIA_REACHED の from
   // details.intersection の各ノードに forkSign を適用し、寄り（±7）なら指示を書き換え/分割（route-model.md「分岐合成」）
 export function forkSign(intersection: GraphHopperIntersection): number;  // KEEP_RIGHT / KEEP_LEFT / CONTINUE。閾値 FORK_ANGLE
-export function nearest(route: RouteModel, point: LatLng): { s: number; distanceToRoute: number; segmentIndex: number };
+export function nearest(route: RouteModel, point: LatLng, range?: { from: number; to: number }): { s: number; distanceToRoute: number; segmentIndex: number }; // range: 累積距離で探す線分を絞る。該当なしは distanceToRoute = Infinity
   // 全線分に projectToSegment、distance 最小を採用。s = cumulativeDistances[i] + t × (cumulativeDistances[i+1] − cumulativeDistances[i])
 export function segmentBearing(route: RouteModel, i: number): number;  // bearing(P[i], P[i+1])
 export function tollDistance(route: RouteModel): number;               // toll.value == "all" の合計 m
 export function turnCount(route: RouteModel): number;                  // 右左折の回数。sign 0 / 4 / 5 / ±7 は数えない
 ```
 
-変換を `model/` に置くのは fixture JSON でテストするため。`api/graphhopper.ts` は fetch と例外変換だけ。
+変換を React 非依存の `route.ts` に置くのは fixture JSON でテストするため。`route/graphhopper.ts` は fetch と例外変換だけ。
 
-## `src/model/narrow.ts`
+## `src/route/narrow.ts`
 
 ```ts
 export type NarrowSegment = {
@@ -198,7 +176,7 @@ export function entersNarrow(instruction: Instruction, segments: NarrowSegment[]
 生成（適用順は CONTEXT.md「細い道区間」）:
 
 ```
-raw = route.roadClass.filter(range => range.kind !== "wide")        // narrow + forbidden
+raw = route.roadClass.filter(range => range.kind !== "wide")
 // 1. 隣接連結: 前の to == 次の from なら 1 つに
 // 2. 区間結合: 前の to と次の from の間の広い道 cumulativeDistances[next.from] − cumulativeDistances[previous.to] < mergeBelow なら結合
 merged = []
@@ -214,7 +192,7 @@ return merged
 
 隣接連結は 2 の特殊ケース（間隔 0）なので 1 ループで済む。描画は `roadClass` を直接使い、この関数を通さない。
 
-## `src/model/progress.ts`
+## `src/navigation/progress.ts`
 
 ```ts
 export type NavigationState = { ... };   // navigation.md
@@ -247,7 +225,7 @@ export function offsetOrigin(fix: Fix, heading: number | null): LatLng;
 - rerouting 中（true）でも精度・最近傍・経路外れ判定は続ける。再発火はしない
 ```
 
-## `src/model/format.ts`
+## `src/shared/format.ts`
 
 ```ts
 export function formatDuration(ms: number): string; // "1 時間 20 分" / "25 分" / 1 分未満 "1 分"。サマリ・下部バー共通
@@ -257,7 +235,7 @@ export function formatSpokenDistance(meters: number): string; // "1.2 キロ" / 
 export function formatClock(date: Date): string; // "HH:MM"
 ```
 
-## `src/model/url.ts`
+## `src/trip/url.ts`
 
 ```ts
 export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
@@ -280,15 +258,15 @@ notoll = params.get("notoll") !== "0"  // 既定は避ける
 
 不正な地点はその地点だけ無視（全クエリ破棄しない）。build は `toFixed(5)`。
 
-## `src/store/toast.ts`
+## `src/shared/toast.ts`
 
 ```ts
-export function useToast(): string | null;
+export const useToast = useStore; // useToast(state => state.message)
 export function showToast(message: string): void; // 置換（1 つだけ）
 export function clearToast(): void; // Toast.tsx の 4 秒タイマーが呼ぶ
 ```
 
-## `src/store/trip.ts`
+## `src/trip/trip.ts`
 
 地点・探索結果・画面モード・GPS fix。フィールドは ui.md「状態」。
 
@@ -300,7 +278,7 @@ export const MODE = {
   HOME_SETUP: "home",
 } as const;
 export const URL_HAD_POINTS: boolean; // 起動時の URL に from か to があった。Map の初回 fix easeTo を抑止
-export function useTrip<T>(selector: (state: TripState) => T): T;
+export const useTrip = useStore; // zustand の bound hook（selector で購読）
 export const getTrip: () => TripState; // async 関数・Effect 内の最新値読み
 
 // セレクタ（参照安定。空配列は定数）
@@ -334,7 +312,7 @@ export const tripActions: {
   popupClosed(): void;
   popupActionTaken(role: PointRole): void; // kind point のみ
   popupHomeTaken(): void; // 「自宅にする」。kind point で label 未確定（逆ジオ中）なら何もしない
-  markerPopupOpened(role: PointRole, index: number, point: LatLng): void; // マーカータップ。地点ポップアップを置き換える
+  markerPopupOpened(role: PointRole, index: number, point: LatLng): void; // マーカータップ。地点ポップアップを置き換える。ナビ中は開かない
   markerDeleteTaken(): void; // 「削除」。role via → viaDeleted(index)、それ以外 → pointDeleted(role)。popup null
   // 検索・設定・自宅
   searchPicked(role: PickRole, point: LatLng, label: string | null): void; // home かつ label null（現在地）は popupOpened で逆ジオを待つ
@@ -347,11 +325,11 @@ export const tripActions: {
   navigationStarted(origin: Point, route: RouteModel): void; // from = origin、result = { pointsKey: 新 pointsKey, notoll, routes: [route] }、fittedKey 更新（探索 effect の再 fetch と fitVersion++ を抑止）、mode navigation
   viaPassed(): void; // passedVia++
   rerouted(route: RouteModel): void; // result 置換（地点は変えない）
-  navigationEnded(): void; // mode edit、fitVersion++
+  navigationEnded(): void; // mode edit、result と fittedKey を空にする（useRouteSearch が探索し直し、routesLoaded で fitVersion++）
 };
 ```
 
-## `src/store/navigation.ts`
+## `src/navigation/navigation.ts`
 
 ナビの進行。`fetchRoute` と `speech` を呼ぶのはここだけ。
 
@@ -365,7 +343,7 @@ export type NavigationStore = {
   muted: boolean;
   starting: boolean;
 };
-export function useNavigation<T>(selector: (store: NavigationStore) => T): T;
+export const useNavigation = useStore; // zustand の bound hook（selector で購読）
 export const getNavigation: () => NavigationStore;
 export const navigationActions: {
   start(): Promise<void>; // navigation.md「開始手順」。fix か to が無い・開始中なら何もしない
@@ -382,25 +360,25 @@ events の分配（`dispatch`）: `speak` → `say`（`muted` なら捨てる）
 ```
 reroute(state, fix):
   fetchRoute([offsetOrigin(fix, heading), ...vias.slice(trip.passedVia), to], profile, false)
-  応答時 mode !== "navigation" なら何もしない
+  要求時のセッション番号（end ごとに +1）が応答時と違えば何もしない（終了後に再開していても捨てる）
   失敗: トースト「経路を再探索できません」、rerouting false・offRouteCount 0、旧経路のまま
   成功: initNavigation(navigation.zoom, navigation.follow) で最新 fix を step 1 回 → navigation 置換 → tripActions.rerouted → cancel() → 発話「経路を再探索しました」+ startText → events 分配
 ```
 
 テスト `navigation.test.ts`: `vi.mock` で `fetchRoute` を差し替え、直線経路で 開始 → 経路外れ 3 回（rerouting true）→ リルート（2 回目の fetch は 2 地点）→ 到着（mode edit、navigation null）を通す。
 
-## `src/hooks/`
+## App が呼ぶ外部同期フック
 
-App 全体で 1 つの外部同期を書く（1 部品だけが使う Effect は部品の隣のフック）。いずれも引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
+`useGeolocation` `useUpdateCheck` は `src/` 直下、ほかは関係する機能のディレクトリ（[frontend.md](../requirements/frontend.md)「ディレクトリ」）。1 部品だけが使う Effect は部品の隣のフック。`useWakeLock` `useUpdateCheck` 以外は引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
 
 - `useGeolocation`: マウントで `watchPosition`（`enableHighAccuracy: true`, `maximumAge: 0`, `timeout: 10000`）。アンマウントで `clearWatch`。成功: `tripActions.fixUpdated(fix)` → `navigationActions.onFix(fix)`。失敗（`PERMISSION_DENIED` / `POSITION_UNAVAILABLE` / `TIMEOUT`）: `tripActions.gpsFailed()`。Geolocation 非対応は store の初期値 `gpsError: true`
-- `useRouteSearch`: `useEffect([pointsKey, notoll])`。`getTrip()` で地点を読み、揃っていてナビ中でなければ `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（`isAbortError` は無視）。cleanup で `abort()`
+- `useRouteSearch`: `useEffect([pointsKey, notoll, ナビ中か])`。`getTrip()` で地点を読み、揃っていてナビ中でなく、現在の地点集合の結果がまだなければ（`selectLoading`） `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（`isAbortError` は無視）。cleanup で `abort()`
 - `useReverseGeocode`: `useEffect([from, to, vias])` で `label === null` の地点ごとに `tripActions.labelRequested(point)`
 - `useUrlSync`: `useEffect([from, to, vias, notoll])` で `history.replaceState(null, "", buildQuery(...) || location.pathname)`
 - `useWakeLock(active)`: `active` 中 `navigator.wakeLock?.request("screen")`。非対応なら何もしない。`visibilitychange` で `visible` に戻ったら再取得。`active` が false になったら・アンマウントで `release`
 - `useUpdateCheck(blocked)`: standalone PWA は再表示時にページを再読込しない（`tailscale serve` はヘッダ制御不可で `index.html` の heuristic cache も効く）ため自前で更新検知する。`visibilitychange` で `visible` に戻ったら `fetch("/", { cache: "no-store" })`。現在の `<script type="module">` の `src`（hash 付き bundle）が応答に含まれなければ古い → `location.reload()`。`blocked`（ナビ中）なら reload を保留し、false になった時点で実行。fetch 失敗は無視（次回 visible で再試行）。`import.meta.env.DEV` では何もしない
 
-## `src/ui/map/Map.tsx`
+## `src/map/Map.tsx`
 
 props なし。地図インスタンスを作り、下の 4 フックへ引数で渡して組み立てる。インスタンスは `useState` に持つ（生成後の再レンダーで各フックの Effect が揃って走る）。自身が購読するのは現在地ボタン用の `mode` `fix` `gpsError` `sheetExpanded` だけ。
 
@@ -413,7 +391,7 @@ export function Map(): JSX.Element;
 - `style.load` のたびに `applyStyleExtras(map, useRouteLayers の最新データ)`: ①ラベル上書き（下記）②経路 source `route` `alternative` + layer 3 つ（ui.md「経路レイヤー」）③現在地 source `fix` + circle layer 2 つ（精度円・青ドット）。初期化とダーク切替で同じ関数。リスナーは生成と同時に登録する（フックの Effect を待つと初回の `style.load` を取りこぼしうる）
 - ラベル上書き: `map.getStyle().layers` のうち `layout["text-field"]` を持ち、その式に `"ref"` を含まないもの全部に `setLayoutProperty(id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]])`
 - 精度円: feature に `baseRadius = accuracy / (156543.03 × cos(lat))`（zoom 0 での px 半径）を持たせ、`circle-radius: ["interpolate", ["exponential", 2], ["zoom"], 0, ["get", "baseRadius"], 22, ["*", ["get", "baseRadius"], 4194304]]`
-- コントロール: `ScaleControl`（bottom-left、帰属表示の上）、現在地ボタン（bottom-right。中身は portal、edit で収納中か home のときだけ描画）。コンパスは `useCamera` が持つ。位置の余白は `ui/map/maplibre.css` でオーバーレイを避ける
+- コントロール: `ScaleControl`（bottom-left、帰属表示の上）、現在地ボタン（bottom-right。中身は portal、edit で収納中か home のときだけ描画）。コンパスは `useCamera` が持つ。位置の余白は `map/maplibre.css` でオーバーレイを避ける
 
 各フックの引数は `map: maplibregl.Map | null`。購読は各フックが自分で行う。Effect の実行順は呼び出し順（useRouteLayers → useMarkers → useMapPopup → useCamera）。
 
@@ -461,13 +439,13 @@ export function useCamera(map): void;
 - ナビ中は `useEffect([navigation])` で `easeTo`（navigation.md「カメラ」。fix は `useEffectEvent` で読む）
 - `useEffect([fitVersion])`（`fitVersion > 0` のみ）と `useEffect([sheetExpanded])` で `fitBounds`。edit モードのみ。padding は 40、下はそれに シートの高さ（展開時 `clientHeight × layout.half / 100`、収納時 `layout.peek`）を足す。routes / selected は `useEffectEvent` で読む
 
-## `src/ui/map/mapLayers.ts`
+## `src/map/mapLayers.ts`
 
 `Map` の React 非依存部分。タイルスタイル URL（light / dark）、マーカー DOM（色は `tokens.stylex.ts` の `marker`）（`markerElement` `homeMarkerElement`）、GeoJSON 生成（`fixFeatures` `routeFeatures` `alternativeFeatures`）、`bounds`、`applyStyleExtras`（ラベルの `name:ja` 上書き + 経路・代替・現在地の source / layer。`style.load` のたびに呼ぶ）。`maplibre-gl` を import するので vitest の対象外。
 
-同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置（左下はシートのピーク高に合わせ、経路なしは `data-sheet-empty` で切替）、コンパス画像 `ui/icons/compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
+同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置（左下はシートのピーク高に合わせ、経路なしは `data-sheet-empty` で切替）、コンパス画像 `shared/icons/compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
 
-## `src/ui/edit/SearchBox.tsx`
+## `src/search/SearchBox.tsx`
 
 props なし。`App` が `key={mode}` で入力 state を捨てる。購読: `mode`（`home` なら「戻る」+ 自宅欄 1 つ、それ以外は出発地 / 到着地の 2 欄）、`from` `to`、`fix`（`gpsError` 中は null。候補「現在地」の表示条件）、saved store の `home` `history`。操作: 候補選択 → `tripActions.searchPicked(role, point, label)`（label null = 逆ジオへ）、× → `pointDeleted(role)`、「戻る」→ `backPressed`、歯車（edit かつ候補リスト非表示のとき描画）→ `settingsEntered`、住所 / 施設名の候補タップ → `savedActions.historyPushed` の直後に `searchPicked`、失敗 → `showToast`。
 
@@ -501,7 +479,7 @@ search(): query が空なら何もしない。searched = query
   （isAbortError は無視）
 ```
 
-## `src/ui/map/PointPopup.tsx`
+## `src/map/PointPopup.tsx`
 
 ```ts
 type PointPopupProps = {
@@ -515,7 +493,7 @@ type PointPopupProps = {
 
 `home` モードはボタン「自宅にする」1 つ。`label === null` の間は disabled（保存する label が要る）。
 
-## `src/ui/edit/BottomSheet.tsx`
+## `src/sheet/BottomSheet.tsx`
 
 props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、`gpsOk`（= fix あり かつ gpsError でない）、navigation store の `starting`。saved store は購読しない（自宅行は Settings へ移した）。`loading` = `selectLoading || starting`。「案内開始」は routes があるときだけ描画し、`!gpsOk`（文言「GPS 待ち」）か `starting` で disabled。操作: ハンドル / サマリ文字部のタップ・スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、代替カード → `routeSelected`、「案内開始」→ `navigationActions.start`。
 
@@ -523,13 +501,13 @@ props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過�
 
 内部に地点リスト（タイムライン。別ファイルにしない。記号は `FromIcon` / 番号 / `ToIcon` を `marker` 色で塗る）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
 
-## `src/ui/edit/Settings.tsx`
+## `src/settings/Settings.tsx`
 
 props なし。`settings` モードで `App` が `Map` の上に描く全画面パネル（ui.md「設定画面」）。購読: saved store の `home` `iconOnly`。操作: 「戻る」→ `tripActions.backPressed`、「自宅を設定」/「変更」→ `tripActions.homeSetupEntered`、トグル → `savedActions.iconOnlyToggled(event.target.checked)`。
 
 行は `<label>` + `<input type="checkbox">`（BottomSheet の `toggle` スタイルと同じ。共有が 2 箇所になるので `button.stylex.ts` の隣に `toggle` を出すか、BottomSheet 側に `export` するかは実装時に決める。新規 stylex ファイルは増やさない）。
 
-## `src/ui/edit/RouteSummary.tsx`
+## `src/route/RouteSummary.tsx`
 
 ```ts
 type RouteSummaryProps = {
@@ -544,7 +522,7 @@ type RouteSummaryProps = {
 
 `compact` = ピーク行（選択経路）。表示は `format.ts`。2 行構成を `Main`（所要時間 20px 太字 + 距離 14px。代替カードでは先頭にラベル）と `Statistics`（細い道合計 > 0 なら `colors.narrow` 背景のチップ「`NarrowIcon` 細い道 x.x km」、0 なら `colors.ok` 色「細い道なし」/ 有料 x.x km（あれば）/ 「`TurnsIcon` 右左折 n 回」）で共有。`Statistics` は saved store の `iconOnly` を購読し、true なら 細い道チップ「`NarrowIcon` x.x km」（0 なら何も出さない）/ 有料 / 「`TurnsIcon` n 回」。文言を落とした `span` には `aria-label`（「細い道 1.2 km」「右左折 5 回」）。compact で `loading` か経路なしならスピナー +「探索中…」/「出発地と到着地を設定してください」。`compact=false` は代替カード（`routes.length < 2` なら null。`<button aria-pressed>`、`borderLeftWidth 4`、選択中は `borderColor: accent`）。
 
-## `src/ui/edit/StepList.tsx`
+## `src/route/StepList.tsx`
 
 ```ts
 type StepListProps = { route: RouteModel; narrow: NarrowSegment[] };
@@ -552,36 +530,43 @@ type StepListProps = { route: RouteModel; narrow: NarrowSegment[] };
 
 `instructions` を全部表示（`sign 0` 含む）。各行: `DirectionIcon` / `formatDistance(distance)` / `text` / `streetName`。`entersNarrow` が真なら先頭に「⚠ 細い道」（saved store の `iconOnly` が true なら `NarrowIcon size={14}` だけ、`aria-label`「細い道」）、行背景 `colors.narrowBackground`（`margin ±8` で本文の余白まで広げる）。行の上罫線は `:first-child` で消す（section の上罫線と重ねない）。
 
-## `src/ui/navigation/NavigationHud.tsx`
+## `src/navigation/NavigationHud.tsx`
 
 props なし。navigation store の `navigation` `hud` `inNarrow`、trip store の `selectRoute` を購読。`navigation` か経路が無ければ描画しない。残り距離は `hud.remaining`、hud 未着なら `route.distance − navigation.s`。`hud.instruction` null → 「目的地まで」+ 残り距離。`hud.next` null なら「その先」行は空（高さ固定）。`navigation.rerouting` で「再探索中」。細い道バナーはアイコンのみ表示の対象外（常に文言あり）。
 
-## `src/ui/navigation/NavigationBar.tsx`
+## `src/navigation/NavigationBar.tsx`
 
 props なし。navigation store の `navigation` `muted`、trip store の `selectRoute` `fix` を購読。`remainingMs = remainingTime(route, navigation.s)`、到着予想 = `formatClock(new Date(fix.timestamp + remainingMs))`（render 内で `Date.now` を呼ばない）。ボタン: 「現在地」→ `navigationActions.setFollow(true)`、ミュート → `toggleMute`、「終了」→ `end(true)`。
 
-## `src/ui/icons/index.tsx`
+## `src/shared/icons/index.tsx`
 
 ```ts
-export function FromIcon(props: { size?: number }): JSX.Element; // 出発地 = 丸
-export function ToIcon(props: { size?: number }): JSX.Element; // 到着地 = ピン
-export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・設定画面の自宅行
-export function NarrowIcon(props: { size?: number }): JSX.Element; // 細い道 = 狭い道路線画。経路サマリ・HUD 細い道バナー
-export function TurnsIcon(props: { size?: number }): JSX.Element; // 右左折 = 左右に分かれる T 字矢印。経路サマリ
-export function VolumeIcon(props: { size?: number }): JSX.Element; // NavigationBar ミュートトグル（音声あり）
-export function VolumeOffIcon(props: { size?: number }): JSX.Element; // 同（ミュート中）
-export function DirectionIcon(props: { sign: number; size?: number }): JSX.Element;
+// 各アイコンは (props: { size?: number }) => <Icon url={…} {...props} />
+export const FromIcon; // 出発地 = 丸
+export const ToIcon; // 到着地 = ピン
+export const HomeIcon; // 自宅マーカー・設定画面の自宅行
+export const NarrowIcon; // 細い道 = 狭い道路線画。経路サマリ・HUD 細い道バナー
+export const TurnsIcon; // 右左折 = 左右に分かれる T 字矢印。経路サマリ
+export const VolumeIcon; // NavigationBar ミュートトグル（音声あり）
+export const VolumeOffIcon; // 同（ミュート中）
+export function Icon(props: { url: string; size?: number; transform?: string }): JSX.Element; // size 既定 24 // 上の各アイコンと DirectionIcon の共通部
 ```
 
 同じディレクトリの `*.svg` を `import` し、`<span>` の `mask-image` に置いて `background-color: currentColor` で塗る。SVG 側は色を持たず、親の `color` に従う（ダークモード対応はトークン側）。
 
-`DirectionIcon` の sign → 11 種（navigation.md）。矢印 `arrow.svg` 1 本を `rotate()` で回し、左向きは `scaleX(-1)`。`4` `5` は `pin-dot.svg`、`6` は `roundabout.svg`、`±8` `-98` は `uturn.svg`、`±7` は `keep.svg`。未知の sign は直進。
+## `src/route/DirectionIcon.tsx`
 
-## `src/ui/Toast.tsx`
+```ts
+export function DirectionIcon(props: { sign: number; size?: number }): JSX.Element;
+```
+
+GraphHopper の sign（`SIGN`）に依存するので `shared/icons/` ではなく route に置く。SVG は `shared/icons/` のものを使う。sign → 11 種（navigation.md）。矢印 `arrow.svg` 1 本を `rotate()` で回し、左向きは `scaleX(-1)`。`4` `5` は `pin-dot.svg`、`6` は `roundabout.svg`、`±8` `-98` は `uturn.svg`、`±7` は `keep.svg`。未知の sign は直進。
+
+## `src/Toast.tsx`
 
 props なし。`useToast()` と `mode === "navigation"`（位置を HUD 下へ。`layout.hud + layout.next + 16px`）を購読。`useEffect([message])` で 4 秒後に `clearToast()`（新しいメッセージでタイマーを張り直す）。
 
-## `src/ui/tokens.stylex.ts`
+## `src/shared/tokens.stylex.ts`
 
 `defineVars` で色トークン `colors`（`background` `foreground` `surface` `border` `accent` `narrow` `narrowBackground` `ok` `danger`）。ライト値 + `@media (prefers-color-scheme: dark)` のダーク値。`narrowBackground` は細い道行の背景、`ok` は「細い道なし」の緑。経路線の色（青・オレンジ）は MapLibre 側なのでここに置かない。
 
@@ -591,7 +576,7 @@ props なし。`useToast()` と `mode === "navigation"`（位置を HUD 下へ�
 
 スタイルは値を複数並べる shorthand（`padding: "0 16px"` 等）を書かず、`paddingBlock` / `paddingInline` などの longhand で書く。StyleX は longhand を shorthand より優先するので、`button.base` の longhand を部品側の `padding: 0` で上書きできない。
 
-## `src/ui/layout.stylex.ts`
+## `src/shared/layout.stylex.ts`
 
 ```ts
 export const layout = stylex.defineConsts({
@@ -612,10 +597,10 @@ export const layout = stylex.defineConsts({
 
 主要な流れ（どこで起きるか）:
 
-- 起動: `store/trip.ts` のモジュール評価で `parseQuery(location.search)` → 地点（label null）。`store/saved.ts` が `localStorage` を読む。`useGeolocation` は即 watch。初回 fix で `from` が空なら `fixUpdated` が現在地を入れ、Map が `URL_HAD_POINTS` false なら `easeTo(zoom 15)`
+- 起動: `trip/trip.ts` のモジュール評価で `parseQuery(location.search)` → 地点（label null）。`settings/saved.ts` が `localStorage` を読む。`useGeolocation` は即 watch。初回 fix で `from` が空なら `fixUpdated` が現在地を入れ、Map が `URL_HAD_POINTS` false なら `easeTo(zoom 15)`
 - 探索: `useRouteSearch`（ui.md「状態」）。`routesLoaded` が `pointsKey` と `fittedKey` を比べて `fitVersion++`
 - 逆ジオ: `useReverseGeocode` → `labelRequested`。重複排除と反映は store
-- ナビ: `navigationActions.start` → fix ごとに `useGeolocation` が `navigationActions.onFix` → `dispatch`。リルート・終了・到着は `store/navigation.ts`
+- ナビ: `navigationActions.start` → fix ごとに `useGeolocation` が `navigationActions.onFix` → `dispatch`。リルート・終了・到着は `navigation/navigation.ts`
 - 設定: `settingsEntered` → mode settings。Settings は saved store だけ読み書きする（`iconOnlyToggled`）。`backPressed` で edit
 - 自宅設定: Settings の `homeSetupEntered` → mode home。`home` モードのタップは edit と同じく `popupOpened`。保存は `homeChosen` 1 箇所（`popupHomeTaken` と `searchPicked(ROLE.HOME, …)` から）→ mode settings。`backPressed` でも settings
 - アイコンのみ表示: `RouteSummary`（`Statistics`）`StepList` が各自 `useSaved(state => state.iconOnly)` を購読。props で渡さない

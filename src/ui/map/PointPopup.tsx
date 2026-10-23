@@ -2,9 +2,16 @@ import * as stylex from "@stylexjs/stylex";
 import { ROLE, type PointRole } from "@/model/point.ts";
 import { MODE } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
+import { fixedColors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
-  box: { display: "flex", flexDirection: "column", gap: 8, minWidth: 180, color: "#1a1a1a" },
+  box: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    minWidth: 180,
+    color: fixedColors.popupFg,
+  },
   label: { fontSize: 14, fontWeight: 600 },
   row: { display: "flex", flexDirection: "column", gap: 4 },
 });

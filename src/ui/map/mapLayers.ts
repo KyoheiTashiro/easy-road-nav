@@ -3,6 +3,7 @@ import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-
 import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
 import type { Fix } from "@/model/point.ts";
 import { ROAD_KIND, type RouteModel } from "@/model/route.ts";
+import { fixedColors, shadows } from "@/ui/tokens.stylex.ts";
 
 export const STYLE = {
   light: "https://tiles.openfreemap.org/styles/liberty",
@@ -18,9 +19,9 @@ const styles = stylex.create({
     borderRadius: "50%",
     borderWidth: 3,
     borderStyle: "solid",
-    borderColor: "#fff",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-    color: "#fff",
+    borderColor: fixedColors.onAccent,
+    boxShadow: shadows.marker,
+    color: fixedColors.onAccent,
     fontSize: 12,
     fontWeight: 700,
     lineHeight: "20px",
@@ -36,7 +37,7 @@ const styles = stylex.create({
     justifyContent: "center",
     backgroundColor: "#fff",
     color: "#5f6368",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+    boxShadow: shadows.marker,
   },
 });
 

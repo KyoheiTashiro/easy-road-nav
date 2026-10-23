@@ -8,7 +8,7 @@ import { StepList } from "@/ui/edit/StepList.tsx";
 import { button } from "@/ui/button.stylex.ts";
 import { FromIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
-import { colors, marker } from "@/ui/tokens.stylex.ts";
+import { colors, marker, shadows } from "@/ui/tokens.stylex.ts";
 const SWIPE_PX = 30;
 const DRAG_START_PX = 10; // iOS のタップ判定の揺れより大きく
 const DOT = 24;
@@ -25,9 +25,12 @@ const styles = stylex.create({
     flexDirection: "column",
     backgroundColor: colors.bg,
     color: colors.fg,
-    borderRadius: "16px 16px 0 0",
-    boxShadow: "0 -2px 12px rgba(0,0,0,0.2)",
-    transition: "max-height 0.25s ease",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    boxShadow: shadows.up,
+    transitionProperty: "max-height",
+    transitionDuration: "0.25s",
+    transitionTimingFunction: "ease",
     zIndex: 5,
   },
   empty: { maxHeight: `${layout.peekEmpty}px` },
@@ -43,12 +46,21 @@ const styles = stylex.create({
   handle: {
     display: "block",
     width: "100%",
-    padding: "8px 0 4px",
+    paddingTop: 8,
+    paddingInline: 0,
+    paddingBottom: 4,
     borderWidth: 0,
     backgroundColor: "transparent",
     cursor: "pointer",
   },
-  bar: { width: 40, height: 4, borderRadius: 2, margin: "0 auto", backgroundColor: colors.border },
+  bar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginBlock: 0,
+    marginInline: "auto",
+    backgroundColor: colors.border,
+  },
   // 2 行目はボタンの下まで使う（横に置くと 3 項目が揃ったとき重なる）
   summary: {
     flex: 1,
@@ -56,18 +68,30 @@ const styles = stylex.create({
     gridTemplateColumns: "minmax(0, 1fr) auto",
     alignContent: "center",
     alignItems: "center",
-    gap: "2px 12px",
-    padding: "0 16px 12px",
+    rowGap: 2,
+    columnGap: 12,
+    paddingTop: 0,
+    paddingInline: 16,
+    paddingBottom: 12,
   },
   summaryText: { display: "contents", cursor: "pointer" },
-  start: { gridRow: 1, gridColumn: 2, height: 52, padding: "0 16px", fontSize: 16 },
+  start: {
+    gridRow: 1,
+    gridColumn: 2,
+    height: 52,
+    paddingBlock: 0,
+    paddingInline: 16,
+    fontSize: 16,
+  },
   // スクロールは常に body。overflow を切り替えると iOS がタッチ開始時にスクロール対象を取り違える
   body: {
     flex: 1,
     minHeight: 0,
     overflowY: "auto",
     overscrollBehavior: "contain", // 地図への連鎖・Android の pull-to-refresh を防ぐ
-    padding: "0 16px calc(16px + env(safe-area-inset-bottom))", // 末尾までスクロールしたときだけホームインジケータを避ける
+    paddingTop: 0,
+    paddingInline: 16,
+    paddingBottom: "calc(16px + env(safe-area-inset-bottom))", // 末尾までスクロールしたときだけホームインジケータを避ける
     display: "flex",
     flexDirection: "column",
     gap: 12,

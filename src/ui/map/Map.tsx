@@ -40,7 +40,8 @@ const styles = stylex.create({
   locate: {
     width: 40,
     height: 40,
-    padding: 0,
+    paddingBlock: 0, // base の paddingBlock / paddingInline を上書き（shorthand は longhand に負ける）
+    paddingInline: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

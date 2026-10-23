@@ -15,5 +15,15 @@ export const colors = stylex.defineVars({
   danger: { default: "#d93025", [DARK]: "#f28b82" },
 });
 
+/** ライト / ダーク共通の色。onAccent = 色付き背景の上の文字、popupFg = MapLibre ポップアップ（ダークでも白地）の文字 */
+export const fixedColors = stylex.defineConsts({ onAccent: "#fff", popupFg: "#1a1a1a" });
+
+export const shadows = stylex.defineConsts({
+  card: "0 1px 4px rgba(0,0,0,0.2)", // 地図上のカード・丸ボタン
+  marker: "0 1px 4px rgba(0,0,0,0.4)", // 地図マーカー
+  float: "0 2px 8px rgba(0,0,0,0.25)", // 上部パネル・候補リスト・トースト
+  up: "0 -2px 8px rgba(0,0,0,0.25)", // 下部パネル（影を上に落とす）
+});
+
 /** 地点マーカーと地点リストで共有する役割色。ライト / ダーク共通 */
 export const marker = stylex.defineConsts({ from: "#188038", to: "#d93025", via: "#1a73e8" });

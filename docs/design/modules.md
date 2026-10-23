@@ -485,6 +485,10 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ。`layou
 
 `defineConsts` で `marker`（`from` 緑 / `via` 青 / `to` 赤。ライト / ダーク共通）。地図の DOM マーカーとボトムシートの地点リストで共有。
 
+`defineConsts` で `fixedColors`（`onAccent` 色付き背景上の白文字 / `popupFg` MapLibre ポップアップの文字。ライト / ダーク共通）と `shadows`（`card` `marker` `float` `up`）。
+
+スタイルは値を複数並べる shorthand（`padding: "0 16px"` 等）を書かず、`paddingBlock` / `paddingInline` などの longhand で書く。StyleX は longhand を shorthand より優先するので、`button.base` の longhand を部品側の `padding: 0` で上書きできない。
+
 ## `src/ui/layout.stylex.ts`
 
 ```ts

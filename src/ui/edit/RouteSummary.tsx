@@ -4,7 +4,7 @@ import type { NarrowSegment } from "@/model/narrow.ts";
 import { tollDistance, turnCount, type RouteModel } from "@/model/route.ts";
 import { useSaved } from "@/store/saved.ts";
 import { NarrowIcon, TurnsIcon } from "@/ui/icons/index.tsx";
-import { colors } from "@/ui/tokens.stylex.ts";
+import { colors, fixedColors } from "@/ui/tokens.stylex.ts";
 
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 
@@ -19,16 +19,18 @@ const styles = stylex.create({
     flexWrap: "wrap",
     gridColumn: "1 / -1",
     alignItems: "center",
-    gap: "2px 8px",
+    rowGap: 2,
+    columnGap: 8,
     fontSize: 14,
     lineHeight: "20px",
   },
   stat: { display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" },
   narrowChip: {
-    padding: "0 6px",
+    paddingBlock: 0,
+    paddingInline: 6,
     borderRadius: 4,
     backgroundColor: colors.narrow,
-    color: "#fff",
+    color: fixedColors.onAccent,
     fontWeight: 600,
   },
   ok: { color: colors.ok, fontWeight: 600 },
@@ -52,7 +54,8 @@ const styles = stylex.create({
     display: "flex",
     flexDirection: "column",
     gap: 2,
-    padding: "8px 12px",
+    paddingBlock: 8,
+    paddingInline: 12,
     textAlign: "left",
     borderWidth: 1,
     borderLeftWidth: 4,

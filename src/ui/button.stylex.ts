@@ -1,10 +1,11 @@
 import * as stylex from "@stylexjs/stylex";
-import { colors } from "@/ui/tokens.stylex.ts";
+import { colors, fixedColors } from "@/ui/tokens.stylex.ts";
 
 export const button = stylex.create({
   base: {
     height: 44,
-    padding: "0 16px",
+    paddingBlock: 0,
+    paddingInline: 16,
     fontSize: 14,
     fontWeight: 500,
     whiteSpace: "nowrap",
@@ -18,19 +19,39 @@ export const button = stylex.create({
     transitionDuration: "120ms",
     transform: { default: null, ":active": "scale(0.96)" },
     filter: { default: null, ":active": "brightness(0.92)" },
-    outline: { default: null, ":focus-visible": `2px solid ${colors.accent}` },
+    outlineStyle: { default: null, ":focus-visible": "solid" },
+    outlineWidth: 2,
+    outlineColor: colors.accent,
     outlineOffset: 2,
     ":disabled": { opacity: 0.4, cursor: "default" },
   },
-  primary: { borderRadius: 999, backgroundColor: colors.accent, color: "#fff", fontWeight: 600 },
-  danger: { borderRadius: 999, backgroundColor: colors.danger, color: "#fff", fontWeight: 600 },
+  primary: {
+    borderRadius: 999,
+    backgroundColor: colors.accent,
+    color: fixedColors.onAccent,
+    fontWeight: 600,
+  },
+  danger: {
+    borderRadius: 999,
+    backgroundColor: colors.danger,
+    color: fixedColors.onAccent,
+    fontWeight: 600,
+  },
   active: { backgroundColor: colors.accentBg, color: colors.accent },
-  icon: { width: 36, height: 36, padding: 0, flexShrink: 0, borderRadius: "50%" },
+  icon: {
+    width: 36,
+    height: 36,
+    paddingBlock: 0,
+    paddingInline: 0,
+    flexShrink: 0,
+    borderRadius: "50%",
+  },
   ghost: {
     height: "auto",
     width: "100%",
     display: "block",
-    padding: "10px 12px",
+    paddingBlock: 10,
+    paddingInline: 12,
     textAlign: "left",
     whiteSpace: "normal",
     borderRadius: 8,

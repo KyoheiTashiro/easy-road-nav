@@ -5,7 +5,7 @@ import { useNav } from "@/store/nav.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
 import { DirectionIcon, NarrowIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
-import { colors } from "@/ui/tokens.stylex.ts";
+import { colors, shadows, fixedColors } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
   hud: {
@@ -15,14 +15,15 @@ const styles = stylex.create({
     right: 0,
     paddingTop: "env(safe-area-inset-top)",
     zIndex: 5,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+    boxShadow: shadows.float,
   },
   main: {
     display: "flex",
     alignItems: "center",
     gap: 16,
     height: `${layout.hud}px`,
-    padding: "0 16px",
+    paddingBlock: 0,
+    paddingInline: 16,
     backgroundColor: colors.bg,
     color: colors.fg,
   },
@@ -41,7 +42,8 @@ const styles = stylex.create({
     alignItems: "center",
     gap: 8,
     height: `${layout.next}px`,
-    padding: "0 16px",
+    paddingBlock: 0,
+    paddingInline: 16,
     fontSize: 18,
     backgroundColor: colors.bg,
     color: colors.fg,
@@ -52,11 +54,12 @@ const styles = stylex.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    padding: "8px 16px",
+    paddingBlock: 8,
+    paddingInline: 16,
     fontSize: 15,
     fontWeight: 600,
   },
-  narrow: { backgroundColor: colors.narrow, color: "#fff" },
+  narrow: { backgroundColor: colors.narrow, color: fixedColors.onAccent },
   reroute: { backgroundColor: colors.surface, color: colors.fg },
 });
 

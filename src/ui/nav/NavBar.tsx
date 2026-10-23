@@ -6,7 +6,7 @@ import { selectRoute, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { VolumeIcon, VolumeOffIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
-import { colors } from "@/ui/tokens.stylex.ts";
+import { colors, shadows } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
   bar: {
@@ -23,7 +23,7 @@ const styles = stylex.create({
     paddingRight: 12,
     backgroundColor: colors.bg,
     color: colors.fg,
-    boxShadow: "0 -2px 8px rgba(0,0,0,0.25)",
+    boxShadow: shadows.up,
     zIndex: 5,
   },
   info: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" },
@@ -31,7 +31,7 @@ const styles = stylex.create({
   time: { fontSize: 24, fontWeight: 700, lineHeight: "30px" },
   eta: { fontSize: 16, opacity: 0.7, lineHeight: "20px" },
   mute: { width: 44, height: 44, display: "grid", placeItems: "center" },
-  end: { height: 52, padding: "0 20px", fontSize: 16, marginLeft: 8 }, // 案内開始と同じ大きさ。ミュートとの間を bar の gap より広げる
+  end: { height: 52, paddingBlock: 0, paddingInline: 20, fontSize: 16, marginLeft: 8 }, // 案内開始と同じ大きさ。ミュートとの間を bar の gap より広げる
 });
 
 export function NavBar() {

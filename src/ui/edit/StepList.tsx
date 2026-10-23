@@ -11,7 +11,7 @@ const styles = stylex.create({
   row: {
     display: "flex",
     gap: 10,
-    padding: "8px 8px",
+    padding: 8,
     marginLeft: -8, // 背景色を本文の余白まではみ出させる
     marginRight: -8,
     borderRadius: 6,

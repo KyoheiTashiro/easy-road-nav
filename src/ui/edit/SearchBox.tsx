@@ -8,7 +8,7 @@ import { showToast } from "@/store/toast.ts";
 import { MODE, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { FromIcon, HomeIcon, SettingsIcon, ToIcon } from "@/ui/icons/index.tsx";
-import { colors } from "@/ui/tokens.stylex.ts";
+import { colors, shadows } from "@/ui/tokens.stylex.ts";
 
 const styles = stylex.create({
   box: {
@@ -25,7 +25,7 @@ const styles = stylex.create({
     backgroundColor: colors.bg,
     color: colors.fg,
     borderRadius: 12,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    boxShadow: shadows.card,
   },
   // カード下の丸ボタン。コンパス（右 10px・40px）と縦に揃える
   gear: {
@@ -40,10 +40,10 @@ const styles = stylex.create({
     borderRadius: "50%",
     backgroundColor: colors.bg,
     color: colors.fg,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+    boxShadow: shadows.card,
     cursor: "pointer",
   },
-  row: { display: "flex", alignItems: "center", height: 44, padding: "0 8px" },
+  row: { display: "flex", alignItems: "center", height: 44, paddingBlock: 0, paddingInline: 8 },
   divider: { borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: colors.border },
   role: { width: 32, display: "flex", justifyContent: "center", flexShrink: 0 },
   inputWrap: { position: "relative", flex: 1 },
@@ -51,7 +51,10 @@ const styles = stylex.create({
     width: "100%",
     boxSizing: "border-box",
     height: 44,
-    padding: "0 36px 0 4px",
+    paddingTop: 0,
+    paddingRight: 36,
+    paddingBottom: 0,
+    paddingLeft: 4,
     appearance: "none",
     fontSize: 16,
     borderWidth: 0,
@@ -77,7 +80,9 @@ const styles = stylex.create({
     alignItems: "flex-end",
     gap: 4,
     marginTop: 4,
-    padding: "8px 12px 6px",
+    paddingTop: 8,
+    paddingInline: 12,
+    paddingBottom: 6,
   },
   current: { color: colors.accent },
   list: {
@@ -87,7 +92,7 @@ const styles = stylex.create({
     backgroundColor: colors.bg,
     color: colors.fg,
     borderRadius: 8,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+    boxShadow: shadows.float,
     maxHeight: "40vh",
     overflowY: "auto",
   },

@@ -5,12 +5,11 @@ import { navigationActions, useNavigation } from "@/store/navigation.ts";
 import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { RouteSummary } from "@/ui/edit/RouteSummary.tsx";
 import { StepList } from "@/ui/edit/StepList.tsx";
+import { useSheetDrag } from "@/ui/edit/useSheetDrag.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { FromIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors, marker, shadows } from "@/ui/tokens.stylex.ts";
-const SWIPE_PX = 30;
-const DRAG_START_PX = 10; // iOS のタップ判定の揺れより大きく
 const DOT = 24;
 
 const styles = stylex.create({
@@ -215,11 +214,8 @@ export function BottomSheet() {
   const empty = routes.length === 0;
   const peek = empty ? layout.peekEmpty : layout.peek;
   const summaryProps = { routes, narrows, selected, onSelect: tripActions.routeSelected, loading };
-  const sheet = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
-  const touchY = useRef(0);
-  const touchScrollTop = useRef(0);
-  const startHeight = useRef(0);
+  const drag = useSheetDrag(body, expanded, peek);
   const toggle = () => tripActions.setSheet(!expanded);
 
   // 再展開は先頭から（前回のスクロール位置を残さない）。収納時に戻すと縮む途中で飛ぶ
@@ -227,49 +223,11 @@ export function BottomSheet() {
     if (expanded && body.current) body.current.scrollTop = 0;
   }, [expanded]);
 
-  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    touchY.current = event.touches[0]?.clientY ?? 0;
-    // ハンドル上の下スワイプはリストがスクロール済みでも閉じる
-    touchScrollTop.current = body.current?.contains(event.target as Node)
-      ? body.current.scrollTop
-      : 0;
-    startHeight.current = sheet.current?.getBoundingClientRect().height ?? 0;
-  };
-  // 指に追従。途中からのスクロールで先頭に戻っても閉じない。先頭にいる状態で始めた下スワイプだけ閉じる
-  const dragAllowed = (dy: number) => !(dy > 0 && touchScrollTop.current > 0);
-  const onTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
-    const element = sheet.current;
-    const dy = (event.touches[0]?.clientY ?? touchY.current) - touchY.current;
-    if (!element || !dragAllowed(dy)) return;
-    // 展開済みはリストのスクロールが主。シートの高さを触ると iOS がスクロールもタップも取りこぼす（先頭でタップ時の数 px の揺れでも起きる）ので、閉じ方向へ明確に動くまで触らない（追従開始後の反転は追従を続ける）
-    if (expanded && dy < DRAG_START_PX && !element.style.maxHeight) return;
-    const expandedHeight = (window.innerHeight * layout.half) / 100;
-    const height = Math.min(expandedHeight, Math.max(peek, startHeight.current - dy));
-    element.style.transition = "none";
-    element.style.maxHeight = `${height}px`;
-  };
-  // 以降は class の max-height へアニメーション。touchcancel（画面端のシステムジェスチャ等）でも戻さないと固着する
-  const resetStyle = () => {
-    const element = sheet.current;
-    if (!element) return;
-    element.style.transition = "";
-    element.style.maxHeight = "";
-  };
-  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    resetStyle();
-    const dy = (event.changedTouches[0]?.clientY ?? touchY.current) - touchY.current;
-    if (Math.abs(dy) < SWIPE_PX || !dragAllowed(dy)) return;
-    tripActions.setSheet(dy < 0);
-  };
   return (
     <div
-      ref={sheet}
       {...stylex.props(styles.sheet, empty && styles.empty, expanded && styles.expanded)}
       data-sheet-empty={empty || undefined}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={resetStyle}
+      {...drag}
     >
       <div {...stylex.props(styles.header, empty && styles.headerEmpty)}>
         <button

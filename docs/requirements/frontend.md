@@ -90,6 +90,7 @@ src/
       SearchBox.tsx         # 出発地 / 到着地 検索欄 + 設定画面への歯車。自宅設定モードでは自宅欄 1 つ
       useSearch.ts          # 住所・施設名の並行検索（中断、クエリとの照合）
       BottomSheet.tsx       # 2 段、地点リスト・トグル・代替カード・StepList を内包
+      useSheetDrag.ts       # シートのスワイプ開閉
       Settings.tsx          # 設定画面（自宅行・アイコンのみ表示トグル）。settings モードで App が描く
       RouteSummary.tsx      # 距離 / 時間 / 細い道 / 有料、代替経路の切替
       StepList.tsx

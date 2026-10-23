@@ -387,7 +387,7 @@ reroute(state, fix):
 
 ## `src/hooks/`
 
-Effect はここにだけ書く。いずれも引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
+App 全体で 1 つの外部同期を書く（1 部品だけが使う Effect は部品の隣のフック）。いずれも引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
 
 - `useGeolocation`: マウントで `watchPosition`（`enableHighAccuracy: true`, `maximumAge: 0`, `timeout: 10000`）。アンマウントで `clearWatch`。成功: `tripActions.fixUpdated(fix)` → `navigationActions.onFix(fix)`。失敗（`PERMISSION_DENIED` / `POSITION_UNAVAILABLE` / `TIMEOUT`）: `tripActions.gpsFailed()`。Geolocation 非対応は store の初期値 `gpsError: true`
 - `useRouteSearch`: `useEffect([pointsKey, notoll])`。`getTrip()` で地点を読み、揃っていてナビ中でなければ `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（AbortError は無視）。cleanup で `abort()`
@@ -398,27 +398,64 @@ Effect はここにだけ書く。いずれも引数なし・戻り値なしで�
 
 ## `src/ui/map/Map.tsx`
 
-props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup` `sheetExpanded`、navigation store から `navigation`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `popupHomeTaken` `markerPopupOpened` `markerDeleteTaken` `setSheet`）と `navigationActions`（`setFollow` `setZoom`）。
+props なし。地図インスタンスを作り、下の 4 フックへ引数で渡して組み立てる。インスタンスは `useState` に持つ（生成後の再レンダーで各フックの Effect が揃って走る）。自身が購読するのは現在地ボタン用の `mode` `fix` `gpsError` `sheetExpanded` だけ。
 
 ```ts
-export const NAVIGATION_PITCH = 50; // ナビ中の pitch（ナビ開始の jumpTo）
 export function Map(): JSX.Element;
 ```
 
-内部:
-
+- 生成: div の callback ref（cleanup を返す）で `new maplibregl.Map`。アンマウントで `remove`
 - スタイル: `matchMedia("(prefers-color-scheme: dark)")` で `liberty` / `dark` の URL を選ぶ。`change` で `map.setStyle(url)`
-- `style.load` のたびに `applyStyleExtras(map)`: ①ラベル上書き（下記）②経路 source `route` `alternative` + layer 3 つ（ui.md「経路レイヤー」）③現在地 source `fix` + circle layer 2 つ（精度円・青ドット）。初期化とダーク切替で同じ関数
+- `style.load` のたびに `applyStyleExtras(map, useRouteLayers の最新データ)`: ①ラベル上書き（下記）②経路 source `route` `alternative` + layer 3 つ（ui.md「経路レイヤー」）③現在地 source `fix` + circle layer 2 つ（精度円・青ドット）。初期化とダーク切替で同じ関数。リスナーは生成と同時に登録する（フックの Effect を待つと初回の `style.load` を取りこぼしうる）
 - ラベル上書き: `map.getStyle().layers` のうち `layout["text-field"]` を持ち、その式に `"ref"` を含まないもの全部に `setLayoutProperty(id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]])`
 - 精度円: feature に `baseRadius = accuracy / (156543.03 × cos(lat))`（zoom 0 での px 半径）を持たせ、`circle-radius: ["interpolate", ["exponential", 2], ["zoom"], 0, ["get", "baseRadius"], 22, ["*", ["get", "baseRadius"], 4194304]]`
-- 地点マーカー: DOM `Marker` を `useEffect([from, to, vias])` で作り直す。タップで `markerPopupOpened`（「削除」ポップアップ）
-- 自宅マーカー: DOM `Marker` 1 個を `useEffect([home])` で作り直す（`HomeIcon`）。click は `stopPropagation` のみ
-- `useEffect([mode])`: `home` に入ったとき `home` があれば `easeTo(自宅, zoom 15)`（`home` は `useEffectEvent` で読む。自宅の変更では動かさない）
-- ポップアップ: MapLibre `Popup` 1 個（`closeOnClick: false`）。`setDOMContent(div)` して `createPortal(…, div)`。内容は `popup.kind` で分岐（`point` → PointPopup、`marker` → 「削除」ボタン → `markerDeleteTaken`）。null で `remove`。開いている間は `setLngLat` のみ（`addTo` し直すと `close` が発火して閉じる）。`close` イベント（×）→ `tripActions.popupClosed`。マーカー click は `stopPropagation`（地図 `click` に伝播させない）
-- 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `URL_HAD_POINTS` が false なら `easeTo(zoom 15)`（1 回だけ。`fixUpdated` が `from` と `fix` を同時に入れるので `from` の null では判定できない）
-- カメラ: `useEffect([fitVersion])`（`fitVersion > 0` のみ）と `useEffect([sheetExpanded])` で `fitBounds`。edit モードのみ。padding は 40、下はそれに シートの高さ（展開時 `clientHeight × layout.half / 100`、収納時 `layout.peek`）を足す。routes / selected は `useEffectEvent` で読む。ナビ中は `useEffect([navigation])` で `easeTo`（navigation.md「カメラ」。fix は `useEffectEvent` で読む）。ナビ開始・終了で `jumpTo`（`pitch: NAVIGATION_PITCH` / 0、padding）/ ジェスチャ制限の切替
-- イベント: `click` `dragstart` `zoomend`（`originalEvent` あり）は map 生成時に 1 回登録し、ハンドラは `useEffectEvent`（`click`: edit で `sheetExpanded` なら `setSheet(false)` だけ、それ以外 edit / home なら `popupOpened`。`dragstart` → `setFollow(false)`、`zoomend` → `setZoom`）
-- コントロール: `ScaleControl`（bottom-left、帰属表示の上）、`NavigationControl`（コンパスのみ、top-left。`useEffect([mode])` でナビ中は `removeControl`、戻りで `addControl`）。位置の余白は `ui/map/maplibre.css` でオーバーレイを避ける
+- コントロール: `ScaleControl`（bottom-left、帰属表示の上）、現在地ボタン（bottom-right。中身は portal、edit で収納中か home のときだけ描画）。コンパスは `useCamera` が持つ。位置の余白は `ui/map/maplibre.css` でオーバーレイを避ける
+
+各フックの引数は `map: maplibregl.Map | null`。購読は各フックが自分で行う。Effect の実行順は呼び出し順（useRouteLayers → useMarkers → useMapPopup → useCamera）。
+
+### `useRouteLayers.ts`
+
+```ts
+export function useRouteLayers(map): RefObject<{ route; alternative; fix }>; // style.load で使う最新データ
+```
+
+- `useEffect([routes, selected, mode])` で `route` `alternative` source を更新（home モードでは空）
+- `useEffect([fix])` で `fix` source を更新
+
+### `useMarkers.tsx`
+
+```ts
+export function useMarkers(map): ReactNode; // 自宅アイコンの portal
+```
+
+- 地点マーカー: DOM `Marker` を `useEffect([from, to, vias, mode])` で作り直す（home モードでは出さない）。タップで `markerPopupOpened`（「削除」ポップアップ）
+- 自宅マーカー: DOM `Marker` 1 個を `useEffect([home])` で作り直す（`HomeIcon`）。全モードで表示。click は `stopPropagation` のみ
+
+### `useMapPopup.tsx`
+
+```ts
+export function useMapPopup(map): ReactNode; // ポップアップ中身の portal
+```
+
+- MapLibre `Popup` 1 個（`closeOnClick: false`）。`setDOMContent(div)` して `createPortal(…, div)`。内容は `popup.kind` で分岐（`point` → PointPopup、`marker` → 「削除」ボタン → `markerDeleteTaken`）。null で `remove`。開いている間は `setLngLat` のみ（`addTo` し直すと `close` が発火して閉じる）。`close` イベント（×）→ `tripActions.popupClosed`。マーカー click は `stopPropagation`（地図 `click` に伝播させない）
+- 地図 `click`（ハンドラは `useEffectEvent`）: navigation では無視。edit で `sheetExpanded` なら `setSheet(false)` だけ、それ以外 edit / home なら `popupOpened`
+
+### `useCamera.ts`
+
+カメラの Effect は順序の制約があるので 1 ファイルにまとめる。
+
+```ts
+export const NAVIGATION_PITCH = 50; // ナビ中の pitch（ナビ開始の jumpTo）
+export const LOCATE_ZOOM = 15; // 現在地ボタン・候補への移動の最小 zoom
+export function useCamera(map): void;
+```
+
+- イベント（ハンドラは `useEffectEvent`）: `dragstart`（2 本指を除く）→ `setFollow(false)`、`zoomend`（`originalEvent` あり）→ `setZoom`。どちらも navigation のみ
+- 初回 fix: `URL_HAD_POINTS` が false なら `easeTo(zoom 15)`（1 回だけ。`fixUpdated` が `from` と `fix` を同時に入れるので `from` の null では判定できない）
+- `useEffect([panTarget])`: 候補選択で `easeTo`
+- `useEffect([mode])`: ナビ開始・終了で `jumpTo`（`pitch: NAVIGATION_PITCH` / 0、padding）、ジェスチャ制限、`NavigationControl`（コンパスのみ、top-left）をナビ中は外し戻りで付ける。`home` に入ったとき `home` があれば `easeTo(自宅, zoom 15)`（`home` は `useEffectEvent` で読む。自宅の変更では動かさない）。fitVersion の Effect より前に置く
+- ナビ中は `useEffect([navigation])` で `easeTo`（navigation.md「カメラ」。fix は `useEffectEvent` で読む）
+- `useEffect([fitVersion])`（`fitVersion > 0` のみ）と `useEffect([sheetExpanded])` で `fitBounds`。edit モードのみ。padding は 40、下はそれに シートの高さ（展開時 `clientHeight × layout.half / 100`、収納時 `layout.peek`）を足す。routes / selected は `useEffectEvent` で読む
 
 ## `src/ui/map/mapLayers.ts`
 

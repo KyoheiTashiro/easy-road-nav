@@ -119,7 +119,7 @@ React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、e
 
 ## カメラ
 
-- 開始時: `zoom 17`、`pitch 50`（`NAVIGATION_ZOOM` / `NAVIGATION_PITCH`、Map.tsx）、`bearing = heading`、`padding.top = 画面高 / 3`・`padding.bottom = NavigationBar 高` で現在地を画面下 1/3 に置く（`jumpTo({ padding })`。編集モード復帰で padding 0）
+- 開始時: `zoom 17`、`pitch 50`（`NAVIGATION_ZOOM` / `NAVIGATION_PITCH`、`ui/map/useCamera.ts`）、`bearing = heading`、`padding.top = 画面高 / 3`・`padding.bottom = NavigationBar 高` で現在地を画面下 1/3 に置く（`jumpTo({ padding })`。編集モード復帰で padding 0）
 - 毎 fix（`follow` 中）: `easeTo({ center, bearing, zoom: state.zoom })`。`heading` が null なら bearing は据え置き
 - ジェスチャ:
   - ドラッグ（`dragstart`、2 本指のピンチ中は除く）→ `follow = false`。「現在地」ボタンで `follow = true`、zoom はユーザーが変えた値を維持

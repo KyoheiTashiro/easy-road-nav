@@ -157,7 +157,7 @@ saved store の `iconOnly`（`localStorage` キー `iconOnly`、既定 false）�
 - 飛行中リクエストは `AbortController` で中断してから次を投げる。中断はトーストしない
 - ローディング表示: サマリ行にスピナー 1 個
 - 経由地なし → `alternative_route` 最大 3 本、あり → 1 本（[route-model.md](route-model.md) の契約）
-- 新しい経路が返ったら `fitBounds`（下パディング = シートの高さ。収納時はピーク高、展開時は 75dvh）。ボトムシートの展開・収納でも fit し直す。代替切替・トグル変更・再探索の結果ではカメラを動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（trip store が `routesLoaded` で地点集合の変化を検知して増やし、Map が `useEffect([fitVersion])` と `useEffect([sheetExpanded])` で fit）
+- 新しい経路が返ったら `fitBounds`（下パディング = シートの高さ。収納時はピーク高、展開時は 75dvh）。ボトムシートの展開・収納でも fit し直す。代替切替・トグル変更・再探索の結果ではカメラを動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（trip store が `routesLoaded` で地点集合の変化を検知して増やし、Map の `useCamera` が `useEffect([fitVersion])` と `useEffect([sheetExpanded])` で fit）
 - 失敗（400 / ネットワーク）→ トースト 1 種「経路を探索できません」。経路表示は空にする
 
 ## 経路レイヤー
@@ -174,7 +174,7 @@ GeoJSON source 2 つ、line layer 3 つ。描画分割は [route-model.md](route
 
 ## 状態（src/store/）
 
-zustand の store を関心ごとに分ける。UI は 1 値 1 セレクタで購読し、操作はアクション（起きた事象の名前）で行う。Effect は `src/hooks/` にだけ置く。シグネチャは [modules.md](modules.md)。
+zustand の store を関心ごとに分ける。UI は 1 値 1 セレクタで購読し、操作はアクション（起きた事象の名前）で行う。App 全体の外部同期は `src/hooks/`、1 部品だけが使う Effect は部品と同じディレクトリのフックに置く。シグネチャは [modules.md](modules.md)。
 
 ```ts
 type Point = { lat: number; lng: number; label: string | null }; // label null = 逆ジオ中

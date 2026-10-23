@@ -2,7 +2,7 @@
 
 ## 方針
 
-- 状態は zustand の store（`src/store/`）に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。Effect は `src/hooks/`（外部システムとの同期）にだけ書く。ルーター不使用。状態の一覧は [design/ui.md](../design/ui.md)
+- 状態は zustand の store（`src/store/`）に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。App 全体で 1 つの外部同期（GPS・探索・URL 等）は `src/hooks/` に書く。1 部品だけが使う Effect は、部品と同じディレクトリのフック（`use*.ts(x)`）に出す。ルーター不使用。状態の一覧は [design/ui.md](../design/ui.md)
 - URL クエリ（[map-display.md](map-display.md)）が地点 + notoll の正。編集で `history.replaceState`、読み込み時に復元して探索
 - 依存方向は `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` と `model/` は React・DOM 非依存。`api/` は外部システムへの出口（HTTP・JSONP・speechSynthesis）
 - `ui/` は画面モードで `map/` `edit/` `navigation/` に分ける。3 つは互いに import しない。共有するもの（stylex トークン・アイコン・Toast）は `ui/` 直下
@@ -45,7 +45,7 @@ src/
     navigation.ts                  # NavigationState・hud。start / onFix / end（design/navigation.md）
     saved.ts                # 自宅・検索履歴・アイコンのみ表示（localStorage、search.md / map-display.md）
     toast.ts                # メッセージ 1 つ
-  hooks/                    # Effect はここだけ（外部システムとの同期）
+  hooks/                    # App が呼ぶ外部同期
     useRouteSearch.ts       # 地点・notoll → fetchRoute → store
     useReverseGeocode.ts    # label null の地点 → 逆ジオ
     useUrlSync.ts           # 地点・notoll → history.replaceState
@@ -78,9 +78,13 @@ src/
       compass.svg           # コンパス（maplibre.css が background-image で参照。独自の色を持つ）
     Toast.tsx
     map/                    # 全モードに出る地図
-      Map.tsx               # MapLibre の購読と Effect（スタイル切替、マーカー、追従・回転、fitBounds）
+      Map.tsx               # 地図の生成（スタイル切替・コントロール）と下の 4 フックの組み立て
+      useRouteLayers.ts     # 経路・代替・現在地の source 更新
+      useMarkers.tsx        # 地点マーカー・自宅マーカー
+      useMapPopup.tsx       # 地図タップ・マーカーのポップアップ
+      useCamera.ts          # モード切替・追従・fitBounds・自宅や候補への移動、ジェスチャ制限・コンパス
       mapLayers.ts          # React 非依存: GeoJSON 生成、source / layer、マーカー DOM
-      PointPopup.tsx        # 出発地 / 到着地 / 経由地に追加。自宅設定モードでは「自宅にする」（Map が portal で描く）
+      PointPopup.tsx        # 出発地 / 到着地 / 経由地に追加。自宅設定モードでは「自宅にする」（useMapPopup が portal で描く）
       maplibre.css          # MapLibre 既定 UI の上書き（Map.tsx が maplibre-gl.css の次に読む）
     edit/                   # 経路編集モード
       SearchBox.tsx         # 出発地 / 到着地 検索欄 + 設定画面への歯車。自宅設定モードでは自宅欄 1 つ

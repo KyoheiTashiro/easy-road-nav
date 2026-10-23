@@ -279,11 +279,10 @@ export const getTrip: () => TripState; // async 関数・Effect 内の最新値�
 
 // セレクタ（参照安定。空配列は定数）
 export const selectPointsKey: (state) => string; // 地点座標の文字列化（label を含まない）
-export const selectRequestKey: (state) => string; // pointsKey + notoll
 export const selectProfile: (state) => Profile;
-export const selectRoutes: (state) => RouteModel[]; // 地点が揃い result.key === requestKey のときだけ。それ以外 []
+export const selectRoutes: (state) => RouteModel[]; // 地点が揃い result の pointsKey・notoll が現在と一致するときだけ。それ以外 []
 export const selectNarrows: (state) => NarrowSegment[][];
-export const selectLoading: (state) => boolean; // 地点が揃い result が現在の requestKey でない
+export const selectLoading: (state) => boolean; // 地点が揃い result が現在の pointsKey・notoll のものでない
 export const selectRoute: (state) => RouteModel | undefined; // routes[selected]
 export const selectNarrow: (state) => NarrowSegment[];
 
@@ -296,8 +295,8 @@ export const tripActions: {
   viaMoved(i: number, direction: -1 | 1): void;
   notollToggled(notoll: boolean): void;
   // 探索（useRouteSearch）
-  routesLoaded(requestKey: string, routes: RouteModel[]): void; // result 置換、selected 0。pointsKey が fittedKey と違えば fitVersion++
-  routesFailed(requestKey: string): void; // トースト「経路を探索できません」、result は空
+  routesLoaded(pointsKey: string, notoll: boolean, routes: RouteModel[]): void; // result 置換、selected 0。pointsKey が fittedKey と違えば fitVersion++
+  routesFailed(pointsKey: string, notoll: boolean): void; // トースト「経路を探索できません」、result は空
   routeSelected(i: number): void; // 選択中と違う経路ならシートを収納
   // 逆ジオ（useReverseGeocode）
   labelRequested(point: LatLng): void; // 座標キーで飛行中を重複排除。解決時は座標一致かつ label null の地点と popup だけ更新
@@ -307,8 +306,10 @@ export const tripActions: {
   // 地図タップ・ポップアップ
   popupOpened(point: LatLng): void; // edit / home モードのみ。label は逆ジオ後に入る
   popupClosed(): void;
-  popupActionTaken(role: PointRole): void;
-  popupHomeTaken(): void; // 「自宅にする」。label 未確定（逆ジオ中）なら何もしない
+  popupActionTaken(role: PointRole): void; // kind point のみ
+  popupHomeTaken(): void; // 「自宅にする」。kind point で label 未確定（逆ジオ中）なら何もしない
+  markerPopupOpened(role: PointRole, index: number, point: LatLng): void; // マーカータップ。地点ポップアップを置き換える
+  markerDeleteTaken(): void; // 「削除」。role via → viaDeleted(index)、それ以外 → pointDeleted(role)。popup null
   // 検索・設定・自宅
   searchPicked(role: PickRole, point: LatLng, label: string | null): void; // home かつ label null（現在地）は popupOpened で逆ジオを待つ
   homeChosen(point: LatLng, label: string): void; // savedActions.homeSaved → トースト「自宅を登録しました」→ mode settings
@@ -317,9 +318,10 @@ export const tripActions: {
   backPressed(): void; // home → settings、settings → edit。popup null。それ以外のモードでは何もしない（旧 editReturned）
   setSheet(sheetExpanded: boolean): void;
   // ナビ（navigation store が呼ぶ）
-  navigationStarted(origin: Point, route: RouteModel): void; // from = origin、result = { key: 新 requestKey, routes: [route] }、fittedKey 更新（探索 effect の再 fetch と fitVersion++ を抑止）、mode navigation
-  rerouted(route: RouteModel, passedVia: number): void; // result 置換（地点は変えない）、passedVia 加算
-  navigationEnded(passedInNavigation: number): void; // mode edit、passedVia 加算、fitVersion++
+  navigationStarted(origin: Point, route: RouteModel): void; // from = origin、result = { pointsKey: 新 pointsKey, notoll, routes: [route] }、fittedKey 更新（探索 effect の再 fetch と fitVersion++ を抑止）、mode navigation
+  viaPassed(): void; // passedVia++
+  rerouted(route: RouteModel): void; // result 置換（地点は変えない）
+  navigationEnded(): void; // mode edit、fitVersion++
 };
 ```
 
@@ -349,11 +351,11 @@ export const navigationActions: {
 };
 ```
 
-events の分配（`dispatch`）: `speak` → `say`（`muted` なら捨てる）、`hud` / `narrow` → store、`viaPassed` → 何もしない（`navigation.passedVia` が state 内）、`arrived` → `end(false)`、`reroute` → `reroute()`:
+events の分配（`dispatch`）: `speak` → `say`（`muted` なら捨てる）、`hud` / `narrow` → store、`viaPassed` → `tripActions.viaPassed`（通過済み経由地数の合計は trip だけが持つ）、`arrived` → `end(false)`、`reroute` → `reroute()`:
 
 ```
 reroute(state, fix):
-  fetchRoute([offsetOrigin(fix, heading), ...vias.slice(passedVia), to], profile, false)
+  fetchRoute([offsetOrigin(fix, heading), ...vias.slice(trip.passedVia), to], profile, false)
   応答時 mode !== "navigation" なら何もしない
   失敗: トースト「経路を再探索できません」、rerouting false・offRouteCount 0、旧経路のまま
   成功: initNavigation(navigation.zoom, navigation.follow) で最新 fix を step 1 回 → navigation 置換 → tripActions.rerouted → cancel() → 発話「経路を再探索しました」+ startText → events 分配
@@ -366,7 +368,7 @@ reroute(state, fix):
 Effect はここにだけ書く。いずれも引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
 
 - `useGeolocation`: マウントで `watchPosition`（`enableHighAccuracy: true`, `maximumAge: 0`, `timeout: 10000`）。アンマウントで `clearWatch`。成功: `tripActions.fixUpdated(fix)` → `navigationActions.onFix(fix)`。失敗（`PERMISSION_DENIED` / `POSITION_UNAVAILABLE` / `TIMEOUT`）: `tripActions.gpsFailed()`。Geolocation 非対応は store の初期値 `gpsError: true`
-- `useRouteSearch`: `useEffect([requestKey])`。`getTrip()` で地点を読み、揃っていてナビ中でなければ `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（AbortError は無視）。cleanup で `abort()`
+- `useRouteSearch`: `useEffect([pointsKey, notoll])`。`getTrip()` で地点を読み、揃っていてナビ中でなければ `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（AbortError は無視）。cleanup で `abort()`
 - `useReverseGeocode`: `useEffect([from, to, vias])` で `label === null` の地点ごとに `tripActions.labelRequested(point)`
 - `useUrlSync`: `useEffect([from, to, vias, notoll])` で `history.replaceState(null, "", buildQuery(...) || location.pathname)`
 - `useWakeLock(active)`: `active` 中 `navigator.wakeLock?.request("screen")`。非対応なら何もしない。`visibilitychange` で `visible` に戻ったら再取得。`active` が false になったら・アンマウントで `release`
@@ -374,7 +376,7 @@ Effect はここにだけ書く。いずれも引数なし・戻り値なしで�
 
 ## `src/ui/map/Map.tsx`
 
-props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup` `sheetExpanded`、navigation store から `navigation`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `popupHomeTaken` `pointDeleted` `viaDeleted` `viaAdded` `setSheet`）と `navigationActions`（`setFollow` `setZoom`）。
+props なし。trip store から `mode` `from` `to` `vias` `fix` `routes`（`selectRoutes`）`selected` `fitVersion` `popup` `sheetExpanded`、navigation store から `navigation`、saved store から `home` を購読。地図への操作は `tripActions`（`popupOpened` `popupClosed` `popupActionTaken` `popupHomeTaken` `markerPopupOpened` `markerDeleteTaken` `setSheet`）と `navigationActions`（`setFollow` `setZoom`）。
 
 ```ts
 export const NAVIGATION_PITCH = 50; // ナビ中の pitch（ナビ開始の jumpTo）
@@ -387,10 +389,10 @@ export function Map(): JSX.Element;
 - `style.load` のたびに `applyStyleExtras(map)`: ①ラベル上書き（下記）②経路 source `route` `alternative` + layer 3 つ（ui.md「経路レイヤー」）③現在地 source `fix` + circle layer 2 つ（精度円・青ドット）。初期化とダーク切替で同じ関数
 - ラベル上書き: `map.getStyle().layers` のうち `layout["text-field"]` を持ち、その式に `"ref"` を含まないもの全部に `setLayoutProperty(id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]])`
 - 精度円: feature に `baseRadius = accuracy / (156543.03 × cos(lat))`（zoom 0 での px 半径）を持たせ、`circle-radius: ["interpolate", ["exponential", 2], ["zoom"], 0, ["get", "baseRadius"], 22, ["*", ["get", "baseRadius"], 4194304]]`
-- 地点マーカー: DOM `Marker` を `useEffect([from, to, vias])` で作り直す。タップで「削除」ポップアップ（経由地の追加可否は `vias.length < MAX_VIAS`）
+- 地点マーカー: DOM `Marker` を `useEffect([from, to, vias])` で作り直す。タップで `markerPopupOpened`（「削除」ポップアップ）
 - 自宅マーカー: DOM `Marker` 1 個を `useEffect([home])` で作り直す（`HomeIcon`）。click は `stopPropagation` のみ
 - `useEffect([mode])`: `home` に入ったとき `home` があれば `easeTo(自宅, zoom 15)`（`home` は `useEffectEvent` で読む。自宅の変更では動かさない）
-- ポップアップ: MapLibre `Popup` 1 個（`closeOnClick: false`）。`setDOMContent(div)` して `createPortal(…, div)`。内容は `popup` prop（PointPopup）優先、無ければ内部 state のマーカー「削除」ボタン。両方 null で `remove`。開いている間は `setLngLat` のみ（`addTo` し直すと `close` が発火して閉じる）。`close` イベント（×）→ `tripActions.popupClosed`。マーカー click は `stopPropagation`（地図 `click` に伝播させない）
+- ポップアップ: MapLibre `Popup` 1 個（`closeOnClick: false`）。`setDOMContent(div)` して `createPortal(…, div)`。内容は `popup.kind` で分岐（`point` → PointPopup、`marker` → 「削除」ボタン → `markerDeleteTaken`）。null で `remove`。開いている間は `setLngLat` のみ（`addTo` し直すと `close` が発火して閉じる）。`close` イベント（×）→ `tripActions.popupClosed`。マーカー click は `stopPropagation`（地図 `click` に伝播させない）
 - 現在地: `useEffect([fix])` で `fix` source を更新。初回 fix で `URL_HAD_POINTS` が false なら `easeTo(zoom 15)`（1 回だけ。`fixUpdated` が `from` と `fix` を同時に入れるので `from` の null では判定できない）
 - カメラ: `useEffect([fitVersion])`（`fitVersion > 0` のみ）と `useEffect([sheetExpanded])` で `fitBounds`。edit モードのみ。padding は 40、下はそれに シートの高さ（展開時 `clientHeight × layout.half / 100`、収納時 `layout.peek`）を足す。routes / selected は `useEffectEvent` で読む。ナビ中は `useEffect([navigation])` で `easeTo`（navigation.md「カメラ」。fix は `useEffectEvent` で読む）。ナビ開始・終了で `jumpTo`（`pitch: NAVIGATION_PITCH` / 0、padding）/ ジェスチャ制限の切替
 - イベント: `click` `dragstart` `zoomend`（`originalEvent` あり）は map 生成時に 1 回登録し、ハンドラは `useEffectEvent`（`click`: edit で `sheetExpanded` なら `setSheet(false)` だけ、それ以外 edit / home なら `popupOpened`。`dragstart` → `setFollow(false)`、`zoomend` → `setZoom`）

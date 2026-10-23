@@ -4,14 +4,15 @@ import {
   MODE,
   getTrip,
   selectProfile,
-  selectRequestKey,
+  selectPointsKey,
   tripActions,
   useTrip,
 } from "@/store/trip.ts";
 
 /** ナビ中は探索しない（経路は navigation store が入れる） */
 export function useRouteSearch(): void {
-  const requestKey = useTrip(selectRequestKey);
+  const pointsKey = useTrip(selectPointsKey);
+  const notoll = useTrip((state) => state.notoll);
   useEffect(() => {
     const trip = getTrip();
     if (!trip.from || !trip.to || trip.mode === MODE.NAVIGATION) return;
@@ -22,11 +23,11 @@ export function useRouteSearch(): void {
       trip.vias.length === 0,
       abortController.signal,
     ) // 経由地なしのみ代替経路
-      .then((routes) => tripActions.routesLoaded(requestKey, routes))
+      .then((routes) => tripActions.routesLoaded(pointsKey, notoll, routes))
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        tripActions.routesFailed(requestKey);
+        tripActions.routesFailed(pointsKey, notoll);
       });
     return () => abortController.abort();
-  }, [requestKey]);
+  }, [pointsKey, notoll]);
 }

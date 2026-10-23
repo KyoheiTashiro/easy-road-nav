@@ -182,14 +182,17 @@ type Point = { lat: number; lng: number; label: string | null }; // label null =
 // trip.ts
 mode: "edit" | "navigation" | "settings" | "home";
 from: Point | null; to: Point | null; vias: Point[]; notoll: boolean;
-result: { key: string; routes: RouteModel[]; narrows: NarrowSegment[][] } | null; // 探索結果 + リクエストキー
+result: { pointsKey: string; notoll: boolean; routes: RouteModel[]; narrows: NarrowSegment[][] } | null; // 探索結果 + 探索した地点集合と有料トグル
 selected: number; // routes の index
 fittedKey: string; fitVersion: number; // fitBounds 済みの地点集合キー / fitBounds トリガ
 sheetExpanded: boolean;
-popup: { p: LatLng; label: string | null } | null; // 地図タップ専用
+popup: // 1 つだけ開く（排他は型で保証）
+  | { kind: "point"; point: LatLng; label: string | null } // 地図タップ
+  | { kind: "marker"; point: LatLng; role: PointRole; index: number } // マーカータップの「削除」。index は via のみ
+  | null;
 fix: Fix | null; gpsError: boolean; // 最新 GPS fix
 fromDefaulted: boolean; // 出発地の既定（初回 fix）を適用済み
-passedVia: number; // 現在の経路より前に通過した経由地数
+passedVia: number; // 通過済み経由地数（ナビの viaPassed で加算。地点の変更で 0）
 // navigation.ts
 navigation: NavigationState | null; // navigation.md
 hud: { instruction: Instruction | null; remaining: number; next: NextNext | null } | null;
@@ -203,8 +206,8 @@ message: string | null;
 - `fix` `gpsError` は `hooks/useGeolocation` が `fixUpdated` / `gpsFailed` で入れる
 - 派生値はセレクタ（`selectRoutes` `selectNarrows` `selectLoading` `selectRoute`）。`useMemo` は書かない（React Compiler）
 - URL: `hooks/useUrlSync` が `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
-- 探索は `hooks/useRouteSearch` の `useEffect([requestKey])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）、`requestKey` = `pointsKey` + notoll。cleanup で `abort()`
-- `routes` `loading` は派生値: `routes` = 地点が揃い `result.key === requestKey` のときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い `result.key !== requestKey`。effect 内で同期 setState しない（地点欠けで即空になる）
+- 探索は `hooks/useRouteSearch` の `useEffect([pointsKey, notoll])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）。cleanup で `abort()`
+- `routes` `loading` は派生値: `routes` = 地点が揃い `result` の `pointsKey`・`notoll` が現在と一致するときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い一致しない。effect 内で同期 setState しない（地点欠けで即空になる）
 
 ## トースト
 

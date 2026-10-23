@@ -5,7 +5,7 @@ import "@/ui/map/maplibre.css";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { NavigationState } from "@/model/progress.ts";
-import { MAX_VIAS, ROLE, type LatLng, type Point } from "@/model/point.ts";
+import { MAX_VIAS, ROLE, type LatLng, type Point, type PointRole } from "@/model/point.ts";
 import { navigationActions, useNavigation } from "@/store/navigation.ts";
 import { useSaved } from "@/store/saved.ts";
 import { MODE, URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
@@ -68,10 +68,6 @@ export function Map() {
   const sheetExpanded = useTrip((state) => state.sheetExpanded);
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  // マーカータップで開く「削除」ポップアップ（地点ポップアップとは排他）
-  const [markerPopup, setMarkerPopup] = useState<{ point: LatLng; onDelete: () => void } | null>(
-    null,
-  );
   const [popupDiv] = useState(() => document.createElement("div"));
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -99,7 +95,6 @@ export function Map() {
       tripActions.setSheet(false);
       return;
     }
-    setMarkerPopup(null);
     tripActions.popupOpened(point);
   });
   const onMapDragStart = useEffectEvent(() => {
@@ -175,21 +170,28 @@ export function Map() {
     for (const existingMarker of markersRef.current) existingMarker.remove();
     markersRef.current = [];
     if (mode === MODE.HOME) return;
-    const markerDefinitions: { point: Point; color: string; text: string; onDelete: () => void }[] =
-      [];
+    const markerDefinitions: {
+      point: Point;
+      color: string;
+      text: string;
+      role: PointRole;
+      index: number;
+    }[] = [];
     if (from)
       markerDefinitions.push({
         point: from,
         color: marker.from,
         text: "",
-        onDelete: () => tripActions.pointDeleted(ROLE.FROM),
+        role: ROLE.FROM,
+        index: 0,
       });
     vias.forEach((via, i) =>
       markerDefinitions.push({
         point: via,
         color: marker.via,
         text: String(i + 1),
-        onDelete: () => tripActions.viaDeleted(i),
+        role: ROLE.VIA,
+        index: i,
       }),
     );
     if (to)
@@ -197,14 +199,14 @@ export function Map() {
         point: to,
         color: marker.to,
         text: "",
-        onDelete: () => tripActions.pointDeleted(ROLE.TO),
+        role: ROLE.TO,
+        index: 0,
       });
-    markersRef.current = markerDefinitions.map(({ point, color, text, onDelete }) =>
+    markersRef.current = markerDefinitions.map(({ point, color, text, role, index }) =>
       new maplibregl.Marker({
-        element: markerElement(color, text, () => {
-          tripActions.popupClosed();
-          setMarkerPopup({ point, onDelete });
-        }),
+        element: markerElement(color, text, () =>
+          tripActions.markerPopupOpened(role, index, point),
+        ),
       })
         .setLngLat(point)
         .addTo(map),
@@ -218,10 +220,9 @@ export function Map() {
       map && home ? new maplibregl.Marker({ element: homeDiv }).setLngLat(home).addTo(map) : null;
   }, [home, homeDiv]);
 
-  // ポップアップは 1 個。地点ポップアップ優先
   useEffect(() => {
     const map = mapRef.current;
-    const target = popup?.point ?? markerPopup?.point;
+    const target = popup?.point;
     if (!map || !target) {
       popupRef.current?.remove();
       popupRef.current = null;
@@ -234,13 +235,12 @@ export function Map() {
       mapPopup.on("close", () => {
         // × ボタン。自前の remove() でも発火するが state は既に null なので無害
         tripActions.popupClosed();
-        setMarkerPopup(null);
       });
       popupRef.current = mapPopup;
     }
     mapPopup.setLngLat(target);
     if (!mapPopup.isOpen()) mapPopup.addTo(map); // addTo は開いていると remove() → close 発火 → 閉じてしまう
-  }, [popup, markerPopup, popupDiv]);
+  }, [popup, popupDiv]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -316,7 +316,7 @@ export function Map() {
   }, [sheetExpanded]);
 
   let popupContent: ReactNode = null;
-  if (popup) {
+  if (popup?.kind === "point") {
     popupContent = (
       <PointPopup
         mode={mode === MODE.HOME ? MODE.HOME : MODE.EDIT}
@@ -326,15 +326,9 @@ export function Map() {
         onHome={tripActions.popupHomeTaken}
       />
     );
-  } else if (markerPopup) {
+  } else if (popup?.kind === "marker") {
     popupContent = (
-      <button
-        {...stylex.props(button.base, button.danger)}
-        onClick={() => {
-          setMarkerPopup(null);
-          markerPopup.onDelete();
-        }}
-      >
+      <button {...stylex.props(button.base, button.danger)} onClick={tripActions.markerDeleteTaken}>
         削除
       </button>
     );

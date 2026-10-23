@@ -19,7 +19,7 @@ import {
   getTrip,
   selectNarrow,
   selectProfile,
-  selectRequestKey,
+  selectPointsKey,
   selectRoute,
   tripActions,
 } from "@/store/trip.ts";
@@ -75,7 +75,8 @@ function dispatch(events: NavigationEvent[], state: NavigationState, fix: Fix) {
       case "reroute":
         void reroute(state, fix);
         break;
-      case "viaPassed": // passedVia は state 内
+      case "viaPassed":
+        tripActions.viaPassed();
         break;
     }
   }
@@ -85,11 +86,10 @@ function dispatch(events: NavigationEvent[], state: NavigationState, fix: Fix) {
 async function reroute(state: NavigationState, fix: Fix) {
   const trip = getTrip();
   if (!trip.to) return;
-  const passed = trip.passedVia + state.passedVia;
   let route: RouteModel | undefined;
   try {
     [route] = await fetchRoute(
-      [offsetOrigin(fix, state.heading), ...trip.vias.slice(passed), trip.to],
+      [offsetOrigin(fix, state.heading), ...trip.vias.slice(trip.passedVia), trip.to],
       selectProfile(trip),
       false,
     );
@@ -112,7 +112,7 @@ async function reroute(state: NavigationState, fix: Fix) {
     now,
   );
   set({ navigation: first.state });
-  tripActions.rerouted(route, passed);
+  tripActions.rerouted(route);
   speech.cancel();
   say(`経路を再探索しました。${startText(route, first.state.s)}`);
   dispatch(first.events, first.state, now);
@@ -124,7 +124,7 @@ export const navigationActions = {
     const trip = getTrip();
     const fix = trip.fix;
     if (!fix || !trip.to || getNavigation().starting) return;
-    const requestKey = selectRequestKey(trip);
+    const pointsKey = selectPointsKey(trip);
     speech.unlock(); // iOS: ユーザー操作内で初回 speak
     set({ starting: true });
     const origin: Point = { lat: fix.lat, lng: fix.lng, label: "現在地" };
@@ -140,7 +140,8 @@ export const navigationActions = {
       return;
     }
     // 応答待ちの間にボトムシートで地点・有料トグルを変えられる
-    if (selectRequestKey(getTrip()) !== requestKey) {
+    const latest = getTrip();
+    if (selectPointsKey(latest) !== pointsKey || latest.notoll !== trip.notoll) {
       showToast("地点が変わったため案内を開始しませんでした");
       return;
     }
@@ -162,7 +163,7 @@ export const navigationActions = {
   },
   end(cancelSpeech: boolean): void {
     if (cancelSpeech) speech.cancel(); // 到着時は「到着しました」を言い切らせる
-    tripActions.navigationEnded(getNavigation().navigation?.passedVia ?? 0);
+    tripActions.navigationEnded();
     set({ navigation: null, hud: null, inNarrow: false });
   },
   setFollow(follow: boolean): void {

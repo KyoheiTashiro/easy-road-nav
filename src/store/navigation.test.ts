@@ -121,4 +121,27 @@ describe("navigationActions", () => {
     expect(getNavigation().navigation).toBeNull();
     expect(getNavigation().starting).toBe(false);
   });
+
+  it("リルートをまたいで経由地を通過しても trip.passedVia が積み上がる", async () => {
+    fetchMock.mockResolvedValueOnce([{ ...straight(), viaIndices: [3, 7] }]);
+    tripActions.pointSet("to", { lat: 35, lng: 139 + 1000 / 91_300 }, "B");
+    tripActions.viaAdded({ lat: 35, lng: 139 + 300 / 91_300, label: "V1" });
+    tripActions.viaAdded({ lat: 35, lng: 139 + 700 / 91_300, label: "V2" });
+    gps(fixAt(0));
+    await navigationActions.start();
+
+    gps(fixAt(350));
+    expect(getTrip().passedVia).toBe(1);
+
+    fetchMock.mockResolvedValueOnce([{ ...straight(), viaIndices: [5] }]);
+    for (const s of [370, 390, 410]) gps(fixAt(s, 100));
+    await flush();
+    expect(fetchMock.mock.lastCall![0]).toHaveLength(3); // 出発地 + 未通過の V2 + 到着地
+    expect(getTrip().passedVia).toBe(1);
+
+    gps(fixAt(600));
+    expect(getTrip().passedVia).toBe(2);
+    navigationActions.end(true);
+    expect(getTrip().passedVia).toBe(2); // 編集モードの「通過済」表示
+  });
 });

@@ -16,7 +16,6 @@ import { parseQuery } from "@/model/url.ts";
 import { savedActions } from "@/store/saved.ts";
 import { showToast } from "@/store/toast.ts";
 
-const NOTOLL_SUFFIX = "&notoll";
 // テスト（node）には location が無い
 const INITIAL_QUERY = parseQuery(typeof location === "undefined" ? "" : location.search);
 /** 初回 fix のカメラ（Map）: URL に地点が無ければ現在地へ easeTo。あれば探索後の fitBounds が優先 */
@@ -29,8 +28,16 @@ export const MODE = {
   SETTINGS: "settings",
 } as const;
 export type Mode = (typeof MODE)[keyof typeof MODE];
-export type Popup = { point: LatLng; label: string | null };
-type Result = { key: string; routes: RouteModel[]; narrows: NarrowSegment[][] };
+/** 地図タップの地点ポップアップと、マーカータップの「削除」ポップアップ。1 つだけ開く。index は via のときだけ意味を持つ */
+export type Popup =
+  | { kind: "point"; point: LatLng; label: string | null }
+  | { kind: "marker"; point: LatLng; role: PointRole; index: number };
+type Result = {
+  pointsKey: string;
+  notoll: boolean;
+  routes: RouteModel[];
+  narrows: NarrowSegment[][];
+};
 
 export type TripState = {
   mode: Mode;
@@ -38,7 +45,7 @@ export type TripState = {
   to: Point | null;
   vias: Point[];
   notoll: boolean;
-  /** 探索結果 + リクエストキー。routes / loading は派生（selectRoutes / selectLoading） */
+  /** 探索結果 + 探索した地点集合と有料トグル。routes / loading は派生（selectRoutes / selectLoading） */
   result: Result | null;
   selected: number;
   fittedKey: string; // fitBounds 済みの地点集合キー。同じ地点集合の再探索（トグル・代替）ではカメラを動かさない
@@ -50,7 +57,7 @@ export type TripState = {
   fix: Fix | null;
   gpsError: boolean;
   fromDefaulted: boolean; // 出発地の既定（初回 fix）を適用済み。URL に from があれば最初から true
-  passedVia: number; // 現在の経路より前に通過した経由地数（リルートで加算、終了時に navigation.passedVia を畳む）
+  passedVia: number; // 通過済み経由地数（ナビの viaPassed で加算。地点の変更で 0）
 };
 
 const unlabeled = (point: LatLng | null): Point | null =>
@@ -96,14 +103,17 @@ const complete = (state: TripState) => state.from !== null && state.to !== null;
 
 export const selectPointsKey = (state: TripState): string =>
   keyOf([state.from, ...state.vias, state.to]);
-export const selectRequestKey = (state: TripState): string =>
-  selectPointsKey(state) + (state.notoll ? NOTOLL_SUFFIX : "");
 export const selectProfile = (state: TripState): Profile =>
   state.notoll ? PROFILE.NOTOLL : PROFILE.CAR;
-/** 地点が揃い result.key === requestKey のときだけ結果。地点欠けで即空、探索中は旧結果を出さない */
+/** 地点が揃い、result が現在の地点集合と有料トグルで探索したものなときだけ結果。地点欠けで即空、探索中は旧結果を出さない */
 function current(state: TripState): Result | null {
   const result = state.result;
-  return result && complete(state) && result.key === selectRequestKey(state) ? result : null;
+  return result &&
+    complete(state) &&
+    result.pointsKey === selectPointsKey(state) &&
+    result.notoll === state.notoll
+    ? result
+    : null;
 }
 export const selectRoutes = (state: TripState): RouteModel[] => current(state)?.routes ?? NO_ROUTES;
 export const selectNarrows = (state: TripState): NarrowSegment[][] =>
@@ -117,8 +127,9 @@ export const selectNarrow = (state: TripState): NarrowSegment[] =>
 
 // ---- アクション ----
 
-const resultOf = (key: string, routes: RouteModel[]): Result => ({
-  key,
+const resultOf = (pointsKey: string, notoll: boolean, routes: RouteModel[]): Result => ({
+  pointsKey,
+  notoll,
   routes,
   narrows: routes.map((route) => narrowSegments(route)),
 });
@@ -164,21 +175,18 @@ export const tripActions = {
   notollToggled(notoll: boolean): void {
     set((state) => withPoints(state, { notoll }));
   },
-  routesLoaded(requestKey: string, routes: RouteModel[]): void {
-    const pointsKey = requestKey.endsWith(NOTOLL_SUFFIX)
-      ? requestKey.slice(0, -NOTOLL_SUFFIX.length)
-      : requestKey;
+  routesLoaded(pointsKey: string, notoll: boolean, routes: RouteModel[]): void {
     set((state) => ({
-      result: resultOf(requestKey, routes),
+      result: resultOf(pointsKey, notoll, routes),
       selected: 0,
       fittedKey: pointsKey,
       // 地点集合が変わった探索だけカメラを動かす（トグル・代替切替では動かさない）
       fitVersion: state.fittedKey === pointsKey ? state.fitVersion : state.fitVersion + 1,
     }));
   },
-  routesFailed(requestKey: string): void {
+  routesFailed(pointsKey: string, notoll: boolean): void {
     showToast("経路を探索できません");
-    set({ result: resultOf(requestKey, []) });
+    set({ result: resultOf(pointsKey, notoll, []) });
   },
   routeSelected(i: number): void {
     set({ selected: i });
@@ -216,17 +224,29 @@ export const tripActions = {
     set({ gpsError: true });
   },
   popupOpened(point: LatLng): void {
-    set({ popup: { point, label: null } });
+    set({ popup: { kind: "point", point, label: null } });
     resolveLabel(point).then((label) =>
-      set((state) => (state.popup?.point === point ? { popup: { point, label } } : {})),
+      set((state) =>
+        state.popup?.point === point ? { popup: { kind: "point", point, label } } : {},
+      ),
     );
+  },
+  markerPopupOpened(role: PointRole, index: number, point: LatLng): void {
+    set({ popup: { kind: "marker", point, role, index } });
+  },
+  markerDeleteTaken(): void {
+    const { popup } = getTrip();
+    if (popup?.kind !== "marker") return;
+    set({ popup: null });
+    if (popup.role === ROLE.VIA) tripActions.viaDeleted(popup.index);
+    else tripActions.pointDeleted(popup.role);
   },
   popupClosed(): void {
     set({ popup: null });
   },
   popupActionTaken(role: PointRole): void {
     const { popup } = getTrip();
-    if (!popup) return;
+    if (popup?.kind !== "point") return;
     const point: Point = { lat: popup.point.lat, lng: popup.point.lng, label: popup.label };
     if (role === ROLE.VIA) tripActions.viaAdded(point);
     else tripActions.pointSet(role, point, point.label);
@@ -235,7 +255,8 @@ export const tripActions = {
   /** ポップアップ「自宅にする」。label 未確定（逆ジオ中）なら何もしない */
   popupHomeTaken(): void {
     const { popup } = getTrip();
-    if (popup && popup.label !== null) tripActions.homeChosen(popup.point, popup.label);
+    if (popup?.kind === "point" && popup.label !== null)
+      tripActions.homeChosen(popup.point, popup.label);
   },
   /** 検索欄の候補。home モードは地図を寄せるだけ。自宅の確定は地図タップのポップアップ「自宅にする」 */
   searchPicked(role: PickRole, point: LatLng, label: string | null): void {
@@ -263,12 +284,12 @@ export const tripActions = {
   /** ナビ開始（navigation store から）。出発地を現在地に置換し、経路 1 本を入れる。探索フックは通さない */
   navigationStarted(origin: Point, route: RouteModel): void {
     set((state) => {
-      const next = { ...state, from: origin };
+      const pointsKey = selectPointsKey({ ...state, from: origin });
       return {
         from: origin,
-        result: resultOf(selectRequestKey(next), [route]),
+        result: resultOf(pointsKey, state.notoll, [route]),
         selected: 0,
-        fittedKey: selectPointsKey(next), // ナビ中は fitBounds しない
+        fittedKey: pointsKey, // ナビ中は fitBounds しない
         popup: null,
         panTarget: null,
         sheetExpanded: false,
@@ -277,19 +298,17 @@ export const tripActions = {
       };
     });
   },
+  viaPassed(): void {
+    set((state) => ({ passedVia: state.passedVia + 1 }));
+  },
   /** リルート成功。地点 state は変えない（URL の via は全経由地を維持） */
-  rerouted(route: RouteModel, passedVia: number): void {
+  rerouted(route: RouteModel): void {
     set((state) => ({
-      result: resultOf(selectRequestKey(state), [route]),
+      result: resultOf(selectPointsKey(state), state.notoll, [route]),
       selected: 0,
-      passedVia,
     }));
   },
-  navigationEnded(passedInNavigation: number): void {
-    set((state) => ({
-      mode: MODE.EDIT,
-      passedVia: state.passedVia + passedInNavigation, // 編集モードの「通過済」表示用
-      fitVersion: state.fitVersion + 1,
-    }));
+  navigationEnded(): void {
+    set((state) => ({ mode: MODE.EDIT, fitVersion: state.fitVersion + 1 }));
   },
 };

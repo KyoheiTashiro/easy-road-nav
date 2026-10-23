@@ -1,6 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef } from "react";
-import { ROLE, type Point } from "@/model/point.ts";
+import { ROLE, type Point, type PointRole } from "@/model/point.ts";
 import { navigationActions, useNavigation } from "@/store/navigation.ts";
 import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { RouteSummary } from "@/ui/edit/RouteSummary.tsx";
@@ -163,7 +163,7 @@ function Row({
   children,
 }: {
   role: string; // aria 用（出発地 / 経由地 n / 到着地）
-  dot: keyof typeof marker;
+  dot: PointRole;
   text?: string; // 経由地の番号
   point: Point | null;
   passed?: boolean;
@@ -173,9 +173,9 @@ function Row({
   return (
     <li {...stylex.props(styles.row, passed && styles.passed)}>
       <span {...stylex.props(styles.mark, point && styles[dot])} aria-label={role}>
-        {dot === "from" && <FromIcon size={20} />}
-        {dot === "via" && text}
-        {dot === "to" && <ToIcon size={20} />}
+        {dot === ROLE.FROM && <FromIcon size={20} />}
+        {dot === ROLE.VIA && text}
+        {dot === ROLE.TO && <ToIcon size={20} />}
       </span>
       {point ? (
         <>
@@ -257,7 +257,7 @@ export function BottomSheet() {
         <ul {...stylex.props(styles.timeline)}>
           <Row
             role="出発地"
-            dot="from"
+            dot={ROLE.FROM}
             point={from}
             onDelete={() => tripActions.pointDeleted(ROLE.FROM)}
           />
@@ -265,7 +265,7 @@ export function BottomSheet() {
             <Row
               key={i}
               role={`経由地 ${i + 1}`}
-              dot="via"
+              dot={ROLE.VIA}
               text={String(i + 1)}
               point={via}
               passed={i < passedVia}
@@ -291,7 +291,7 @@ export function BottomSheet() {
           ))}
           <Row
             role="到着地"
-            dot="to"
+            dot={ROLE.TO}
             point={to}
             onDelete={() => tripActions.pointDeleted(ROLE.TO)}
           />

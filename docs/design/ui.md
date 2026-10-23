@@ -206,7 +206,7 @@ message: string | null;
 - `fix` `gpsError` は `useGeolocation` が `fixUpdated` / `gpsFailed` で入れる
 - 派生値はセレクタ（`selectRoutes` `selectNarrows` `selectLoading` `selectRoute`）。`useMemo` は書かない（React Compiler）
 - URL: `trip/useUrlSync` が `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
-- 探索は `route/useRouteSearch` の `useEffect([pointsKey, notoll])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）。cleanup で `abort()`
+- 探索は `route/useRouteSearch` の `useEffect([pointsKey, notoll, ナビ中か])`。ナビ終了時は結果を捨てて探索し直す（リルート後の途中からの経路を残さない）。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）。cleanup で `abort()`
 - `routes` `loading` は派生値: `routes` = 地点が揃い `result` の `pointsKey`・`notoll` が現在と一致するときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い一致しない。effect 内で同期 setState しない（地点欠けで即空になる）
 
 ## トースト

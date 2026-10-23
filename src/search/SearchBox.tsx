@@ -129,6 +129,7 @@ export function SearchBox() {
       >
         {role === ROLE.HOME ? (
           <button
+            type="button"
             {...stylex.props(button.base, button.icon, styles.back)}
             onClick={tripActions.backPressed}
             aria-label="戻る"
@@ -164,6 +165,7 @@ export function SearchBox() {
           />
           {!focused && point && role !== ROLE.HOME && (
             <button
+              type="button"
               {...stylex.props(button.base, button.icon, styles.clear)}
               onClick={() => tripActions.pointDeleted(role)}
               aria-label={`${name}を削除`}

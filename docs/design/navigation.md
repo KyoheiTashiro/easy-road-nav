@@ -59,7 +59,7 @@ React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、e
 処理順（1 fix ごと）:
 
 1. **精度フィルタ**: `fix.accuracy >= 進捗採用精度` なら state を返すだけ（events 空）。マーカー位置は Map が trip store の fix から直接描く
-2. **最近傍点**: `nearest(route, fix)` → `{ s, distanceToRoute, segmentIndex }`（[route-model.md](route-model.md)）
+2. **最近傍点**: `nearest(route, fix, { from: s - 経路外れ距離, to: s + 進捗探索範囲 })` → `{ s, distanceToRoute, segmentIndex }`（[route-model.md](route-model.md)）。`distanceToRoute > 経路外れ距離` なら範囲を外して `nearest(route, fix)` で探し直す（トンネルなどで fix が途切れた後）
 3. **経路外れ判定**: `distanceToRoute > 経路外れ距離` かつ直前 fix から 方位算出最小移動 以上動いていれば `offRouteCount++`（停車中は数えない。出発前の準備中や途中停車で連発するのを防ぐ）。`>= リルート連続回数` かつ `!rerouting` なら `reroute` event、`rerouting = true`。経路外れ中は進捗更新せず、`heading` は直近 2 fix の方位（移動 ≥ 方位算出最小移動 のときのみ更新）。以降の手順は飛ばす。経路内なら `offRouteCount = 0`
 4. **進捗更新**: `s` は単調増加。`nearest.s < state.s` なら据え置き（後戻りは無視）。`heading` = 線分 `segmentIndex` の方位
 5. **経由地通過**: `passedVia < viaIndices.length` かつ `s >= cumulativeDistances[viaIndices[passedVia]]` → `viaPassed`、発話「経由地を通過しました」、`passedVia++`
@@ -93,7 +93,7 @@ React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、e
 
 - 予告: 「300 メートル先、{語}です」
 - 直前: 「まもなく{語}です」
-- 開始時: 「案内を開始します。この先 {距離}、{語}です」。距離: 1 km 以上は 0.1 km 単位「1.2 キロ」、未満は 100 m 単位「300 メートル」
+- 開始時: 「案内を開始します。この先 {距離}、{語}です」。距離: 1 km 以上は 0.1 km 単位「1.2 キロ」、未満は 100 m 単位「300 メートル」。案内地点まで「案内トリガー距離（直前）」以内なら「案内を開始します。」だけ言い、続く直前案内「まもなく{語}です」に任せる
 - 経由地通過: 「経由地を通過しました」
 - 到着: 「目的地に到着しました」
 - 細い道: 「この先、細い道です」「この先細い道、目的地付近です」

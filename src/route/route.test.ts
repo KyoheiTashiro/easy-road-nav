@@ -259,6 +259,18 @@ describe("fromGraphHopperPath 分岐合成", () => {
       expect(route.instructions[i]!.from).toBe(route.instructions[i - 1]!.to);
   });
 
+  it("ラウンドアバウトの途中は分割しない", () => {
+    const instructions = narrowPath.instructions.map((instruction) =>
+      instruction.interval[0] < 10 && 10 < instruction.interval[1]
+        ? { ...instruction, sign: 6, exit_number: 2 }
+        : instruction,
+    );
+
+    const route = fromGraphHopperPath({ ...path, instructions });
+
+    expect(route.instructions.length).toBe(instructions.length);
+  });
+
   it("既に案内地点なら何もしない、出発地は無視", () => {
     const turn = narrowPath.instructions.find(
       (instruction) => instruction.sign !== 0 && instruction.sign !== 4,

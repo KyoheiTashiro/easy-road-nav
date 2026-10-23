@@ -56,7 +56,7 @@ type RouteModel = {
 
 - `kind` は CONTEXT.md の分類表で `road_class` 文字列から決める。`forbidden` は custom model で priority 0 なので通常現れないが型として持つ
 - 経路上の位置はすべて「累積距離 s（m）」で表す。案内地点 = `cumulativeDistances[instruction.from]`、細い道区間開始 = `cumulativeDistances[segment.from]`、経由地 = `cumulativeDistances[viaIndex]`、到着地 = `cumulativeDistances[n-1]`
-- 分岐合成（`forkSign` / `addFork`）: GraphHopper は同格の分岐（高架下をくぐる vs 側道へ）で keep 指示を出さないことがある。`intersection` の各ノードで、`out` 以外に進入可能な道（`in` 除く）があり `out` との方位差が「分岐判定角」以下なら分岐。他方が右にあれば `-7`（左寄り）、左なら `7`（右寄り）。そのノードに既に `sign != 0` の指示があれば何もしない。`sign 0` の指示がそこから始まるなら sign・text を書き換え、指示の途中なら 2 つに分割（`time` は距離比で配分）。出発地（頂点 0）は対象外
+- 分岐合成（`forkSign` / `addFork`）: GraphHopper は同格の分岐（高架下をくぐる vs 側道へ）で keep 指示を出さないことがある。`intersection` の各ノードで、`out` 以外に進入可能な道（`in` 除く）があり `out` との方位差が「分岐判定角」以下なら分岐。他方が右にあれば `-7`（左寄り）、左なら `7`（右寄り）。そのノードに既に `sign != 0` の指示があれば何もしない。ラウンドアバウト（`sign 6`）の指示の途中も何もしない（周回中の出口を分岐と誤認する）。`sign 0` の指示がそこから始まるなら sign・text を書き換え、指示の途中なら 2 つに分割（`time` は距離比で配分）。出発地（頂点 0）は対象外
 - 派生値: 細い道区間（`src/route/narrow.ts`、CONTEXT.md「細い道区間」の生成ルール）、有料距離（`toll.value == "all"` の範囲の `cumulativeDistances[to] - cumulativeDistances[from]` 合計）
 
 ## 幾何計算（`src/shared/geo.ts`）

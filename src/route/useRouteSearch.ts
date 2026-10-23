@@ -4,6 +4,7 @@ import { isAbortError } from "@/shared/timeout.ts";
 import {
   MODE,
   getTrip,
+  selectLoading,
   selectProfile,
   selectPointsKey,
   tripActions,
@@ -14,10 +15,11 @@ import {
 export function useRouteSearch(): void {
   const pointsKey = useTrip(selectPointsKey);
   const notoll = useTrip((state) => state.notoll);
+  const navigating = useTrip((state) => state.mode === MODE.NAVIGATION);
 
   useEffect(() => {
     const trip = getTrip();
-    if (!trip.from || !trip.to || trip.mode === MODE.NAVIGATION) return;
+    if (!trip.from || !trip.to || navigating || !selectLoading(trip)) return;
 
     const abortController = new AbortController();
     fetchRoute(
@@ -33,5 +35,5 @@ export function useRouteSearch(): void {
       });
 
     return () => abortController.abort();
-  }, [pointsKey, notoll]);
+  }, [pointsKey, notoll, navigating]);
 }

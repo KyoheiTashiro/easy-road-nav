@@ -146,7 +146,7 @@ export function fromGraphHopperPath(path: GraphHopperPath): RouteModel;
   // viaIndices: SIGN.VIA_REACHED の from
   // details.intersection の各ノードに forkSign を適用し、寄り（±7）なら指示を書き換え/分割（route-model.md「分岐合成」）
 export function forkSign(intersection: GraphHopperIntersection): number;  // KEEP_RIGHT / KEEP_LEFT / CONTINUE。閾値 FORK_ANGLE
-export function nearest(route: RouteModel, point: LatLng): { s: number; distanceToRoute: number; segmentIndex: number };
+export function nearest(route: RouteModel, point: LatLng, range?: { from: number; to: number }): { s: number; distanceToRoute: number; segmentIndex: number }; // range: 累積距離で探す線分を絞る。該当なしは distanceToRoute = Infinity
   // 全線分に projectToSegment、distance 最小を採用。s = cumulativeDistances[i] + t × (cumulativeDistances[i+1] − cumulativeDistances[i])
 export function segmentBearing(route: RouteModel, i: number): number;  // bearing(P[i], P[i+1])
 export function tollDistance(route: RouteModel): number;               // toll.value == "all" の合計 m
@@ -313,7 +313,7 @@ export const tripActions: {
   popupClosed(): void;
   popupActionTaken(role: PointRole): void; // kind point のみ
   popupHomeTaken(): void; // 「自宅にする」。kind point で label 未確定（逆ジオ中）なら何もしない
-  markerPopupOpened(role: PointRole, index: number, point: LatLng): void; // マーカータップ。地点ポップアップを置き換える
+  markerPopupOpened(role: PointRole, index: number, point: LatLng): void; // マーカータップ。地点ポップアップを置き換える。ナビ中は開かない
   markerDeleteTaken(): void; // 「削除」。role via → viaDeleted(index)、それ以外 → pointDeleted(role)。popup null
   // 検索・設定・自宅
   searchPicked(role: PickRole, point: LatLng, label: string | null): void; // home かつ label null（現在地）は popupOpened で逆ジオを待つ
@@ -326,7 +326,7 @@ export const tripActions: {
   navigationStarted(origin: Point, route: RouteModel): void; // from = origin、result = { pointsKey: 新 pointsKey, notoll, routes: [route] }、fittedKey 更新（探索 effect の再 fetch と fitVersion++ を抑止）、mode navigation
   viaPassed(): void; // passedVia++
   rerouted(route: RouteModel): void; // result 置換（地点は変えない）
-  navigationEnded(): void; // mode edit、fitVersion++
+  navigationEnded(): void; // mode edit、result と fittedKey を空にする（useRouteSearch が探索し直し、routesLoaded で fitVersion++）
 };
 ```
 
@@ -361,7 +361,7 @@ events の分配（`dispatch`）: `speak` → `say`（`muted` なら捨てる）
 ```
 reroute(state, fix):
   fetchRoute([offsetOrigin(fix, heading), ...vias.slice(trip.passedVia), to], profile, false)
-  応答時 mode !== "navigation" なら何もしない
+  要求時のセッション番号（end ごとに +1）が応答時と違えば何もしない（終了後に再開していても捨てる）
   失敗: トースト「経路を再探索できません」、rerouting false・offRouteCount 0、旧経路のまま
   成功: initNavigation(navigation.zoom, navigation.follow) で最新 fix を step 1 回 → navigation 置換 → tripActions.rerouted → cancel() → 発話「経路を再探索しました」+ startText → events 分配
 ```
@@ -373,7 +373,7 @@ reroute(state, fix):
 `useGeolocation` `useUpdateCheck` は `src/` 直下、ほかは関係する機能のディレクトリ（[frontend.md](../requirements/frontend.md)「ディレクトリ」）。1 部品だけが使う Effect は部品の隣のフック。`useWakeLock` `useUpdateCheck` 以外は引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
 
 - `useGeolocation`: マウントで `watchPosition`（`enableHighAccuracy: true`, `maximumAge: 0`, `timeout: 10000`）。アンマウントで `clearWatch`。成功: `tripActions.fixUpdated(fix)` → `navigationActions.onFix(fix)`。失敗（`PERMISSION_DENIED` / `POSITION_UNAVAILABLE` / `TIMEOUT`）: `tripActions.gpsFailed()`。Geolocation 非対応は store の初期値 `gpsError: true`
-- `useRouteSearch`: `useEffect([pointsKey, notoll])`。`getTrip()` で地点を読み、揃っていてナビ中でなければ `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（`isAbortError` は無視）。cleanup で `abort()`
+- `useRouteSearch`: `useEffect([pointsKey, notoll, ナビ中か])`。`getTrip()` で地点を読み、揃っていてナビ中でなく、現在の地点集合の結果がまだなければ（`selectLoading`） `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（`isAbortError` は無視）。cleanup で `abort()`
 - `useReverseGeocode`: `useEffect([from, to, vias])` で `label === null` の地点ごとに `tripActions.labelRequested(point)`
 - `useUrlSync`: `useEffect([from, to, vias, notoll])` で `history.replaceState(null, "", buildQuery(...) || location.pathname)`
 - `useWakeLock(active)`: `active` 中 `navigator.wakeLock?.request("screen")`。非対応なら何もしない。`visibilitychange` で `visible` に戻ったら再取得。`active` が false になったら・アンマウントで `release`

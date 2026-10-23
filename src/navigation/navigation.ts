@@ -52,6 +52,8 @@ export function useNavigation<T>(selector: (store: NavigationStore) => T): T {
 export const getNavigation = useStore.getState;
 const set = useStore.setState;
 
+let session = 0; // end ごとに進める。リルート応答が同じナビのものか判定する
+
 function say(text: string) {
   if (!getNavigation().muted) speech.speak(text);
 }
@@ -88,6 +90,7 @@ async function reroute(state: NavigationState, fix: Fix) {
   const trip = getTrip();
   if (!trip.to) return;
 
+  const requested = session;
   let route: RouteModel | undefined;
   try {
     [route] = await fetchRoute(
@@ -97,7 +100,7 @@ async function reroute(state: NavigationState, fix: Fix) {
     );
   } catch {}
 
-  if (getTrip().mode !== MODE.NAVIGATION) return; // 応答前に終了・到着
+  if (session !== requested) return; // 応答前に終了・到着（再開していても旧セッションの応答）
 
   if (!route) {
     showToast("経路を再探索できません");
@@ -176,6 +179,7 @@ export const navigationActions = {
   },
   end(cancelSpeech: boolean): void {
     if (cancelSpeech) speech.cancel(); // 到着時は「到着しました」を言い切らせる
+    session++;
     tripActions.navigationEnded();
     set({ navigation: null, hud: null, inNarrow: false });
   },

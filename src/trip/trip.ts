@@ -244,6 +244,7 @@ export const tripActions = {
     );
   },
   markerPopupOpened(role: PointRole, index: number, point: LatLng): void {
+    if (getTrip().mode === MODE.NAVIGATION) return; // 地点を消すと経路が消え、ナビを終了できなくなる
     set({ popup: { kind: "marker", point, role, index } });
   },
   markerDeleteTaken(): void {
@@ -326,7 +327,8 @@ export const tripActions = {
       selected: 0,
     }));
   },
+  /** 結果は捨てて探索し直す（リルート後は途中からの経路が入っている）。fittedKey を空にして探索後に fitBounds */
   navigationEnded(): void {
-    set((state) => ({ mode: MODE.EDIT, fitVersion: state.fitVersion + 1 }));
+    set({ mode: MODE.EDIT, result: null, fittedKey: "" });
   },
 };

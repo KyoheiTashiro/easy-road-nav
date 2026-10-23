@@ -167,7 +167,7 @@ function addFork(
     (instruction) => instruction.from <= vertexIndex && vertexIndex < instruction.to,
   );
   const instruction = instructions[index];
-  if (!instruction) return;
+  if (!instruction || instruction.sign === SIGN.ROUNDABOUT) return; // 周回中の出口を分岐と誤認する
 
   if (instruction.from === vertexIndex) {
     if (instruction.sign === SIGN.CONTINUE) Object.assign(instruction, { sign, text });
@@ -196,15 +196,19 @@ function vertex(route: RouteModel, i: number): LatLng {
   return toLatLng(route.points[i]!);
 }
 
-/** 全線分に射影し distance 最小を採用。s = cumulativeDistances[i] + t × (cumulativeDistances[i+1] − cumulativeDistances[i]) */
+/** 累積距離 [range.from, range.to] に掛かる線分に射影し distance 最小を採用。s = cumulativeDistances[i] + t × (cumulativeDistances[i+1] − cumulativeDistances[i])。該当なしは distanceToRoute = Infinity */
 export function nearest(
   route: RouteModel,
   point: LatLng,
+  range = { from: -Infinity, to: Infinity },
 ): { s: number; distanceToRoute: number; segmentIndex: number } {
-  // ponytail: 全線分 O(n) 走査。遅ければ前回 index の近傍窓に限定
+  // ponytail: 全線分 O(n) 走査。遅ければ二分探索で範囲の先頭へ飛ぶ
   let best = { s: 0, distanceToRoute: Infinity, segmentIndex: 0 };
 
   for (let i = 0; i + 1 < route.points.length; i++) {
+    if (route.cumulativeDistances[i + 1]! < range.from || route.cumulativeDistances[i]! > range.to)
+      continue;
+
     const { t, distance } = projectToSegment(point, vertex(route, i), vertex(route, i + 1));
     if (distance < best.distanceToRoute) {
       const segmentStart = route.cumulativeDistances[i]!;

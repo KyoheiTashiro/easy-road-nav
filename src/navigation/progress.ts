@@ -23,6 +23,7 @@ const ANNOUNCE_NEAR = 50; // 案内トリガー距離（直前）m
 const NARROW_WARN = 300; // 細い道警告距離 m
 const MIN_MOVE = 5; // 方位算出最小移動 m
 const NEXT_NEXT_MAX = 1000; // 次の次表示上限 m
+const SEARCH_AHEAD = 1000; // 進捗探索範囲 m
 
 export type NavigationState = {
   s: number;
@@ -116,7 +117,7 @@ export function step(
   fix: Fix,
 ): StepResult {
   if (fix.accuracy >= ACCURACY_MAX) return { state: { ...state }, events: [] };
-  const near = nearest(route, fix);
+  const near = nearestAhead(route, state.s, fix);
   if (near.distanceToRoute > OFF_ROUTE) return offRoute(state, fix);
 
   const events: NavigationEvent[] = [];
@@ -132,6 +133,12 @@ export function step(
   warnNarrow(route, narrow, next, events);
 
   return { state: next, events };
+}
+
+/** 現在の s の近くを優先して最近傍を探す（往復経路で帰り側に吸着しない）。近くで外れたら全体（トンネル等で fix が飛んだ） */
+function nearestAhead(route: RouteModel, s: number, fix: Fix): ReturnType<typeof nearest> {
+  const local = nearest(route, fix, { from: s - OFF_ROUTE, to: s + SEARCH_AHEAD });
+  return local.distanceToRoute <= OFF_ROUTE ? local : nearest(route, fix);
 }
 
 /** 経路外れ。移動中の fix だけ数える（停車中は出発前・途中停車でリルートが連発するため） */
@@ -294,7 +301,9 @@ export function startText(route: RouteModel, s: number): string {
   if (index < 0) return "この先、目的地です";
 
   const instruction = route.instructions[index]!;
-  return `この先 ${formatSpokenDistance(route.cumulativeDistances[instruction.from]! - s)}、${signWord(instruction)}です`;
+  const remaining = route.cumulativeDistances[instruction.from]! - s;
+  if (remaining <= ANNOUNCE_NEAR) return ""; // 同じ step の直前案内「まもなく〜です」が続く
+  return `この先 ${formatSpokenDistance(remaining)}、${signWord(instruction)}です`;
 }
 
 export function offsetOrigin(fix: Fix, heading: number | null): LatLng {

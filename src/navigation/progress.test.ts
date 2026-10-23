@@ -228,6 +228,34 @@ describe("step: 案内地点", () => {
   });
 });
 
+describe("step: 往復経路", () => {
+  // 東へ 1000 m（経由地）→ 5 m 北を西へ 1000 m 戻る
+  const outAndBack = make(
+    [1000, 5, 1000],
+    [
+      [0, 0, 1],
+      [5, 1, 2],
+      [4, 3, 3],
+    ],
+  );
+  outAndBack.points[2] = [139 + 1000 / 91_300, 35 + 5 / 111_000];
+  outAndBack.points[3] = [139, 35 + 5 / 111_000];
+
+  it("往路の fix が復路に近くても往路側に乗る", () => {
+    const fix = {
+      ...destination({ lat: 35, lng: 139 + 100 / 91_300 }, 0, 4),
+      accuracy: 10,
+      timestamp: 0,
+    };
+
+    const { state, all } = run(outAndBack, [], [fix]);
+
+    expect(state.s).toBeLessThan(200);
+    expect(state.passedVia).toBe(0);
+    expect(types(all[0]!)).not.toContain("arrived");
+  });
+});
+
 describe("step: 経由地・到着", () => {
   it("経由地通過（fixture via）", () => {
     const viaDistance = viaRoute.cumulativeDistances[viaRoute.viaIndices[0]!]!;
@@ -424,6 +452,7 @@ describe("remainingTime / startText / offsetOrigin", () => {
     expect(startText(basic, 0)).toBe("この先 1 キロ、右方向です");
     expect(startText(basic, 850)).toBe("この先 200 メートル、右方向です");
     expect(startText(viaRoute, 0)).toBe("この先 1.2 キロ、左方向です");
+    expect(startText(basic, 980)).toBe(""); // 直前案内の距離は step の「まもなく」に任せる
   });
 
   it("offsetOrigin: heading null はそのまま、あれば 30 m 前方", () => {

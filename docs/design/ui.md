@@ -64,7 +64,7 @@
   3. 代替経路カード（経路が 2 本以上のときだけ。最大 3 枚）。各カードはピーク行と同じ 2 行、1 行目の先頭にラベル「推奨」/「代替 n」。左縁 4px、選択中は枠が accent 色。タップで本線入替。シートは開いたまま（閉じると選択結果が見えず「選択されていない」と誤認する）
   4. 案内文リスト（`StepList`。GraphHopper の返却全部（`sign 0` 含む）。ステップごとに 距離 / 指示 / 道路名。細い道区間に入るステップは先頭に「⚠ 細い道」、行全体に薄いオレンジ背景 `colors.narrowBackground`。アイコンのみ表示 ON なら「⚠ 細い道」の代わりに `NarrowIcon`（`colors.narrow` 色、14px）だけ）
 
-表示文字列（距離・時間・時刻）は `src/model/format.ts` に集約（[modules.md](modules.md)）。所要時間は「1 時間 20 分」「25 分」「1 分」。
+表示文字列（距離・時間・時刻）は `src/shared/format.ts` に集約（[modules.md](modules.md)）。所要時間は「1 時間 20 分」「25 分」「1 分」。
 
 ### 検索欄
 
@@ -172,9 +172,9 @@ GeoJSON source 2 つ、line layer 3 つ。描画分割は [route-model.md](route
 
 `route` source の feature は `kind` プロパティで filter。短区間無視は描画に適用しない。
 
-## 状態（src/store/）
+## 状態（store）
 
-zustand の store を関心ごとに分ける。UI は 1 値 1 セレクタで購読し、操作はアクション（起きた事象の名前）で行う。App 全体の外部同期は `src/hooks/`、1 部品だけが使う Effect は部品と同じディレクトリのフックに置く。シグネチャは [modules.md](modules.md)。
+zustand の store を関心ごとに分ける。UI は 1 値 1 セレクタで購読し、操作はアクション（起きた事象の名前）で行う。外部同期のフックは、使う部品・機能と同じディレクトリに置く。シグネチャは [modules.md](modules.md)。
 
 ```ts
 type Point = { lat: number; lng: number; label: string | null }; // label null = 逆ジオ中
@@ -203,10 +203,10 @@ home: SavedPoint | null; history: SavedPoint[]; iconOnly: boolean; // localStora
 message: string | null;
 ```
 
-- `fix` `gpsError` は `hooks/useGeolocation` が `fixUpdated` / `gpsFailed` で入れる
+- `fix` `gpsError` は `useGeolocation` が `fixUpdated` / `gpsFailed` で入れる
 - 派生値はセレクタ（`selectRoutes` `selectNarrows` `selectLoading` `selectRoute`）。`useMemo` は書かない（React Compiler）
-- URL: `hooks/useUrlSync` が `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
-- 探索は `hooks/useRouteSearch` の `useEffect([pointsKey, notoll])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）。cleanup で `abort()`
+- URL: `trip/useUrlSync` が `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
+- 探索は `route/useRouteSearch` の `useEffect([pointsKey, notoll])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）。cleanup で `abort()`
 - `routes` `loading` は派生値: `routes` = 地点が揃い `result` の `pointsKey`・`notoll` が現在と一致するときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い一致しない。effect 内で同期 setState しない（地点欠けで即空になる）
 
 ## トースト

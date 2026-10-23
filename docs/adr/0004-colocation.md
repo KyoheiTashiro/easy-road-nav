@@ -1,7 +1,7 @@
 # ADR-0004: src を機能別ディレクトリに再編し、関連物を同居させる
 
 - 日付: 2026-10-23
-- 状態: 採用（未実施）
+- 状態: 採用
 
 ## 背景
 
@@ -40,6 +40,9 @@ src/
 
 テスト（`*.test.ts`）は従来どおり実装の隣に置く。
 
+- 追記（2026-10-23、実施時）: `Toast.tsx` は `shared/` ではなく `src/` 直下に置いた。trip の `mode` を購読するので `shared/` に置くと機能への import になり、使うのも `App` だけだったため。store の `toast.ts` は各機能が呼ぶので `shared/` のまま
+- 追記（2026-10-23、実施時）: `DirectionIcon` は `route/DirectionIcon.tsx` に分けた。GraphHopper の sign（`route.ts` の `SIGN`）に依存するため。SVG と共通部の `Icon` は `shared/icons/` に残した
+
 ### 配置
 
 - 使う側が 1 つなら、使う側の隣に置く
@@ -52,7 +55,8 @@ fixture は GraphHopper の実応答で、route の契約そのものなので `
 
 これまでは「`store/` と `model/` は React・DOM 非依存」をディレクトリで保っていた。再編後はファイル名で保つ。
 
-- `*.tsx` と `use*.ts` 以外のファイルは、React・DOM を import しない
+- `*.tsx` と `use*.ts` 以外のファイルは、`react` `react-dom` を import しない
+  - 追記（2026-10-23、実施時）: 当初は「React・DOM」と書いたが、store は zustand と localStorage を、`yahoo.ts` は `<script>` 挿入を、`mapLayers.ts` はマーカー DOM を使う。旧規約の「React・DOM 非依存」も実際は `react` を直接 import しない意味だったので、そのとおりに書き直した
 - それらのファイルは、`*.tsx` と `use*.ts` を import しない
 - Vitest の対象は、この React 非依存のファイル
 

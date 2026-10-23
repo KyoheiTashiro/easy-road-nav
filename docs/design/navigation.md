@@ -35,7 +35,7 @@ type NavigationState = {
 
 `announced` は文字列 Set 1 つで全種別を持つ。リルートで全リセット。
 
-## 純ロジック `step`（`src/model/progress.ts`）
+## 純ロジック `step`（`src/navigation/progress.ts`）
 
 ```ts
 type NavigationEvent =
@@ -71,7 +71,7 @@ React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、e
 8. **細い道**: `narrow` 区間 j で `cumulativeDistances[segment.from] - s` が `(0, 細い道警告距離]` かつ `"narrow:j"` 未発火 → 警告発話。先頭区間（出発地に接する）は警告しない。末尾区間（到着地に接する）は「この先細い道、目的地付近です」。走行中判定: `cumulativeDistances[segment.from] <= s < cumulativeDistances[segment.to]` の区間を `narrow` event で通知
 9. 同一 fix で 7 と 8 が両方発火したら発話順は 案内 → 細い道警告
 
-## 発話（`src/api/speech.ts`）
+## 発話（`src/navigation/speech.ts`）
 
 `speechSynthesis`、`lang = "ja-JP"`、rate 1。キューは `speechSynthesis` 内蔵のもの（発話中は待って順に全部言う）。直前の文字列がまだ再生・待機中なら同一文字列は捨てる。ミュート中は navigation store が `speak` event を捨てる（キューにも入れない）。iOS 向けに「案内開始」の click 内で空発話（`unlock`）してから再探索する。
 
@@ -119,7 +119,7 @@ React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、e
 
 ## カメラ
 
-- 開始時: `zoom 17`、`pitch 50`（`NAVIGATION_ZOOM` / `NAVIGATION_PITCH`、`ui/map/useCamera.ts`）、`bearing = heading`、`padding.top = 画面高 / 3`・`padding.bottom = NavigationBar 高` で現在地を画面下 1/3 に置く（`jumpTo({ padding })`。編集モード復帰で padding 0）
+- 開始時: `zoom 17`、`pitch 50`（`NAVIGATION_ZOOM` / `NAVIGATION_PITCH`、`map/useCamera.ts`）、`bearing = heading`、`padding.top = 画面高 / 3`・`padding.bottom = NavigationBar 高` で現在地を画面下 1/3 に置く（`jumpTo({ padding })`。編集モード復帰で padding 0）
 - 毎 fix（`follow` 中）: `easeTo({ center, bearing, zoom: state.zoom })`。`heading` が null なら bearing は据え置き
 - ジェスチャ:
   - ドラッグ（`dragstart`、2 本指のピンチ中は除く）→ `follow = false`。「現在地」ボタンで `follow = true`、zoom はユーザーが変えた値を維持

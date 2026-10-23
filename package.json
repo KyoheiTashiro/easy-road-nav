@@ -23,6 +23,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@rolldown/plugin-babel": "0.2.4",
     "@stylexjs/babel-plugin": "0.19.1",
     "@stylexjs/postcss-plugin": "0.19.1",
     "@types/node": "26.6.4",

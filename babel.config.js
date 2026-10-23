@@ -1,4 +1,4 @@
-// StyleX と React Compiler のコンパイル設定。@vitejs/plugin-react（configFile: true）と @stylexjs/postcss-plugin の両方が読む
+// StyleX と React Compiler のコンパイル設定。vite.config.ts と @stylexjs/postcss-plugin の両方が読む
 import styleX from "@stylexjs/babel-plugin";
 import reactCompiler from "babel-plugin-react-compiler";
 

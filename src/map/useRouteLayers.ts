@@ -1,4 +1,4 @@
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import { MODE, selectRoutes, useTrip } from "@/trip/trip.ts";
 import {

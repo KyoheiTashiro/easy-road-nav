@@ -1,5 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MAX_VIAS, type LatLng } from "@/shared/point.ts";

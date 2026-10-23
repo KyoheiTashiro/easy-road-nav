@@ -4,7 +4,7 @@ import { entersNarrow, narrowSegments } from "@/route/narrow.ts";
 import { fromGraphHopperPath, type GraphHopperPath, type RouteModel } from "@/route/route.ts";
 
 /** 頂点間隔を指定して直線経路を作る。kinds[i] は線分 i の種別 */
-function make(gaps: number[], kinds: ("wide" | "narrow" | "forbidden")[]): RouteModel {
+function make(gaps: number[], kinds: ("wide" | "narrow")[]): RouteModel {
   const cumulativeDistances = [0];
   for (const gap of gaps) cumulativeDistances.push(cumulativeDistances.at(-1)! + gap);
   const points = cumulativeDistances.map(
@@ -68,12 +68,6 @@ describe("narrowSegments", () => {
   it("30 m 未満は捨て、30 m ちょうどは残す", () => {
     expect(narrowSegments(make([100, 29, 100], ["wide", "narrow", "wide"]))).toEqual([]);
     expect(narrowSegments(make([100, 30, 100], ["wide", "narrow", "wide"]))).toHaveLength(1);
-  });
-
-  it("forbidden は細い道として扱う", () => {
-    const route = make([100, 40, 40, 100], ["wide", "forbidden", "narrow", "wide"]);
-
-    expect(narrowSegments(route).map((segment) => [segment.from, segment.to])).toEqual([[1, 3]]);
   });
 
   it("atStart / atEnd", () => {

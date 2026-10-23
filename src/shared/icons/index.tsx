@@ -26,48 +26,24 @@ const styles = stylex.create({
 
 export function Icon({
   url,
-  size,
+  size = 24,
   transform = "",
 }: {
   url: string;
-  size: number;
+  size?: number;
   transform?: string;
 }) {
   return <span {...stylex.props(styles.icon(url, size, transform || null))} aria-hidden />;
 }
 
-export function FromIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={circle} size={size} />;
-}
+type IconProps = { size?: number };
 
-export function ToIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={pin} size={size} />;
-}
-
-export function HomeIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={home} size={size} />;
-}
-
-export function SettingsIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={gear} size={size} />;
-}
-
-export function LocateIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={locate} size={size} />;
-}
-
-export function NarrowIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={narrow} size={size} />;
-}
-
-export function TurnsIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={turns} size={size} />;
-}
-
-export function VolumeIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={volume} size={size} />;
-}
-
-export function VolumeOffIcon({ size = 24 }: { size?: number }) {
-  return <Icon url={volumeOff} size={size} />;
-}
+export const FromIcon = (props: IconProps) => <Icon url={circle} {...props} />;
+export const ToIcon = (props: IconProps) => <Icon url={pin} {...props} />;
+export const HomeIcon = (props: IconProps) => <Icon url={home} {...props} />;
+export const SettingsIcon = (props: IconProps) => <Icon url={gear} {...props} />;
+export const LocateIcon = (props: IconProps) => <Icon url={locate} {...props} />;
+export const NarrowIcon = (props: IconProps) => <Icon url={narrow} {...props} />;
+export const TurnsIcon = (props: IconProps) => <Icon url={turns} {...props} />;
+export const VolumeIcon = (props: IconProps) => <Icon url={volume} {...props} />;
+export const VolumeOffIcon = (props: IconProps) => <Icon url={volumeOff} {...props} />;

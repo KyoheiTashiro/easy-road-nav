@@ -3,10 +3,8 @@ import type { LatLng } from "@/shared/point.ts";
 
 const FORK_ANGLE = 45; // 調整値「分岐判定角」deg（docs/CONTEXT.md）
 
-export const ROAD_KIND = { WIDE: "wide", NARROW: "narrow", FORBIDDEN: "forbidden" } as const;
+export const ROAD_KIND = { WIDE: "wide", NARROW: "narrow" } as const;
 export type RoadKind = (typeof ROAD_KIND)[keyof typeof ROAD_KIND];
-export const TOLL = { NO: "no", ALL: "all", HGV: "hgv" } as const;
-export type TollValue = (typeof TOLL)[keyof typeof TOLL];
 
 /** GraphHopper `instructions[].sign`。正が右、負が左 */
 export const SIGN = {
@@ -31,7 +29,7 @@ export type RouteModel = {
   points: [number, number][]; // [lng, lat]
   cumulativeDistances: number[]; // cumulativeDistances[i] = points[0]..points[i] の累積距離 m
   roadClass: { from: number; to: number; kind: RoadKind }[];
-  toll: { from: number; to: number; value: TollValue }[];
+  toll: { from: number; to: number; value: string }[]; // "all" = 有料
   instructions: {
     text: string;
     sign: number;
@@ -79,9 +77,7 @@ export type GraphHopperIntersection = {
 const WIDE = new Set(["motorway", "trunk", "primary", "secondary", "tertiary"]);
 
 function roadKind(roadClass: string): RoadKind {
-  if (WIDE.has(roadClass)) return ROAD_KIND.WIDE;
-  if (roadClass === "track") return ROAD_KIND.FORBIDDEN;
-  return ROAD_KIND.NARROW;
+  return WIDE.has(roadClass) ? ROAD_KIND.WIDE : ROAD_KIND.NARROW;
 }
 
 function toLatLng([lng, lat]: [number, number]): LatLng {
@@ -120,7 +116,7 @@ export function fromGraphHopperPath(path: GraphHopperPath): RouteModel {
       to,
       kind: roadKind(roadClass),
     })),
-    toll: path.details.toll.map(([from, to, value]) => ({ from, to, value: value as TollValue })),
+    toll: path.details.toll.map(([from, to, value]) => ({ from, to, value })),
     instructions,
     viaIndices: instructions
       .filter((instruction) => instruction.sign === SIGN.VIA_REACHED)
@@ -247,7 +243,7 @@ export function turnCount(route: RouteModel): number {
 
 export function tollDistance(route: RouteModel): number {
   return route.toll
-    .filter((range) => range.value === TOLL.ALL)
+    .filter((range) => range.value === "all")
     .reduce(
       (sum, range) =>
         sum + route.cumulativeDistances[range.to]! - route.cumulativeDistances[range.from]!,

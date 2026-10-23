@@ -26,7 +26,7 @@ const styles = stylex.create({
 });
 
 export function Toast() {
-  const message = useToast();
+  const message = useToast((state) => state.message);
   const navigationMode = useTrip((state) => state.mode === MODE.NAVIGATION);
 
   useEffect(() => {

@@ -45,9 +45,7 @@ const useStore = create<NavigationStore>(() => ({
   starting: false,
 }));
 
-export function useNavigation<T>(selector: (store: NavigationStore) => T): T {
-  return useStore(selector);
-}
+export const useNavigation = useStore;
 
 export const getNavigation = useStore.getState;
 const set = useStore.setState;

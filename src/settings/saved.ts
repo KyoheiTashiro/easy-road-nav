@@ -67,9 +67,7 @@ const useStore = create<SavedState>(() => ({
   iconOnly: read(ICON_ONLY_KEY) === true,
 }));
 
-export function useSaved<T>(selector: (state: SavedState) => T): T {
-  return useStore(selector);
-}
+export const useSaved = useStore;
 
 export const getSaved = useStore.getState;
 

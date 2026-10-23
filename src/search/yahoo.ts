@@ -1,7 +1,7 @@
 import type { SavedPoint } from "@/shared/point.ts";
+import { withTimeout } from "@/shared/timeout.ts";
 
 const SEARCH = "https://map.yahooapis.jp/search/local/V1/localSearch";
-const TIMEOUT = 10_000;
 const RESULTS = 100; // API の上限
 
 let sequence = 0;
@@ -18,12 +18,13 @@ type Response = {
 
 /**
  * Yahoo! ローカルサーチで施設名検索。API が CORS ヘッダを返さないため JSONP。
- * 最大 100 件（API 上限）。失敗（script error・10 秒・Status != 200・appid 未設定）は reject。abort は AbortError
+ * 最大 100 件（API 上限）。失敗（script error・Status != 200・appid 未設定）は reject。abort は AbortError、10 秒は TimeoutError
  */
 export async function searchPoi(query: string, signal: AbortSignal): Promise<SavedPoint[]> {
   const appid = import.meta.env.VITE_YAHOO_APPID as string | undefined;
   if (!appid) throw new Error("VITE_YAHOO_APPID is not set");
-  signal.throwIfAborted();
+  const timed = withTimeout(signal);
+  timed.throwIfAborted();
 
   const callbackName = `__yj${++sequence}`;
   const windowRecord = window as unknown as Record<string, unknown>;
@@ -32,8 +33,7 @@ export async function searchPoi(query: string, signal: AbortSignal): Promise<Sav
   return new Promise<SavedPoint[]>((resolve, reject) => {
     // 決着（成功・失敗・中断）したら必ず後始末。どの経路も 1 回しか通らない
     const cleanup = () => {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", onAbort);
+      timed.removeEventListener("abort", onAbort);
       script.remove();
       delete windowRecord[callbackName];
     };
@@ -43,10 +43,9 @@ export async function searchPoi(query: string, signal: AbortSignal): Promise<Sav
       reject(error);
     };
 
-    const onAbort = () => fail(new DOMException("aborted", "AbortError"));
-    const timer = setTimeout(() => fail(new Error("timeout")), TIMEOUT);
+    const onAbort = () => fail(timed.reason as Error);
 
-    signal.addEventListener("abort", onAbort);
+    timed.addEventListener("abort", onAbort);
     script.onerror = () => fail(new Error("script error"));
 
     windowRecord[callbackName] = (response: Response) => {

@@ -55,13 +55,13 @@ describe("fromGraphHopperPath", () => {
     expect(narrow.roadClass[2]).toEqual({ from: 4, to: 23, kind: "wide" }); // tertiary
   });
 
-  it("track は forbidden", () => {
+  it("track は narrow", () => {
     const trackPath = {
       ...narrowPath,
       details: { road_class: [[0, 83, "track"]] as [number, number, string][], toll: [] },
     };
 
-    expect(fromGraphHopperPath(trackPath).roadClass[0]?.kind).toBe("forbidden");
+    expect(fromGraphHopperPath(trackPath).roadClass[0]?.kind).toBe("narrow");
   });
 
   it("roadClass が経路全体を隙間なく覆う", () => {

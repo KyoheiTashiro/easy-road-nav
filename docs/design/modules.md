@@ -28,7 +28,7 @@ export const MAX_VIAS = 5; // 経由地の上限（CONTEXT.md）
 ```ts
 export function pushHistory(list: SavedPoint[], point: SavedPoint): SavedPoint[]; // 純関数。同座標（lat・lng 一致）を除いて先頭に追加、HISTORY_MAX 件に切る
 type SavedState = { home: SavedPoint | null; history: SavedPoint[]; iconOnly: boolean };
-export function useSaved<T>(selector: (state: SavedState) => T): T;
+export const useSaved = useStore; // zustand の bound hook（selector で購読）
 export const getSaved: () => SavedState;
 export const savedActions: {
   homeSaved(point: SavedPoint): void; // 保存 → store
@@ -46,7 +46,6 @@ export const savedActions: {
 ```ts
 export const PROFILE = { CAR: "car", NOTOLL: "car_notoll" } as const;
 export type Profile = (typeof PROFILE)[keyof typeof PROFILE];
-export class RouteError extends Error {} // 400 の message（"Cannot find point" 等）。ネットワーク不達は fetch の TypeError のまま
 
 export function fetchRoute(
   points: LatLng[], // 出発地 → 経由地 → 到着地
@@ -79,8 +78,8 @@ JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受�
 
 - appid は `import.meta.env.VITE_YAHOO_APPID`。未設定なら即 throw（トースト「施設検索に失敗しました」になる）
 - 応答 `Feature[]` の `Name` を label、`Geometry.Coordinates`（`"lon,lat"` 文字列）を split して lng / lat。`Feature` が無ければ空配列
-- 失敗は throw: script の `error` イベント（非 2xx・ネットワーク断）、10 秒タイムアウト、`ResultInfo.Status !== 200`
-- `signal` の abort は `AbortError`（`DOMException`）で reject。呼び出し側は fetch と同じ扱いで握りつぶせる
+- 失敗は throw: script の `error` イベント（非 2xx・ネットワーク断）、`ResultInfo.Status !== 200`
+- `withTimeout(signal)` で打ち切る。`signal` の abort は `AbortError`、10 秒は `TimeoutError`（どちらも `DOMException`）で reject。呼び出し側は fetch と同じ扱いで abort だけ握りつぶせる
 - 終了理由を問わず script 要素と `window[callback]` を削除する
 
 ```
@@ -142,7 +141,7 @@ export type GraphHopperPath = { ... };                 // GraphHopper paths[] �
 export type GraphHopperIntersection = { bearings: number[]; entries: boolean[]; in?: number; out: number };
 
 export function fromGraphHopperPath(path: GraphHopperPath): RouteModel;
-  // cumulativeDistances: haversine 累積。roadClass: 文字列 → kind（CONTEXT.md の表。BUSWAY・OTHER は narrow、TRACK は forbidden）
+  // cumulativeDistances: haversine 累積。roadClass: 文字列 → kind（CONTEXT.md の表。BUSWAY・OTHER・TRACK は narrow）
   // viaIndices: SIGN.VIA_REACHED の from
   // details.intersection の各ノードに forkSign を適用し、寄り（±7）なら指示を書き換え/分割（route-model.md「分岐合成」）
 export function forkSign(intersection: GraphHopperIntersection): number;  // KEEP_RIGHT / KEEP_LEFT / CONTINUE。閾値 FORK_ANGLE
@@ -177,7 +176,7 @@ export function entersNarrow(instruction: Instruction, segments: NarrowSegment[]
 生成（適用順は CONTEXT.md「細い道区間」）:
 
 ```
-raw = route.roadClass.filter(range => range.kind !== "wide")        // narrow + forbidden
+raw = route.roadClass.filter(range => range.kind !== "wide")
 // 1. 隣接連結: 前の to == 次の from なら 1 つに
 // 2. 区間結合: 前の to と次の from の間の広い道 cumulativeDistances[next.from] − cumulativeDistances[previous.to] < mergeBelow なら結合
 merged = []
@@ -262,7 +261,7 @@ notoll = params.get("notoll") !== "0"  // 既定は避ける
 ## `src/shared/toast.ts`
 
 ```ts
-export function useToast(): string | null;
+export const useToast = useStore; // useToast(state => state.message)
 export function showToast(message: string): void; // 置換（1 つだけ）
 export function clearToast(): void; // Toast.tsx の 4 秒タイマーが呼ぶ
 ```
@@ -279,7 +278,7 @@ export const MODE = {
   HOME_SETUP: "home",
 } as const;
 export const URL_HAD_POINTS: boolean; // 起動時の URL に from か to があった。Map の初回 fix easeTo を抑止
-export function useTrip<T>(selector: (state: TripState) => T): T;
+export const useTrip = useStore; // zustand の bound hook（selector で購読）
 export const getTrip: () => TripState; // async 関数・Effect 内の最新値読み
 
 // セレクタ（参照安定。空配列は定数）
@@ -344,7 +343,7 @@ export type NavigationStore = {
   muted: boolean;
   starting: boolean;
 };
-export function useNavigation<T>(selector: (store: NavigationStore) => T): T;
+export const useNavigation = useStore; // zustand の bound hook（selector で購読）
 export const getNavigation: () => NavigationStore;
 export const navigationActions: {
   start(): Promise<void>; // navigation.md「開始手順」。fix か to が無い・開始中なら何もしない
@@ -542,14 +541,15 @@ props なし。navigation store の `navigation` `muted`、trip store の `selec
 ## `src/shared/icons/index.tsx`
 
 ```ts
-export function FromIcon(props: { size?: number }): JSX.Element; // 出発地 = 丸
-export function ToIcon(props: { size?: number }): JSX.Element; // 到着地 = ピン
-export function HomeIcon(props: { size?: number }): JSX.Element; // 自宅マーカー・設定画面の自宅行
-export function NarrowIcon(props: { size?: number }): JSX.Element; // 細い道 = 狭い道路線画。経路サマリ・HUD 細い道バナー
-export function TurnsIcon(props: { size?: number }): JSX.Element; // 右左折 = 左右に分かれる T 字矢印。経路サマリ
-export function VolumeIcon(props: { size?: number }): JSX.Element; // NavigationBar ミュートトグル（音声あり）
-export function VolumeOffIcon(props: { size?: number }): JSX.Element; // 同（ミュート中）
-export function Icon(props: { url: string; size: number; transform?: string }): JSX.Element; // 上の各アイコンと DirectionIcon の共通部
+// 各アイコンは (props: { size?: number }) => <Icon url={…} {...props} />
+export const FromIcon; // 出発地 = 丸
+export const ToIcon; // 到着地 = ピン
+export const HomeIcon; // 自宅マーカー・設定画面の自宅行
+export const NarrowIcon; // 細い道 = 狭い道路線画。経路サマリ・HUD 細い道バナー
+export const TurnsIcon; // 右左折 = 左右に分かれる T 字矢印。経路サマリ
+export const VolumeIcon; // NavigationBar ミュートトグル（音声あり）
+export const VolumeOffIcon; // 同（ミュート中）
+export function Icon(props: { url: string; size?: number; transform?: string }): JSX.Element; // size 既定 24 // 上の各アイコンと DirectionIcon の共通部
 ```
 
 同じディレクトリの `*.svg` を `import` し、`<span>` の `mask-image` に置いて `background-color: currentColor` で塗る。SVG 側は色を持たず、親の `color` に従う（ダークモード対応はトークン側）。

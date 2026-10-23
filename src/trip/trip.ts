@@ -85,9 +85,7 @@ const useStore = create<TripState>(() => ({
   passedVia: 0,
 }));
 
-export function useTrip<T>(selector: (state: TripState) => T): T {
-  return useStore(selector);
-}
+export const useTrip = useStore;
 
 /** async 関数・Map のイベントから最新値を読む（レンダー中には使わない） */
 export const getTrip = useStore.getState;

@@ -4,9 +4,7 @@ type ToastState = { message: string | null };
 
 const useStore = create<ToastState>(() => ({ message: null }));
 
-export function useToast(): string | null {
-  return useStore((state) => state.message);
-}
+export const useToast = useStore;
 
 export function showToast(message: string): void {
   useStore.setState({ message });

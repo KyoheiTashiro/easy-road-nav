@@ -1,4 +1,4 @@
-// ナビ純ロジック。処理順は docs/design/navigation.md、境界条件は docs/design/modules.md。調整値は docs/CONTEXT.md
+// ナビ純ロジック。処理順は docs/design/navigation.md、境界条件は docs/design/modules.md。調整値は model/tuning.ts
 import { formatSpokenDistance } from "@/model/format.ts";
 import { bearing, destination, haversine } from "@/model/geo.ts";
 import type { NarrowSegment } from "@/model/narrow.ts";
@@ -6,21 +6,23 @@ import type { Fix, LatLng } from "@/model/point.ts";
 import {
   nearest,
   segmentBearing,
+  SIGN,
   timeWithin,
   type Instruction,
   type RouteModel,
 } from "@/model/route.ts";
-
-const ACCURACY_MAX = 50; // 進捗採用精度
-const OFF_ROUTE = 50; // 経路外れ距離
-const REROUTE_COUNT = 3; // リルート連続回数
-const REROUTE_OFFSET = 30; // リルート前方オフセット
-const ARRIVE = 30; // 到着判定
-const ANNOUNCE_FAR = 300; // 案内トリガー距離（予告）
-const ANNOUNCE_NEAR = 50; // 案内トリガー距離（直前）
-const NARROW_WARN = 300; // 細い道警告距離
-const MIN_MOVE = 5; // 方位算出最小移動
-const NEXT_NEXT_MAX = 1000; // 次の次表示上限
+import {
+  ACCURACY_MAX,
+  ANNOUNCE_FAR,
+  ANNOUNCE_NEAR,
+  ARRIVE,
+  MIN_MOVE,
+  NARROW_WARN,
+  NEXT_NEXT_MAX,
+  OFF_ROUTE,
+  REROUTE_COUNT,
+  REROUTE_OFFSET,
+} from "@/model/tuning.ts";
 
 export type NavigationState = {
   s: number;
@@ -69,36 +71,36 @@ export function initNavigation(zoom: number, follow = true): NavigationState {
 /** sign → 発話の語（navigation.md テンプレ） */
 export function signWord(instruction: Instruction): string {
   switch (instruction.sign) {
-    case -8:
-    case 8:
-    case -98:
+    case SIGN.U_TURN_LEFT:
+    case SIGN.U_TURN_RIGHT:
+    case SIGN.U_TURN_UNKNOWN:
       return "U ターン";
-    case -7:
+    case SIGN.KEEP_LEFT:
       return "左寄り";
-    case 7:
+    case SIGN.KEEP_RIGHT:
       return "右寄り";
-    case -3:
-    case -2:
+    case SIGN.SHARP_LEFT:
+    case SIGN.LEFT:
       return "左方向";
-    case -1:
+    case SIGN.SLIGHT_LEFT:
       return "斜め左";
-    case 1:
+    case SIGN.SLIGHT_RIGHT:
       return "斜め右";
-    case 2:
-    case 3:
+    case SIGN.RIGHT:
+    case SIGN.SHARP_RIGHT:
       return "右方向";
-    case 6:
+    case SIGN.ROUNDABOUT:
       return `ラウンドアバウト ${instruction.exitNumber ?? 1} 番目の出口`;
-    case 5:
+    case SIGN.VIA_REACHED:
       return "経由地";
-    case 4:
+    case SIGN.FINISH:
       return "目的地";
     default:
       return "直進";
   }
 }
 
-const isGuidePoint = (instruction: Instruction) => instruction.sign !== 0; // 案内地点（sign 0 = 直進の区間境界）
+const isGuidePoint = (instruction: Instruction) => instruction.sign !== SIGN.CONTINUE; // 案内地点（CONTINUE = 直進の区間境界）
 type StepResult = { state: NavigationState; events: NavigationEvent[] };
 
 function nextInstruction(route: RouteModel, s: number): number {

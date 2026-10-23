@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import type { SavedPoint } from "@/model/point.ts";
+import { HISTORY_MAX } from "@/model/tuning.ts";
 
-/** 検索履歴件数（docs/CONTEXT.md） */
-export const HISTORY_MAX = 5;
 const HOME_KEY = "home";
 const HISTORY_KEY = "history";
 const ICON_ONLY_KEY = "iconOnly";

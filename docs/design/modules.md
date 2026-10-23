@@ -26,7 +26,6 @@ export const MAX_VIAS = 5; // 経由地の上限（CONTEXT.md）
 自宅・検索履歴・アイコンのみ表示。`localStorage`（キー `home` `history` `iconOnly`）が正で、store は起動時に読んだ写し。壊れた JSON・形式違いは `null` / `[]` / `false` として読む（例外を投げない。`localStorage` 不可の環境も同じ）。
 
 ```ts
-export const HISTORY_MAX = 5; // 検索履歴件数（CONTEXT.md）
 export function pushHistory(list: SavedPoint[], point: SavedPoint): SavedPoint[]; // 純関数。同座標（lat・lng 一致）を除いて先頭に追加、HISTORY_MAX 件に切る
 type SavedState = { home: SavedPoint | null; history: SavedPoint[]; iconOnly: boolean };
 export function useSaved<T>(selector: (state: SavedState) => T): T;
@@ -127,20 +126,43 @@ export function projectToSegment(
 // 局所平面近似（x = Δlng·cos(lat_a)、y = Δlat、m 換算）。t は線分上パラメータを [0, 1] にクランプ、distance は point から射影点までの m
 ```
 
+## `src/model/tuning.ts`
+
+CONTEXT.md「調整値」のうちフロントで使う値。表と同じ順に並べる。細い道・有料ペナルティと速度係数は `graphhopper/config.yml`。
+
+```ts
+export const NARROW_IGNORE_BELOW = 30; // 短区間無視 m
+export const NARROW_MERGE_BELOW = 50;  // 区間結合 m
+export const OFF_ROUTE = 50;           // 経路外れ距離 m
+export const REROUTE_COUNT = 3;        // リルート連続回数
+export const REROUTE_OFFSET = 30;      // リルート前方オフセット m
+export const ACCURACY_MAX = 50;        // 進捗採用精度 m
+export const ARRIVE = 30;              // 到着判定 m
+export const ANNOUNCE_FAR = 300;       // 案内トリガー距離（予告）m
+export const ANNOUNCE_NEAR = 50;       // 案内トリガー距離（直前）m
+export const NARROW_WARN = 300;        // 細い道警告距離 m
+export const MIN_MOVE = 5;             // 方位算出最小移動 m
+export const NEXT_NEXT_MAX = 1000;     // 次の次表示上限 m
+export const HISTORY_MAX = 5;          // 検索履歴件数
+export const FORK_ANGLE = 45;          // 分岐判定角 deg
+```
+
 ## `src/model/route.ts`
 
 ```ts
+export const SIGN = { U_TURN_UNKNOWN: -98, U_TURN_LEFT: -8, KEEP_LEFT: -7, SHARP_LEFT: -3, LEFT: -2, SLIGHT_LEFT: -1, CONTINUE: 0,
+  SLIGHT_RIGHT: 1, RIGHT: 2, SHARP_RIGHT: 3, FINISH: 4, VIA_REACHED: 5, ROUNDABOUT: 6, KEEP_RIGHT: 7, U_TURN_RIGHT: 8 } as const;
+  // GraphHopper instructions[].sign。sign の比較はすべてこの名前で書く
 export type RouteModel = { ... };            // route-model.md の定義そのまま
 export type Instruction = RouteModel["instructions"][number];
 export type GraphHopperPath = { ... };                 // GraphHopper paths[] 要素の必要フィールドだけ型定義
 export type GraphHopperIntersection = { bearings: number[]; entries: boolean[]; in?: number; out: number };
-export const FORK_ANGLE = 45;                 // 分岐判定角（CONTEXT.md）
 
 export function fromGraphHopperPath(path: GraphHopperPath): RouteModel;
   // cumulativeDistances: haversine 累積。roadClass: 文字列 → kind（CONTEXT.md の表。BUSWAY・OTHER は narrow、TRACK は forbidden）
-  // viaIndices: sign == 5 の from
-  // details.intersection の各ノードに forkSign を適用し、±7 なら指示を書き換え/分割（route-model.md「分岐合成」）
-export function forkSign(intersection: GraphHopperIntersection): number;  // 7（右寄り）/ -7（左寄り）/ 0
+  // viaIndices: SIGN.VIA_REACHED の from
+  // details.intersection の各ノードに forkSign を適用し、寄り（±7）なら指示を書き換え/分割（route-model.md「分岐合成」）
+export function forkSign(intersection: GraphHopperIntersection): number;  // KEEP_RIGHT / KEEP_LEFT / CONTINUE。閾値 FORK_ANGLE
 export function nearest(route: RouteModel, point: LatLng): { s: number; distanceToRoute: number; segmentIndex: number };
   // 全線分に projectToSegment、distance 最小を採用。s = cumulativeDistances[i] + t × (cumulativeDistances[i+1] − cumulativeDistances[i])
 export function segmentBearing(route: RouteModel, i: number): number;  // bearing(P[i], P[i+1])
@@ -162,8 +184,8 @@ export type NarrowSegment = {
 };
 export function narrowSegments(
   route: RouteModel,
-  ignoreBelow = 30,
-  mergeBelow = 50,
+  ignoreBelow = NARROW_IGNORE_BELOW,
+  mergeBelow = NARROW_MERGE_BELOW,
 ): NarrowSegment[];
 export function entersNarrow(instruction: Instruction, segments: NarrowSegment[]): boolean;
 // segments.some(segment => instruction.from <= segment.from && segment.from < instruction.to)。StepList の「⚠ 細い道」

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HISTORY_MAX, pushHistory } from "@/store/saved.ts";
+import { HISTORY_MAX } from "@/model/tuning.ts";
+import { pushHistory } from "@/store/saved.ts";
 
 const point = (index: number, label = `p${index}`) => ({ lat: index, lng: index, label });
 

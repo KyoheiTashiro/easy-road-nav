@@ -1,10 +1,29 @@
 import { bearing, haversine, projectToSegment } from "@/model/geo.ts";
 import type { LatLng } from "@/model/point.ts";
+import { FORK_ANGLE } from "@/model/tuning.ts";
 
 export const ROAD_KIND = { WIDE: "wide", NARROW: "narrow", FORBIDDEN: "forbidden" } as const;
 export type RoadKind = (typeof ROAD_KIND)[keyof typeof ROAD_KIND];
 export const TOLL = { NO: "no", ALL: "all", HGV: "hgv" } as const;
 export type TollValue = (typeof TOLL)[keyof typeof TOLL];
+/** GraphHopper `instructions[].sign`。正が右、負が左 */
+export const SIGN = {
+  U_TURN_UNKNOWN: -98,
+  U_TURN_LEFT: -8,
+  KEEP_LEFT: -7,
+  SHARP_LEFT: -3,
+  LEFT: -2,
+  SLIGHT_LEFT: -1,
+  CONTINUE: 0,
+  SLIGHT_RIGHT: 1,
+  RIGHT: 2,
+  SHARP_RIGHT: 3,
+  FINISH: 4,
+  VIA_REACHED: 5,
+  ROUNDABOUT: 6,
+  KEEP_RIGHT: 7,
+  U_TURN_RIGHT: 8,
+} as const;
 
 export type RouteModel = {
   points: [number, number][]; // [lng, lat]
@@ -18,9 +37,9 @@ export type RouteModel = {
     from: number;
     to: number;
     time: number; // ms
-    exitNumber?: number; // sign 6
+    exitNumber?: number; // SIGN.ROUNDABOUT のみ
   }[];
-  viaIndices: number[]; // sign == 5 の from
+  viaIndices: number[]; // SIGN.VIA_REACHED の from
   distance: number; // m
   time: number; // ms
 };
@@ -52,9 +71,6 @@ export type GraphHopperIntersection = {
   in?: number; // 先頭ノードには無い
   out: number;
 };
-
-/** 分岐判定角（deg、CONTEXT.md）。進む道と別の進入可能な道の方位差がこれ以下なら分岐として「右寄り/左寄り」を合成 */
-export const FORK_ANGLE = 45;
 
 const WIDE = new Set(["motorway", "trunk", "primary", "secondary", "tertiary"]);
 
@@ -99,7 +115,7 @@ export function fromGraphHopperPath(path: GraphHopperPath): RouteModel {
     toll: path.details.toll.map(([from, to, value]) => ({ from, to, value: value as TollValue })),
     instructions,
     viaIndices: instructions
-      .filter((instruction) => instruction.sign === 5)
+      .filter((instruction) => instruction.sign === SIGN.VIA_REACHED)
       .map((instruction) => instruction.from),
     distance: path.distance,
     time: path.time,
@@ -111,30 +127,30 @@ function angleDifference(a: number, b: number): number {
   return ((b - a + 540) % 360) - 180;
 }
 
-/** 分岐なら 7（右寄り）/ -7（左寄り）、それ以外 0。GraphHopper が keep を出さない同格の分岐（高架下 vs 側道等）を補う */
+/** 分岐なら KEEP_RIGHT / KEEP_LEFT、それ以外 CONTINUE。GraphHopper が keep を出さない同格の分岐（高架下 vs 側道等）を補う */
 export function forkSign(intersection: GraphHopperIntersection): number {
   const out = intersection.bearings[intersection.out]!;
-  let sign = 0;
+  let sign: number = SIGN.CONTINUE;
   let best = FORK_ANGLE; // 採用済みの最小方位差。初期値 = 分岐とみなす上限
   intersection.bearings.forEach((otherBearing, i) => {
     if (i === intersection.out || i === intersection.in || !intersection.entries[i]) return;
     const difference = angleDifference(out, otherBearing);
     if (Math.abs(difference) <= best) {
       best = Math.abs(difference);
-      sign = difference > 0 ? -7 : 7; // 他方が右にある → 自分は左寄り
+      sign = difference > 0 ? SIGN.KEEP_LEFT : SIGN.KEEP_RIGHT; // 他方が右にある → 自分は左寄り
     }
   });
   return sign;
 }
 
-/** 頂点 vertexIndex に sign ±7 の指示を入れる。既に案内地点（sign != 0）なら何もしない。sign 0 の指示が vertexIndex から始まるなら書き換え、途中なら分割 */
+/** 頂点 vertexIndex に寄りの指示を入れる。既に案内地点（sign != CONTINUE）なら何もしない。CONTINUE の指示が vertexIndex から始まるなら書き換え、途中なら分割 */
 function addFork(
   instructions: Instruction[],
   cumulativeDistances: number[],
   vertexIndex: number,
   sign: number,
 ): void {
-  if (sign === 0 || vertexIndex === 0) return; // 出発地は案内しない
+  if (sign === SIGN.CONTINUE || vertexIndex === 0) return; // 出発地は案内しない
   const text = sign > 0 ? "右寄り" : "左寄り";
   const index = instructions.findIndex(
     (instruction) => instruction.from <= vertexIndex && vertexIndex < instruction.to,
@@ -142,7 +158,7 @@ function addFork(
   const instruction = instructions[index];
   if (!instruction) return;
   if (instruction.from === vertexIndex) {
-    if (instruction.sign === 0) Object.assign(instruction, { sign, text });
+    if (instruction.sign === SIGN.CONTINUE) Object.assign(instruction, { sign, text });
     return;
   }
   const time = timeWithin(cumulativeDistances, instruction, cumulativeDistances[vertexIndex]!);
@@ -192,11 +208,22 @@ export function segmentBearing(route: RouteModel, i: number): number {
   return bearing(vertex(route, i), vertex(route, i + 1));
 }
 
-/** 右左折の回数。直進（0）・経由地（5）・目的地（4）・分岐の寄り（±7）は数えない */
+const TURNS: Set<number> = new Set([
+  SIGN.U_TURN_UNKNOWN,
+  SIGN.U_TURN_LEFT,
+  SIGN.SHARP_LEFT,
+  SIGN.LEFT,
+  SIGN.SLIGHT_LEFT,
+  SIGN.SLIGHT_RIGHT,
+  SIGN.RIGHT,
+  SIGN.SHARP_RIGHT,
+  SIGN.ROUNDABOUT,
+  SIGN.U_TURN_RIGHT,
+]);
+
+/** 右左折の回数。直進・経由地・目的地・分岐の寄りは数えない */
 export function turnCount(route: RouteModel): number {
-  return route.instructions.filter((instruction) =>
-    [1, 2, 3, 6, 8, 98].includes(Math.abs(instruction.sign)),
-  ).length;
+  return route.instructions.filter((instruction) => TURNS.has(instruction.sign)).length;
 }
 
 export function tollDistance(route: RouteModel): number {

@@ -1,4 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
+import { SIGN } from "@/model/route.ts";
 import arrow from "./arrow.svg";
 import circle from "./circle.svg";
 import gear from "./gear.svg";
@@ -72,20 +73,18 @@ export function VolumeOffIcon({ size = 24 }: { size?: number }) {
 type DirectionIconSource = { url: string; deg?: number };
 const STRAIGHT: DirectionIconSource = { url: arrow };
 
-// |sign|（GraphHopper `instructions[].sign`、曲がる方向コード）→ アイコン
-// 0 直進、1 やや、2 通常、3 鋭角（矢印の回転角）、4 / 5 到着（経由地含む）、6 ラウンドアバウト、7 寄り、8 / 98 U ターン
-// 正が右、負が左。左向きは右向きを scaleX(-1) で反転
+// |sign| → アイコン。右向きで持ち、左向きは scaleX(-1) で反転
 const ICON: Record<number, DirectionIconSource> = {
-  0: STRAIGHT,
-  1: { url: arrow, deg: 45 },
-  2: { url: arrow, deg: 90 },
-  3: { url: arrow, deg: 135 },
-  4: { url: pinDot },
-  5: { url: pinDot },
-  6: { url: roundabout },
-  7: { url: keep },
-  8: { url: uturn },
-  98: { url: uturn },
+  [SIGN.CONTINUE]: STRAIGHT,
+  [SIGN.SLIGHT_RIGHT]: { url: arrow, deg: 45 },
+  [SIGN.RIGHT]: { url: arrow, deg: 90 },
+  [SIGN.SHARP_RIGHT]: { url: arrow, deg: 135 },
+  [SIGN.FINISH]: { url: pinDot },
+  [SIGN.VIA_REACHED]: { url: pinDot },
+  [SIGN.ROUNDABOUT]: { url: roundabout },
+  [SIGN.KEEP_RIGHT]: { url: keep },
+  [SIGN.U_TURN_RIGHT]: { url: uturn },
+  [-SIGN.U_TURN_UNKNOWN]: { url: uturn },
 };
 
 export function DirectionIcon({ sign, size = 24 }: { sign: number; size?: number }) {

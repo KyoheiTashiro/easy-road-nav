@@ -1,4 +1,5 @@
 import { ROAD_KIND, type Instruction, type RouteModel } from "@/model/route.ts";
+import { NARROW_IGNORE_BELOW, NARROW_MERGE_BELOW } from "@/model/tuning.ts";
 
 export type NarrowSegment = {
   from: number;
@@ -11,8 +12,8 @@ export type NarrowSegment = {
 /** 結合（間の広い道 < mergeBelow）→ 短区間無視（length < ignoreBelow）の順 */
 export function narrowSegments(
   route: RouteModel,
-  ignoreBelow = 30,
-  mergeBelow = 50,
+  ignoreBelow = NARROW_IGNORE_BELOW,
+  mergeBelow = NARROW_MERGE_BELOW,
 ): NarrowSegment[] {
   const { cumulativeDistances } = route;
   const vertexCount = route.points.length;

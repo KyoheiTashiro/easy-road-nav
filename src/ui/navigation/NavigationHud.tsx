@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { formatDistance } from "@/model/format.ts";
 import { signWord } from "@/model/progress.ts";
+import { SIGN } from "@/model/route.ts";
 import { useNavigation } from "@/store/navigation.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
 import { DirectionIcon, NarrowIcon } from "@/ui/icons/index.tsx";
@@ -77,7 +78,7 @@ export function NavigationHud() {
     <div {...stylex.props(styles.hud)}>
       <div {...stylex.props(styles.main)}>
         <span {...stylex.props(styles.icon)}>
-          <DirectionIcon sign={instruction?.sign ?? 4} size={56} />
+          <DirectionIcon sign={instruction?.sign ?? SIGN.FINISH} size={56} />
         </span>
         <div {...stylex.props(styles.column)}>
           <span {...stylex.props(styles.distance)}>{formatDistance(remaining)}</span>

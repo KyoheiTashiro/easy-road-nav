@@ -60,6 +60,7 @@ src/
   model/
     point.ts                # 地点の共通型（LatLng / Fix / Point / PointRole / SavedPoint）、MAX_VIAS
     geo.ts                  # haversine・方位・線分射影
+    tuning.ts               # 調整値（CONTEXT.md の表と同じ順）
     route.ts                # RouteModel、GraphHopper 応答 → RouteModel、累積距離、最近傍点
     narrow.ts               # 細い道区間の生成
     progress.ts             # step(state, fix) → {state, events}（design/navigation.md）

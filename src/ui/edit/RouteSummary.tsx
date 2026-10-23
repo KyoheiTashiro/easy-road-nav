@@ -77,6 +77,7 @@ function Statistics({ route, narrow }: { route: RouteModel; narrow: NarrowSegmen
   const narrowM = narrow.reduce((sum, segment) => sum + segment.length, 0);
   const narrowText = `細い道 ${formatKm(narrowM)}`;
   const turnsText = `右左折 ${turnCount(route)} 回`;
+
   return (
     <div {...stylex.props(styles.details)}>
       {narrowM > 0 ? (
@@ -135,6 +136,7 @@ export function RouteSummary({
         </div>
       );
     }
+
     return (
       <div {...stylex.props(styles.compact)}>
         <Main route={route} />
@@ -142,7 +144,9 @@ export function RouteSummary({
       </div>
     );
   }
+
   if (routes.length < 2) return null; // 1 本ならピーク行と重複
+
   return (
     <div {...stylex.props(styles.cards)}>
       {routes.map((route, i) => (

@@ -89,6 +89,7 @@ const ICON: Record<number, DirectionIconSource> = {
 
 export function DirectionIcon({ sign, size = 24 }: { sign: number; size?: number }) {
   const { url, deg = 0 } = ICON[Math.abs(sign)] ?? STRAIGHT;
+
   const parts = [];
   if (sign < 0) parts.push("scaleX(-1)");
   if (deg) parts.push(`rotate(${deg}deg)`);

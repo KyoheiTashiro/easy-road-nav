@@ -49,6 +49,7 @@ const REGIONS = [
 export function Settings() {
   const home = useSaved((state) => state.home);
   const iconOnly = useSaved((state) => state.iconOnly);
+
   return (
     <div {...stylex.props(styles.panel)}>
       <div {...stylex.props(styles.header)}>

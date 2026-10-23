@@ -2,6 +2,7 @@ export function formatDuration(ms: number): string {
   const totalMinutes = Math.max(1, Math.round(ms / 60_000));
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
+
   if (hours === 0) return `${minutes} 分`;
   return minutes === 0 ? `${hours} 時間` : `${hours} 時間 ${minutes} 分`;
 }

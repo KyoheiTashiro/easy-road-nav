@@ -15,16 +15,20 @@ export function useUpdateCheck(blocked: boolean): void {
       .querySelector<HTMLScriptElement>('script[type="module"]')
       ?.getAttribute("src");
     if (!scriptSource) return;
+
     const check = async () => {
       if (document.visibilityState !== "visible") return;
+
       try {
         const html = await (await fetch("/", { cache: "no-store" })).text();
         staleRef.current = !html.includes(scriptSource);
       } catch {
         return; // オフライン等。次回 visible で再試行
       }
+
       if (staleRef.current && !blockedRef.current) location.reload();
     };
+
     document.addEventListener("visibilitychange", check);
     return () => document.removeEventListener("visibilitychange", check);
   }, []);

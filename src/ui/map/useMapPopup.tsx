@@ -18,17 +18,22 @@ export function useMapPopup(map: maplibregl.Map | null) {
 
   const onMapClick = useEffectEvent((point: LatLng) => {
     if (mode === MODE.NAVIGATION) return;
+
     // 展開中は地図を見たい操作とみなし、ポップアップを開かず収納だけ
     if (mode === MODE.EDIT && sheetExpanded) {
       tripActions.setSheet(false);
       return;
     }
+
     tripActions.popupOpened(point);
   });
+
   useEffect(() => {
     if (!map) return;
+
     const onClick = (event: maplibregl.MapMouseEvent) =>
       onMapClick({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+
     map.on("click", onClick);
     return () => {
       map.off("click", onClick);
@@ -42,16 +47,20 @@ export function useMapPopup(map: maplibregl.Map | null) {
       popupRef.current = null;
       return;
     }
+
     let mapPopup = popupRef.current;
     if (!mapPopup) {
       mapPopup = new maplibregl.Popup({ closeOnClick: false, offset: 14, maxWidth: "none" });
       mapPopup.setDOMContent(popupDiv);
+
       mapPopup.on("close", () => {
         // × ボタン。自前の remove() でも発火するが state は既に null なので無害
         tripActions.popupClosed();
       });
+
       popupRef.current = mapPopup;
     }
+
     mapPopup.setLngLat(target);
     if (!mapPopup.isOpen()) mapPopup.addTo(map); // addTo は開いていると remove() → close 発火 → 閉じてしまう
   }, [map, popup, popupDiv]);
@@ -74,5 +83,6 @@ export function useMapPopup(map: maplibregl.Map | null) {
       </button>
     );
   }
+
   return createPortal(popupContent, popupDiv);
 }

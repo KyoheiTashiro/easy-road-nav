@@ -10,6 +10,7 @@ import { button } from "@/ui/button.stylex.ts";
 import { FromIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors, marker, shadows } from "@/ui/tokens.stylex.ts";
+
 const DOT = 24;
 
 const styles = stylex.create({
@@ -210,10 +211,12 @@ export function BottomSheet() {
   const starting = useNavigation((state) => state.starting);
   const gpsOk = useTrip((state) => state.fix !== null && !state.gpsError);
   const loading = useTrip(selectLoading) || starting;
+
   const route = routes[selected];
   const empty = routes.length === 0;
   const peek = empty ? layout.peekEmpty : layout.peek;
   const summaryProps = { routes, narrows, selected, onSelect: tripActions.routeSelected, loading };
+
   const body = useRef<HTMLDivElement>(null);
   const drag = useSheetDrag(body, expanded, peek);
   const toggle = () => tripActions.setSheet(!expanded);

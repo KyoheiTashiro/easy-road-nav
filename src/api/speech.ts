@@ -10,13 +10,16 @@ let last: string | null = null;
 
 export function speak(text: string): void {
   if (!ok || text === last) return;
+
   last = text;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "ja-JP";
   utterance.rate = 1;
+
   utterance.onend = utterance.onerror = () => {
     if (last === text) last = null;
   };
+
   speechSynthesis.speak(utterance);
 }
 

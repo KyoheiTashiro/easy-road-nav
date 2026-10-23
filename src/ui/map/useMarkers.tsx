@@ -19,6 +19,7 @@ export function useMarkers(map: maplibregl.Map | null) {
 
   useEffect(() => {
     if (!map || mode === MODE.HOME_SETUP) return;
+
     const markerDefinitions: {
       point: Point;
       color: string;
@@ -26,6 +27,7 @@ export function useMarkers(map: maplibregl.Map | null) {
       role: PointRole;
       index: number;
     }[] = [];
+
     if (from)
       markerDefinitions.push({
         point: from,
@@ -34,6 +36,7 @@ export function useMarkers(map: maplibregl.Map | null) {
         role: ROLE.FROM,
         index: 0,
       });
+
     vias.forEach((via, i) =>
       markerDefinitions.push({
         point: via,
@@ -43,6 +46,7 @@ export function useMarkers(map: maplibregl.Map | null) {
         index: i,
       }),
     );
+
     if (to)
       markerDefinitions.push({
         point: to,
@@ -51,6 +55,7 @@ export function useMarkers(map: maplibregl.Map | null) {
         role: ROLE.TO,
         index: 0,
       });
+
     const markers = markerDefinitions.map(({ point, color, text, role, index }) =>
       new maplibregl.Marker({
         element: markerElement(color, text, () =>
@@ -60,6 +65,7 @@ export function useMarkers(map: maplibregl.Map | null) {
         .setLngLat(point)
         .addTo(map),
     );
+
     return () => {
       for (const existingMarker of markers) existingMarker.remove();
     };

@@ -14,9 +14,11 @@ import {
 export function useRouteSearch(): void {
   const pointsKey = useTrip(selectPointsKey);
   const notoll = useTrip((state) => state.notoll);
+
   useEffect(() => {
     const trip = getTrip();
     if (!trip.from || !trip.to || trip.mode === MODE.NAVIGATION) return;
+
     const abortController = new AbortController();
     fetchRoute(
       [trip.from, ...trip.vias, trip.to],
@@ -29,6 +31,7 @@ export function useRouteSearch(): void {
         if (isAbortError(error)) return;
         tripActions.routesFailed(pointsKey, notoll);
       });
+
     return () => abortController.abort();
   }, [pointsKey, notoll]);
 }

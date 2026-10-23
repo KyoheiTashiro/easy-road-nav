@@ -43,6 +43,7 @@ export default function App() {
   useRouteSearch();
   useReverseGeocode();
   useUrlSync();
+
   const mode = useTrip((state) => state.mode);
   useWakeLock(mode === MODE.NAVIGATION);
   useUpdateCheck(mode === MODE.NAVIGATION);

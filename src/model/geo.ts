@@ -48,6 +48,7 @@ export function projectToSegment(
   const by = (b.lat - a.lat) * metersPerDegree;
   const px = (point.lng - a.lng) * cosineLatitude * metersPerDegree;
   const py = (point.lat - a.lat) * metersPerDegree;
+
   const lengthSquared = bx * bx + by * by;
   const t = lengthSquared === 0 ? 0 : Math.min(1, Math.max(0, (px * bx + py * by) / lengthSquared));
   const dx = px - t * bx;

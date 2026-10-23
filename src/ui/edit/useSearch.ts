@@ -16,15 +16,18 @@ export function useSearch(query: string) {
 
   function search() {
     if (!query) return;
+
     setSearched(query);
     inflight.current?.abort();
     const abortController = new AbortController();
     inflight.current = abortController;
+
     searchAddress(query, abortController.signal)
       .then((hits) => setGsi({ query, hits }))
       .catch((error) => {
         if (!isAbortError(error)) showToast("住所検索に失敗しました");
       });
+
     searchPoi(query, abortController.signal)
       .then((hits) => setPoi({ query, hits }))
       .catch((error) => {

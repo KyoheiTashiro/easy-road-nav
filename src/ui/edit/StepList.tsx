@@ -31,6 +31,7 @@ const styles = stylex.create({
 export function StepList({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
   const iconOnly = useSaved((state) => state.iconOnly);
   const { cumulativeDistances } = route;
+
   return (
     <ol {...stylex.props(styles.list)}>
       {route.instructions.map((instruction, i) => {

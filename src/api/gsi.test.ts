@@ -9,6 +9,7 @@ test("rankHits: クエリ全文を含む候補が先頭、各群内は元の順�
     hit("東逗子郵便局"),
     hit("東逗子駅"),
   ];
+
   expect(rankHits("東逗子", hits).map((ranked) => ranked.label)).toEqual([
     "東逗子郵便局",
     "東逗子駅",

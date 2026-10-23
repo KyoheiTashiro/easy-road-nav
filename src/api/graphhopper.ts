@@ -27,12 +27,14 @@ export async function fetchRoute(
     snap_preventions: ["tunnel", "bridge", "ferry"],
     ...(alternatives ? { algorithm: "alternative_route", "alternative_route.max_paths": 3 } : {}),
   };
+
   const response = await fetch("/gh/route", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal: withTimeout(signal),
   });
+
   if (!response.ok) {
     const message = await response
       .json()
@@ -40,6 +42,7 @@ export async function fetchRoute(
       .catch(() => undefined);
     throw new RouteError(message ?? `HTTP ${response.status}`);
   }
+
   const json = (await response.json()) as { paths: GraphHopperPath[] };
   return json.paths.map(fromGraphHopperPath);
 }

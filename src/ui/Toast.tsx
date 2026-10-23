@@ -28,12 +28,15 @@ const styles = stylex.create({
 export function Toast() {
   const message = useToast();
   const navigationMode = useTrip((state) => state.mode === MODE.NAVIGATION);
+
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(clearToast, 4000);
     return () => clearTimeout(timer);
   }, [message]);
+
   if (!message) return null;
+
   return (
     <div role="status" {...stylex.props(styles.toast, navigationMode && styles.navigation)}>
       {message}

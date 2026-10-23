@@ -25,17 +25,21 @@ describe("fromGraphHopperPath", () => {
     for (const route of [narrow, via, toll]) {
       expect(route.cumulativeDistances[0]).toBe(0);
       expect(route.cumulativeDistances.length).toBe(route.points.length);
+
       for (let i = 1; i < route.cumulativeDistances.length; i++)
         expect(route.cumulativeDistances[i]).toBeGreaterThanOrEqual(
           route.cumulativeDistances[i - 1]!,
         );
+
       expect(route.cumulativeDistances.at(-1)).toBeCloseTo(route.distance, -1); // 10 m 以内
     }
   });
+
   it("roadClass.kind の対応", () => {
     const kinds = new Map(
       narrowPath.details.road_class.map(([from, , roadClassName]) => [from, roadClassName]),
     );
+
     for (const roadClass of narrow.roadClass) {
       const roadClassName = kinds.get(roadClass.from)!;
       const expected = ["motorway", "trunk", "primary", "secondary", "tertiary"].includes(
@@ -43,30 +47,38 @@ describe("fromGraphHopperPath", () => {
       )
         ? "wide"
         : "narrow";
+
       expect(roadClass.kind).toBe(expected);
     }
+
     expect(narrow.roadClass[0]).toEqual({ from: 0, to: 2, kind: "narrow" }); // service
     expect(narrow.roadClass[2]).toEqual({ from: 4, to: 23, kind: "wide" }); // tertiary
   });
+
   it("track は forbidden", () => {
     const trackPath = {
       ...narrowPath,
       details: { road_class: [[0, 83, "track"]] as [number, number, string][], toll: [] },
     };
+
     expect(fromGraphHopperPath(trackPath).roadClass[0]?.kind).toBe("forbidden");
   });
+
   it("roadClass が経路全体を隙間なく覆う", () => {
     for (const route of [narrow, via, toll]) {
       expect(route.roadClass[0]?.from).toBe(0);
       expect(route.roadClass.at(-1)?.to).toBe(route.points.length - 1);
+
       for (let i = 1; i < route.roadClass.length; i++)
         expect(route.roadClass[i]?.from).toBe(route.roadClass[i - 1]?.to);
     }
   });
+
   it("viaIndices は sign 5 の from", () => {
     expect(via.viaIndices).toEqual([88]);
     expect(narrow.viaIndices).toEqual([]);
   });
+
   it("instructions の変換", () => {
     expect(narrow.instructions[1]).toEqual({
       text: "左に曲がる",
@@ -84,25 +96,32 @@ describe("nearest", () => {
     for (const i of [0, 10, 40, narrow.points.length - 1]) {
       const [lng, lat] = narrow.points[i]!;
       const result = nearest(narrow, { lat, lng });
+
       expect(result.distanceToRoute).toBeCloseTo(0, 3);
       expect(result.s).toBeCloseTo(narrow.cumulativeDistances[i]!, 3);
     }
   });
+
   it("線分中点で s が中間、segmentIndex が一致", () => {
     const i = 20;
     const [lng0, lat0] = narrow.points[i]!;
     const [lng1, lat1] = narrow.points[i + 1]!;
+
     const result = nearest(narrow, { lat: (lat0 + lat1) / 2, lng: (lng0 + lng1) / 2 });
+
     expect(result.segmentIndex).toBe(i);
     expect(result.s).toBeCloseTo(
       (narrow.cumulativeDistances[i]! + narrow.cumulativeDistances[i + 1]!) / 2,
       1,
     );
   });
+
   it("経路外の点は距離 > 0", () => {
     const [lng, lat] = narrow.points[30]!;
     const point = { lat: lat + 0.002, lng }; // 北へ約 222 m
+
     const result = nearest(narrow, point);
+
     expect(result.distanceToRoute).toBeGreaterThan(100);
   });
 });
@@ -111,7 +130,9 @@ describe("segmentBearing", () => {
   it("頂点間の方位", () => {
     const [lng0, lat0] = narrow.points[0]!;
     const [lng1, lat1] = narrow.points[1]!;
+
     const bearing = segmentBearing(narrow, 0);
+
     expect(bearing).toBeGreaterThanOrEqual(0);
     expect(bearing).toBeLessThan(360);
     expect(lat1).toBeGreaterThan(lat0); // 北東向き
@@ -130,6 +151,7 @@ describe("turnCount", () => {
         instruction.sign !== 5 &&
         Math.abs(instruction.sign) !== 7,
     ).length;
+
     expect(expected).toBeGreaterThan(0);
     expect(via.instructions.some((instruction) => instruction.sign === 5)).toBe(true);
     expect(turnCount(via)).toBe(expected);
@@ -141,6 +163,7 @@ describe("tollDistance", () => {
     expect(tollDistance(narrow)).toBe(0);
     expect(tollDistance(via)).toBe(0);
   });
+
   it("toll all の範囲の合計", () => {
     const expected = toll.toll
       .filter((range) => range.value === "all")
@@ -149,17 +172,21 @@ describe("tollDistance", () => {
           total + toll.cumulativeDistances[range.to]! - toll.cumulativeDistances[range.from]!,
         0,
       );
+
     expect(toll.toll.some((range) => range.value === "all")).toBe(true);
     expect(tollDistance(toll)).toBeCloseTo(expected, 6);
     expect(tollDistance(toll)).toBeGreaterThan(1000);
+
     // 範囲内の頂点間 haversine の和と一致
     const first = toll.toll.find((range) => range.value === "all")!;
     let sum = 0;
+
     for (let i = first.from; i < first.to; i++) {
       const [lng0, lat0] = toll.points[i]!;
       const [lng1, lat1] = toll.points[i + 1]!;
       sum += haversine({ lat: lat0, lng: lng0 }, { lat: lat1, lng: lng1 });
     }
+
     expect(toll.cumulativeDistances[first.to]! - toll.cumulativeDistances[first.from]!).toBeCloseTo(
       sum,
       6,
@@ -177,6 +204,7 @@ describe("forkSign", () => {
       7,
     );
   });
+
   it("直角の脇道・進入不可・in は無視", () => {
     expect(
       forkSign({ bearings: [0, 90, 180, 270], entries: [true, true, false, true], in: 2, out: 0 }),
@@ -186,6 +214,7 @@ describe("forkSign", () => {
     );
     expect(forkSign({ bearings: [0, 180], entries: [true, false], in: 1, out: 0 })).toBe(0);
   });
+
   it("北をまたぐ方位差", () => {
     expect(
       forkSign({ bearings: [10, 170, 350], entries: [true, false, true], in: 1, out: 2 }),
@@ -202,12 +231,14 @@ describe("fromGraphHopperPath 分岐合成", () => {
       intersection: [[10, 11, fork]] as [number, number, typeof fork][],
     },
   };
+
   it("指示の途中なら分割し時間を距離比で配分、末尾側が左寄り", () => {
     const route = fromGraphHopperPath(path);
     const original = narrowPath.instructions.find(
       (instruction) => instruction.interval[0] <= 10 && 10 < instruction.interval[1],
     )!;
     const splitIndex = route.instructions.findIndex((instruction) => instruction.from === 10);
+
     expect(route.instructions[splitIndex - 1]).toMatchObject({
       from: original.interval[0],
       to: 10,
@@ -223,13 +254,16 @@ describe("fromGraphHopperPath 分岐合成", () => {
       route.instructions[splitIndex - 1]!.time + route.instructions[splitIndex]!.time,
     ).toBeCloseTo(original.time, 6);
     expect(route.instructions.length).toBe(narrow.instructions.length + 1);
+
     for (let i = 1; i < route.instructions.length; i++)
       expect(route.instructions[i]!.from).toBe(route.instructions[i - 1]!.to);
   });
+
   it("既に案内地点なら何もしない、出発地は無視", () => {
     const turn = narrowPath.instructions.find(
       (instruction) => instruction.sign !== 0 && instruction.sign !== 4,
     )!;
+
     const route = fromGraphHopperPath({
       ...path,
       details: {
@@ -240,6 +274,7 @@ describe("fromGraphHopperPath 分岐合成", () => {
         ],
       },
     });
+
     expect(route.instructions).toEqual(narrow.instructions);
   });
 });

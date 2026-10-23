@@ -10,6 +10,7 @@ vi.mock("@/api/graphhopper.ts", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchRoute: vi.fn(),
 }));
+
 const fetchMock = vi.mocked(fetchRoute);
 
 /** 東西 1 km の直線経路（緯度 35、経度 1 度 ≈ 91.3 km）。案内地点は末尾の到着のみ */
@@ -77,6 +78,7 @@ describe("navigationActions", () => {
     for (const s of [120, 140, 160]) gps(fixAt(s, 100));
     expect(getNavigation().navigation?.rerouting).toBe(true);
     expect(getNavigation().navigation?.offRouteCount).toBe(3);
+
     await flush();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[1]![0]).toHaveLength(2); // 前方オフセットした出発地 + 到着地
@@ -85,6 +87,7 @@ describe("navigationActions", () => {
 
     gps(fixAt(500));
     expect(getNavigation().navigation?.s).toBeCloseTo(500, 0);
+
     gps(fixAt(990)); // 残り 10 m < 到着判定 30 m
     expect(getTrip().mode).toBe("edit");
     expect(getNavigation().navigation).toBeNull();
@@ -100,10 +103,12 @@ describe("navigationActions", () => {
     fetchMock.mockRejectedValueOnce(new DOMException("timeout", "TimeoutError"));
     for (const s of [120, 140, 160]) gps(fixAt(s, 100));
     expect(getNavigation().navigation?.rerouting).toBe(true);
+
     await flush();
     expect(getNavigation().navigation?.rerouting).toBe(false);
     expect(getNavigation().navigation?.offRouteCount).toBe(0);
     expect(getTrip().mode).toBe("navigation");
+
     navigationActions.end(true);
   });
 
@@ -117,6 +122,7 @@ describe("navigationActions", () => {
     tripActions.pointSet("to", { lat: 35, lng: 139 + 2000 / 91_300 }, "C");
     resolve([straight()]);
     await starting;
+
     expect(getTrip().mode).toBe("edit");
     expect(getNavigation().navigation).toBeNull();
     expect(getNavigation().starting).toBe(false);
@@ -136,11 +142,13 @@ describe("navigationActions", () => {
     fetchMock.mockResolvedValueOnce([{ ...straight(), viaIndices: [5] }]);
     for (const s of [370, 390, 410]) gps(fixAt(s, 100));
     await flush();
+
     expect(fetchMock.mock.lastCall![0]).toHaveLength(3); // 出発地 + 未通過の V2 + 到着地
     expect(getTrip().passedVia).toBe(1);
 
     gps(fixAt(600));
     expect(getTrip().passedVia).toBe(2);
+
     navigationActions.end(true);
     expect(getTrip().passedVia).toBe(2); // 編集モードの「通過済」表示
   });

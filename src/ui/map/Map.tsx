@@ -36,12 +36,14 @@ export function Map() {
   const gpsError = useTrip((state) => state.gpsError);
   const sheetExpanded = useTrip((state) => state.sheetExpanded);
   const [map, setMap] = useState<maplibregl.Map | null>(null);
+
   // 現在地ボタン。縮尺・出典と同じくコントロールに入れ、CSS でシート直上に置く
   const [locateDiv] = useState(() => {
     const div = document.createElement("div");
     div.className = "maplibregl-ctrl";
     return div;
   });
+
   const layerData = useRouteLayers(map);
   const homeIcon = useMarkers(map);
   const popupContent = useMapPopup(map);
@@ -58,18 +60,22 @@ export function Map() {
         zoom: 10,
         attributionControl: false,
       });
+
       map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
       map.addControl(new maplibregl.ScaleControl(), "bottom-left"); // 出典と縦積み。右下だと展開した出典と重なる
       map.addControl(
         { onAdd: () => locateDiv, onRemove: () => locateDiv.remove() },
         "bottom-right",
       );
+
       map.on("style.load", () => applyStyleExtras(map, layerData.current));
       const onScheme = (event: MediaQueryListEvent) =>
         map.setStyle(event.matches ? STYLE.dark : STYLE.light, { diff: false });
       mediaQuery.addEventListener("change", onScheme);
+
       setMap(map);
       if (import.meta.env.DEV) (window as { __map?: maplibregl.Map }).__map = map; // 机上確認用
+
       return () => {
         mediaQuery.removeEventListener("change", onScheme);
         map.remove();

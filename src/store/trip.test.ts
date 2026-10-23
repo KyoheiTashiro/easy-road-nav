@@ -35,6 +35,7 @@ describe("探索結果", () => {
     tripActions.pointSet("from", { lat: 35, lng: 139 }, "A");
     tripActions.pointSet("to", { lat: 35, lng: 139.01 }, "B");
     expect(selectLoading(getTrip())).toBe(true);
+
     const first = route(1000);
     load([first]);
     expect(selectRoutes(getTrip())).toEqual([first]);
@@ -44,6 +45,7 @@ describe("探索結果", () => {
     tripActions.notollToggled(!getTrip().notoll);
     expect(selectRoutes(getTrip())).toEqual([]);
     expect(selectLoading(getTrip())).toBe(true);
+
     const toggled = route(1200);
     load([toggled]);
     expect(selectRoutes(getTrip())).toEqual([toggled]);
@@ -52,6 +54,7 @@ describe("探索結果", () => {
     // 地点集合が変わった探索だけ fitVersion を進める
     tripActions.pointSet("to", { lat: 35, lng: 139.02 }, "C");
     expect(selectRoutes(getTrip())).toEqual([]);
+
     load([route(2000)]);
     expect(getTrip().fitVersion).toBe(fitVersion + 1);
 

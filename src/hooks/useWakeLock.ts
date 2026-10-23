@@ -3,8 +3,10 @@ import { useEffect } from "react";
 export function useWakeLock(active: boolean): void {
   useEffect(() => {
     if (!active || !navigator.wakeLock) return;
+
     let lock: WakeLockSentinel | null = null;
     let released = false;
+
     const request = () =>
       navigator.wakeLock
         .request("screen")
@@ -16,8 +18,10 @@ export function useWakeLock(active: boolean): void {
     const onVisible = () => {
       if (document.visibilityState === "visible") request();
     };
+
     request();
     document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       released = true;
       document.removeEventListener("visibilitychange", onVisible);

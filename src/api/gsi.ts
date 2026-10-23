@@ -9,6 +9,7 @@ export async function reverseGeocode(point: LatLng, signal?: AbortSignal): Promi
     signal: withTimeout(signal),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
   const json = (await response.json()) as { results?: { lv01Nm?: string } };
   return json.results?.lv01Nm ?? null;
 }
@@ -27,6 +28,7 @@ export async function searchAddress(query: string, signal?: AbortSignal): Promis
     signal: withTimeout(signal),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
   const json = (await response.json()) as {
     geometry: { coordinates: [number, number] };
     properties: { title: string };

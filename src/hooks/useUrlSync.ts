@@ -8,6 +8,7 @@ export function useUrlSync(): void {
   const to = useTrip((state) => state.to);
   const vias = useTrip((state) => state.vias);
   const notoll = useTrip((state) => state.notoll);
+
   useEffect(() => {
     history.replaceState(null, "", buildQuery({ from, to, vias, notoll }) || location.pathname);
   }, [from, to, vias, notoll]);

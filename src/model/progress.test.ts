@@ -30,11 +30,13 @@ function fixAt(route: RouteModel, s: number, lateral = 0, accuracy = 10): Fix {
   const { cumulativeDistances, points } = route;
   let i = 0;
   while (i + 2 < points.length && cumulativeDistances[i + 1]! <= s) i++;
+
   const length = cumulativeDistances[i + 1]! - cumulativeDistances[i]!;
   const t = length === 0 ? 0 : Math.min(1, Math.max(0, (s - cumulativeDistances[i]!) / length));
   const [lng0, lat0] = points[i]!;
   const [lng1, lat1] = points[i + 1]!;
   let point = { lat: lat0 + (lat1 - lat0) * t, lng: lng0 + (lng1 - lng0) * t };
+
   if (lateral !== 0) point = destination(point, segmentBearing(route, i) + 90, lateral);
   return { ...point, accuracy, timestamp: s };
 }
@@ -47,6 +49,7 @@ function make(gaps: number[], instructionDefinitions: [number, number, number][]
   const points = cumulativeDistances.map(
     (distance) => [139 + distance / 91_300, 35] as [number, number],
   );
+
   return {
     points,
     cumulativeDistances,
@@ -77,13 +80,16 @@ function run(
 ) {
   let state = initialState;
   const all: NavigationEvent[][] = [];
+
   for (const fix of fixes) {
     const result = step(route, narrow, state, fix);
     state = result.state;
     all.push(result.events);
   }
+
   return { state, all };
 }
+
 const speaks = (events: NavigationEvent[]) =>
   events.filter((event) => event.type === "speak").map((event) => event.text);
 const types = (events: NavigationEvent[]) => events.map((event) => event.type);
@@ -107,6 +113,7 @@ describe("step: 進捗", () => {
     const first = step(basic, [], initialState, fixAt(basic, 500));
     expect(first.state).not.toBe(initialState);
     expect(first.state.s).toBeCloseTo(500, 0);
+
     const second = step(basic, [], first.state, fixAt(basic, 400));
     expect(second.state).not.toBe(first.state);
     expect(second.state.s).toBeCloseTo(500, 0);
@@ -117,6 +124,7 @@ describe("step: 進捗", () => {
 
   it("精度 50 m 以上は events 空、lastFix も更新しない", () => {
     const result = step(basic, [], initNavigation(16), fixAt(basic, 500, 0, 50));
+
     expect(result.events).toEqual([]);
     expect(result.state.lastFix).toBeNull();
     expect(result.state.s).toBe(0);
@@ -125,6 +133,7 @@ describe("step: 進捗", () => {
   it("heading は乗っている線分の方位、lastFix は fix", () => {
     const fix = fixAt(basic, 500);
     const result = step(basic, [], initNavigation(16), fix);
+
     expect(result.state.heading).toBeCloseTo(segmentBearing(basic, 0), 6);
     expect(result.state.lastFix).toBe(fix);
     expect(result.state.offRouteCount).toBe(0);
@@ -138,6 +147,7 @@ describe("step: 案内地点", () => {
       [],
       [650, 700, 800, 900, 950, 960, 1100].map((s) => fixAt(basic, s)),
     );
+
     expect(all.map(speaks)).toEqual([
       [],
       ["300 メートル先、右方向です"],
@@ -155,6 +165,7 @@ describe("step: 案内地点", () => {
       [],
       [600, 960].map((s) => fixAt(basic, s)),
     );
+
     expect(all.map(speaks)).toEqual([[], ["まもなく右方向です"]]);
   });
 
@@ -165,6 +176,7 @@ describe("step: 案内地点", () => {
       [],
       [2700, 2960, 3010, 3060].map((s) => fixAt(basic, s)),
     );
+
     expect(all.map(speaks)).toEqual([
       ["300 メートル先、右方向です"],
       ["まもなく右方向です"],
@@ -176,6 +188,7 @@ describe("step: 案内地点", () => {
   it("sign 0 は案内地点にしない。hud は毎 fix 次の案内地点", () => {
     const result = step(basic, [], initNavigation(16), fixAt(basic, 100));
     const hud = result.events.find((event) => event.type === "hud")!;
+
     expect(hud.instruction?.sign).toBe(2);
     expect(hud.remaining).toBeCloseTo(900, 0);
   });
@@ -186,6 +199,7 @@ describe("step: 案内地点", () => {
     )!;
     expect(nearHud.next?.instruction.sign).toBe(-2);
     expect(nearHud.next?.distance).toBeCloseTo(1000, 0);
+
     const far = make(
       [500, 2000, 500],
       [
@@ -194,6 +208,7 @@ describe("step: 案内地点", () => {
         [4, 3, 3],
       ],
     );
+
     const farHud = step(far, [], initNavigation(16), fixAt(far, 100)).events.find(
       (event) => event.type === "hud",
     )!;
@@ -203,9 +218,11 @@ describe("step: 案内地点", () => {
 
   it("案内地点が残っていなければ instruction null", () => {
     const route = make([1000], [[0, 0, 1]]);
+
     const hud = step(route, [], initNavigation(16), fixAt(route, 100)).events.find(
       (event) => event.type === "hud",
     )!;
+
     expect(hud.instruction).toBeNull();
     expect(hud.remaining).toBeCloseTo(900, 0);
   });
@@ -214,6 +231,7 @@ describe("step: 案内地点", () => {
 describe("step: 経由地・到着", () => {
   it("経由地通過（fixture via）", () => {
     const viaDistance = viaRoute.cumulativeDistances[viaRoute.viaIndices[0]!]!;
+
     const { state, all } = run(
       viaRoute,
       [],
@@ -221,6 +239,7 @@ describe("step: 経由地・到着", () => {
         fixAt(viaRoute, s),
       ),
     );
+
     // 経由地の 78 m 手前に左折あり（間隔 < 300 → 経由地の予告はなし）
     expect(all.map(speaks)).toEqual([
       ["まもなく左方向です"],
@@ -245,7 +264,9 @@ describe("step: 経由地・到着", () => {
         [4, 3, 3],
       ],
     );
+
     const events = step(route, [], initNavigation(16), fixAt(route, 250)).events;
+
     expect(
       events.filter((event) => event.type === "viaPassed").map((event) => event.index),
     ).toEqual([0, 1]);
@@ -254,12 +275,14 @@ describe("step: 経由地・到着", () => {
 
   it("到着: 残り 30 m 未満で arrived、以降の手順なし（fixture narrow）", () => {
     const end = narrowRoute.distance;
+
     const events = step(
       narrowRoute,
       narrowSegmentList,
       initNavigation(16),
       fixAt(narrowRoute, end - 20),
     ).events;
+
     expect(events).toEqual([{ type: "speak", text: "目的地に到着しました" }, { type: "arrived" }]);
   });
 });
@@ -270,12 +293,14 @@ describe("step: 細い道（fixture narrow）", () => {
 
   it("先頭区間は警告しない、走行中バナーは出す", () => {
     expect(narrowSegmentList[0]!.atStart).toBe(true);
+
     const events = step(
       narrowRoute,
       narrowSegmentList,
       initNavigation(16),
       fixAt(narrowRoute, 10),
     ).events;
+
     expect(speaks(events).filter((text) => text.includes("細い道"))).toEqual([]);
     expect(events.find((event) => event.type === "narrow")).toEqual({
       type: "narrow",
@@ -289,6 +314,7 @@ describe("step: 細い道（fixture narrow）", () => {
       narrowSegmentList,
       [warnAt - 400, warnAt - 250, warnAt - 100].map((s) => fixAt(narrowRoute, s)),
     );
+
     expect(all.map(speaks)).toEqual([
       [],
       ["この先細い道、目的地付近です"],
@@ -315,10 +341,13 @@ describe("step: 細い道（fixture narrow）", () => {
       { from: 1, to: 2, kind: "narrow" },
       { from: 2, to: 3, kind: "wide" },
     ];
+
     const segments = narrowSegments(route);
     expect(segments).toHaveLength(1);
+
     const events = step(route, segments, initNavigation(16), fixAt(route, 750)).events;
     expect(speaks(events)).toEqual(["300 メートル先、右方向です", "この先、細い道です"]);
+
     const inside = step(route, segments, initNavigation(16), fixAt(route, 1050)).events;
     expect(inside.find((event) => event.type === "narrow")).toEqual({
       type: "narrow",
@@ -331,7 +360,9 @@ describe("step: 経路外れ", () => {
   it("連続 3 回で reroute 1 回だけ、rerouting 中は再発火しない。進捗は止まる", () => {
     const on = fixAt(basic, 500);
     const off = [510, 520, 530, 540, 550].map((s) => fixAt(basic, s, 80));
+
     const { state, all } = run(basic, [], [on, ...off]);
+
     expect(all.map(types)).toEqual([["hud", "narrow"], [], [], ["reroute"], [], []]);
     expect(state.rerouting).toBe(true);
     expect(state.offRouteCount).toBe(5);
@@ -342,18 +373,22 @@ describe("step: 経路外れ", () => {
     const first = step(basic, [], initNavigation(16), fixAt(basic, 500, 80));
     expect(first.state.heading).toBeNull(); // lastFix なし → lastFix のみ
     expect(first.state.lastFix).not.toBeNull();
+
     const second = step(basic, [], first.state, fixAt(basic, 503, 80)); // 3 m
     expect(second.state.heading).toBeNull();
     expect(second.state.lastFix).toBe(first.state.lastFix);
+
     const third = step(basic, [], second.state, fixAt(basic, 520, 80)); // 20 m
     expect(third.state.heading).toBeCloseTo(segmentBearing(basic, 0), 0);
   });
 
   it("停車中（移動 5 m 未満）は外れを数えない。出発前に経路から離れていても reroute しない", () => {
     const parked = fixAt(basic, 0, 80);
+
     const { state, all } = run(basic, [], [parked, parked, parked, parked, parked]);
     expect(all.flat().map((event) => event.type)).not.toContain("reroute");
     expect(state.offRouteCount).toBe(0);
+
     const moved = step(basic, [], state, fixAt(basic, 10, 80));
     expect(moved.state.offRouteCount).toBe(1);
   });
@@ -364,6 +399,7 @@ describe("step: 経路外れ", () => {
       [],
       [fixAt(basic, 500, 80), fixAt(basic, 500, 80), fixAt(basic, 600)],
     );
+
     expect(state.offRouteCount).toBe(0);
     expect(state.s).toBeCloseTo(600, 0);
     expect(state.heading).toBeCloseTo(segmentBearing(basic, 0), 6);
@@ -371,6 +407,7 @@ describe("step: 経路外れ", () => {
 
   it("50 m ちょうどは経路内", () => {
     const result = step(basic, [], initNavigation(16), fixAt(basic, 500, 49));
+
     expect(result.state.offRouteCount).toBe(0);
   });
 });
@@ -392,6 +429,7 @@ describe("remainingTime / startText / offsetOrigin", () => {
   it("offsetOrigin: heading null はそのまま、あれば 30 m 前方", () => {
     const fix = fixAt(basic, 500);
     expect(offsetOrigin(fix, null)).toEqual({ lat: fix.lat, lng: fix.lng });
+
     const origin = offsetOrigin(fix, 90);
     expect(haversine(fix, origin)).toBeCloseTo(30, 3);
     expect(origin.lng).toBeGreaterThan(fix.lng);
@@ -399,6 +437,7 @@ describe("remainingTime / startText / offsetOrigin", () => {
 
   it("initNavigation", () => {
     const state: NavigationState = initNavigation(17, false);
+
     expect(state).toMatchObject({
       s: 0,
       heading: null,

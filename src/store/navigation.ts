@@ -48,6 +48,7 @@ const useStore = create<NavigationStore>(() => ({
 export function useNavigation<T>(selector: (store: NavigationStore) => T): T {
   return useStore(selector);
 }
+
 export const getNavigation = useStore.getState;
 const set = useStore.setState;
 
@@ -86,6 +87,7 @@ function dispatch(events: NavigationEvent[], state: NavigationState, fix: Fix) {
 async function reroute(state: NavigationState, fix: Fix) {
   const trip = getTrip();
   if (!trip.to) return;
+
   let route: RouteModel | undefined;
   try {
     [route] = await fetchRoute(
@@ -94,7 +96,9 @@ async function reroute(state: NavigationState, fix: Fix) {
       false,
     );
   } catch {}
+
   if (getTrip().mode !== MODE.NAVIGATION) return; // 応答前に終了・到着
+
   if (!route) {
     showToast("経路を再探索できません");
     // 旧経路で継続、次の連続外れで再試行
@@ -103,6 +107,7 @@ async function reroute(state: NavigationState, fix: Fix) {
     }));
     return;
   }
+
   const current = getNavigation().navigation ?? state;
   const now = getTrip().fix ?? fix;
   const first = step(
@@ -111,6 +116,7 @@ async function reroute(state: NavigationState, fix: Fix) {
     initNavigation(current.zoom, current.follow),
     now,
   );
+
   set({ navigation: first.state });
   tripActions.rerouted(route);
   speech.cancel();
@@ -124,9 +130,11 @@ export const navigationActions = {
     const trip = getTrip();
     const fix = trip.fix;
     if (!fix || !trip.to || getNavigation().starting) return;
+
     const pointsKey = selectPointsKey(trip);
     speech.unlock(); // iOS: ユーザー操作内で初回 speak
     set({ starting: true });
+
     const origin: Point = { lat: fix.lat, lng: fix.lng, label: "現在地" };
     let route: RouteModel | undefined;
     try {
@@ -135,18 +143,22 @@ export const navigationActions = {
     } finally {
       set({ starting: false });
     }
+
     if (!route) {
       showToast("経路を探索できません");
       return;
     }
+
     // 応答待ちの間にボトムシートで地点・有料トグルを変えられる
     const latest = getTrip();
     if (selectPointsKey(latest) !== pointsKey || latest.notoll !== trip.notoll) {
       showToast("地点が変わったため案内を開始しませんでした");
       return;
     }
+
     const now = getTrip().fix ?? fix;
     const first = step(route, narrowSegments(route), initNavigation(NAVIGATION_ZOOM), now);
+
     set({ navigation: first.state });
     tripActions.navigationStarted(origin, route);
     say(`案内を開始します。${startText(route, first.state.s)}`);
@@ -157,6 +169,7 @@ export const navigationActions = {
     const trip = getTrip();
     const route = selectRoute(trip);
     if (trip.mode !== MODE.NAVIGATION || !navigation || !route) return;
+
     const result = step(route, selectNarrow(trip), navigation, fix);
     set({ navigation: result.state });
     dispatch(result.events, result.state, fix);

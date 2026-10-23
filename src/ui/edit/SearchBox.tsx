@@ -103,6 +103,7 @@ export function SearchBox() {
   const fix = useTrip((state) => (state.gpsError ? null : state.fix));
   const home = useSaved((state) => state.home);
   const history = useSaved((state) => state.history);
+
   const [active, setActive] = useState<PickRole | null>(null);
   const [query, setQuery] = useState("");
   const trimmedQuery = query.trim();
@@ -178,6 +179,7 @@ export function SearchBox() {
   const rows: ReactNode[] = [];
   if (active) {
     const row = (key: string, node: ReactNode) => rows.push(<li key={key}>{node}</li>);
+
     if ((active === ROLE.FROM || active === ROLE.HOME) && fix) {
       row(
         "current",
@@ -189,6 +191,7 @@ export function SearchBox() {
         </button>,
       );
     }
+
     if (trimmedQuery === "") {
       if (active !== ROLE.HOME && home) {
         row(
@@ -202,6 +205,7 @@ export function SearchBox() {
           </button>,
         );
       }
+
       history.forEach((historyPoint, i) =>
         row(
           `history-${i}`,
@@ -226,6 +230,7 @@ export function SearchBox() {
         </button>,
       );
     }
+
     [...poiHits, ...gsiHits].forEach((hit, i) =>
       row(
         `hit-${i}`,
@@ -240,6 +245,7 @@ export function SearchBox() {
         </button>,
       ),
     );
+
     if (gsiHits.length > 0 || poiHits.length > 0) {
       rows.push(
         <li key="credit" {...stylex.props(styles.divider, styles.credit)}>

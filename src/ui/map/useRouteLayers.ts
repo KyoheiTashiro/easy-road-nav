@@ -25,6 +25,7 @@ export function useRouteLayers(map: maplibregl.Map | null) {
       route: route ? routeFeatures(route) : EMPTY,
       alternative: hide ? EMPTY : alternativeFeatures(routes, selected),
     };
+
     dataRef.current = { ...dataRef.current, ...data };
     setSourceData(map, "route", data.route);
     setSourceData(map, "alternative", data.alternative);

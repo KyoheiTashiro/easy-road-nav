@@ -24,9 +24,11 @@ export async function searchPoi(query: string, signal: AbortSignal): Promise<Sav
   const appid = import.meta.env.VITE_YAHOO_APPID as string | undefined;
   if (!appid) throw new Error("VITE_YAHOO_APPID is not set");
   signal.throwIfAborted();
+
   const callbackName = `__yj${++sequence}`;
   const windowRecord = window as unknown as Record<string, unknown>;
   const script = document.createElement("script");
+
   return new Promise<SavedPoint[]>((resolve, reject) => {
     // 決着（成功・失敗・中断）したら必ず後始末。どの経路も 1 回しか通らない
     const cleanup = () => {
@@ -35,17 +37,22 @@ export async function searchPoi(query: string, signal: AbortSignal): Promise<Sav
       script.remove();
       delete windowRecord[callbackName];
     };
+
     const fail = (error: Error) => {
       cleanup();
       reject(error);
     };
+
     const onAbort = () => fail(new DOMException("aborted", "AbortError"));
     const timer = setTimeout(() => fail(new Error("timeout")), TIMEOUT);
+
     signal.addEventListener("abort", onAbort);
     script.onerror = () => fail(new Error("script error"));
+
     windowRecord[callbackName] = (response: Response) => {
       if (response.ResultInfo.Status !== 200)
         return fail(new Error(`Status ${response.ResultInfo.Status}`));
+
       cleanup();
       resolve(
         (response.Feature ?? []).map((feature) => {
@@ -54,6 +61,7 @@ export async function searchPoi(query: string, signal: AbortSignal): Promise<Sav
         }),
       );
     };
+
     const params = new URLSearchParams({
       appid,
       output: "json",
@@ -61,6 +69,7 @@ export async function searchPoi(query: string, signal: AbortSignal): Promise<Sav
       query: normalizePoiQuery(query),
       callback: callbackName,
     });
+
     script.src = `${SEARCH}?${params}`;
     document.head.appendChild(script);
   });

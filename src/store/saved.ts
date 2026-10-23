@@ -69,6 +69,7 @@ const useStore = create<SavedState>(() => ({
 export function useSaved<T>(selector: (state: SavedState) => T): T {
   return useStore(selector);
 }
+
 export const getSaved = useStore.getState;
 
 export const savedActions = {

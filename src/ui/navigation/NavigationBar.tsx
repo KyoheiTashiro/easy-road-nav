@@ -40,8 +40,10 @@ export function NavigationBar() {
   const route = useTrip(selectRoute);
   const fix = useTrip((state) => state.fix);
   if (!navigation || !route || !fix) return null;
+
   const remainingMs = remainingTime(route, navigation.s);
   const arrivalAt = fix.timestamp + remainingMs; // 到着予想 epoch ms。render 内で Date.now を呼ばない
+
   return (
     <div {...stylex.props(styles.bar)}>
       <div {...stylex.props(styles.information)}>

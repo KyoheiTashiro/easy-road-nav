@@ -18,13 +18,16 @@ export function narrowSegments(
   const { cumulativeDistances } = route;
   const vertexCount = route.points.length;
   const merged: { from: number; to: number }[] = [];
+
   for (const range of route.roadClass) {
     if (range.kind === ROAD_KIND.WIDE) continue;
+
     const last = merged.at(-1);
     if (last && cumulativeDistances[range.from]! - cumulativeDistances[last.to]! < mergeBelow)
       last.to = range.to;
     else merged.push({ from: range.from, to: range.to });
   }
+
   return merged
     .map((segment) => ({
       ...segment,

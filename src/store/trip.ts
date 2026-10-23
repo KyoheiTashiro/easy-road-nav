@@ -27,11 +27,14 @@ export const MODE = {
   HOME_SETUP: "home",
   SETTINGS: "settings",
 } as const;
+
 export type Mode = (typeof MODE)[keyof typeof MODE];
+
 /** 地図タップの地点ポップアップと、マーカータップの「削除」ポップアップ。1 つだけ開く。index は via のときだけ意味を持つ */
 export type Popup =
   | { kind: "point"; point: LatLng; label: string | null }
   | { kind: "marker"; point: LatLng; role: PointRole; index: number };
+
 type Result = {
   pointsKey: string;
   notoll: boolean;
@@ -85,6 +88,7 @@ const useStore = create<TripState>(() => ({
 export function useTrip<T>(selector: (state: TripState) => T): T {
   return useStore(selector);
 }
+
 /** async 関数・Map のイベントから最新値を読む（レンダー中には使わない） */
 export const getTrip = useStore.getState;
 const set = useStore.setState;
@@ -105,6 +109,7 @@ export const selectPointsKey = (state: TripState): string =>
   keyOf([state.from, ...state.vias, state.to]);
 export const selectProfile = (state: TripState): Profile =>
   state.notoll ? PROFILE.NOTOLL : PROFILE.CAR;
+
 /** 地点が揃い、result が現在の地点集合と有料トグルで探索したものなときだけ結果。地点欠けで即空、探索中は旧結果を出さない */
 function current(state: TripState): Result | null {
   const result = state.result;
@@ -115,6 +120,7 @@ function current(state: TripState): Result | null {
     ? result
     : null;
 }
+
 export const selectRoutes = (state: TripState): RouteModel[] => current(state)?.routes ?? NO_ROUTES;
 export const selectNarrows = (state: TripState): NarrowSegment[][] =>
   current(state)?.narrows ?? NO_NARROWS;
@@ -142,6 +148,7 @@ async function resolveLabel(point: LatLng): Promise<string> {
     return coordinateLabel(point);
   }
 }
+
 const pending = new Set<string>(); // 逆ジオ飛行中の座標キー（重複排除）
 
 // 地点の変更。通過済み経由地数を戻し、地点が欠けたら次に揃ったとき fitBounds させる
@@ -167,6 +174,7 @@ export const tripActions = {
     set((state) => {
       const j = i + direction;
       if (j < 0 || j >= state.vias.length) return {};
+
       const vias = [...state.vias];
       [vias[i], vias[j]] = [vias[j]!, vias[i]!];
       return withPoints(state, { vias });
@@ -195,12 +203,16 @@ export const tripActions = {
   labelRequested(point: LatLng): void {
     const key = coordinateLabel(point);
     if (pending.has(key)) return;
+
     pending.add(key);
+
     resolveLabel(point).then((label) => {
       pending.delete(key);
+
       const hit = (candidate: Point) => candidate.label === null && same(candidate, point);
       const apply = (candidate: Point): Point =>
         hit(candidate) ? { ...candidate, label } : candidate;
+
       set((state) => ({
         from: state.from && apply(state.from),
         to: state.to && apply(state.to),
@@ -237,6 +249,7 @@ export const tripActions = {
   markerDeleteTaken(): void {
     const { popup } = getTrip();
     if (popup?.kind !== "marker") return;
+
     set({ popup: null });
     if (popup.role === ROLE.VIA) tripActions.viaDeleted(popup.index);
     else tripActions.pointDeleted(popup.role);
@@ -247,7 +260,9 @@ export const tripActions = {
   popupActionTaken(role: PointRole): void {
     const { popup } = getTrip();
     if (popup?.kind !== "point") return;
+
     const point: Point = { lat: popup.point.lat, lng: popup.point.lng, label: popup.label };
+
     if (role === ROLE.VIA) tripActions.viaAdded(point);
     else tripActions.pointSet(role, point, point.label);
     set({ popup: null });

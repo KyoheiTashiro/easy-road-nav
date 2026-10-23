@@ -6,6 +6,7 @@ export const ROAD_KIND = { WIDE: "wide", NARROW: "narrow", FORBIDDEN: "forbidden
 export type RoadKind = (typeof ROAD_KIND)[keyof typeof ROAD_KIND];
 export const TOLL = { NO: "no", ALL: "all", HGV: "hgv" } as const;
 export type TollValue = (typeof TOLL)[keyof typeof TOLL];
+
 /** GraphHopper `instructions[].sign`。正が右、負が左 */
 export const SIGN = {
   U_TURN_UNKNOWN: -98,
@@ -43,6 +44,7 @@ export type RouteModel = {
   distance: number; // m
   time: number; // ms
 };
+
 export type Instruction = RouteModel["instructions"][number];
 
 /** GraphHopper paths[] 要素の必要フィールドだけ */
@@ -64,6 +66,7 @@ export type GraphHopperPath = {
     intersection?: [number, number, GraphHopperIntersection][];
   };
 };
+
 /** details=intersection の 1 要素。頂点 from にある交差点の全接続エッジ。bearings は昇順、in/out はその index */
 export type GraphHopperIntersection = {
   bearings: number[];
@@ -87,11 +90,13 @@ function toLatLng([lng, lat]: [number, number]): LatLng {
 export function fromGraphHopperPath(path: GraphHopperPath): RouteModel {
   const points = path.points.coordinates;
   const cumulativeDistances: number[] = [0];
+
   for (let i = 1; i < points.length; i++) {
     cumulativeDistances.push(
       cumulativeDistances[i - 1]! + haversine(toLatLng(points[i - 1]!), toLatLng(points[i]!)),
     );
   }
+
   const instructions = path.instructions.map((instruction) => ({
     text: instruction.text,
     sign: instruction.sign,
@@ -101,9 +106,11 @@ export function fromGraphHopperPath(path: GraphHopperPath): RouteModel {
     time: instruction.time,
     exitNumber: instruction.exit_number,
   }));
+
   // intersection の詳細は [from, to, 交差点]。交差点は頂点 from にある
   for (const [vertexIndex, _to, intersection] of path.details.intersection ?? [])
     addFork(instructions, cumulativeDistances, vertexIndex, forkSign(intersection));
+
   return {
     points,
     cumulativeDistances,
@@ -132,6 +139,7 @@ export function forkSign(intersection: GraphHopperIntersection): number {
   const out = intersection.bearings[intersection.out]!;
   let sign: number = SIGN.CONTINUE;
   let best = FORK_ANGLE; // 採用済みの最小方位差。初期値 = 分岐とみなす上限
+
   intersection.bearings.forEach((otherBearing, i) => {
     if (i === intersection.out || i === intersection.in || !intersection.entries[i]) return;
     const difference = angleDifference(out, otherBearing);
@@ -140,6 +148,7 @@ export function forkSign(intersection: GraphHopperIntersection): number {
       sign = difference > 0 ? SIGN.KEEP_LEFT : SIGN.KEEP_RIGHT; // 他方が右にある → 自分は左寄り
     }
   });
+
   return sign;
 }
 
@@ -151,16 +160,19 @@ function addFork(
   sign: number,
 ): void {
   if (sign === SIGN.CONTINUE || vertexIndex === 0) return; // 出発地は案内しない
+
   const text = sign > 0 ? "右寄り" : "左寄り";
   const index = instructions.findIndex(
     (instruction) => instruction.from <= vertexIndex && vertexIndex < instruction.to,
   );
   const instruction = instructions[index];
   if (!instruction) return;
+
   if (instruction.from === vertexIndex) {
     if (instruction.sign === SIGN.CONTINUE) Object.assign(instruction, { sign, text });
     return;
   }
+
   const time = timeWithin(cumulativeDistances, instruction, cumulativeDistances[vertexIndex]!);
   const tail = { ...instruction, sign, text, from: vertexIndex, time: instruction.time - time };
   delete tail.exitNumber;
@@ -190,6 +202,7 @@ export function nearest(
 ): { s: number; distanceToRoute: number; segmentIndex: number } {
   // ponytail: 全線分 O(n) 走査。遅ければ前回 index の近傍窓に限定
   let best = { s: 0, distanceToRoute: Infinity, segmentIndex: 0 };
+
   for (let i = 0; i + 1 < route.points.length; i++) {
     const { t, distance } = projectToSegment(point, vertex(route, i), vertex(route, i + 1));
     if (distance < best.distanceToRoute) {
@@ -201,6 +214,7 @@ export function nearest(
       };
     }
   }
+
   return best;
 }
 

@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "deploy": "npm run build && rsync -az --delete dist/ ${VPS_HOST:?set VPS_HOST}:/srv/easy-road-nav/web/",
     "deploy:graph": "sh scripts/deploy-graph.sh"
   },

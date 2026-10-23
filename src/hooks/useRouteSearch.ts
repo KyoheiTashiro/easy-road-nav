@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { fetchRoute } from "@/api/graphhopper.ts";
+import { isAbortError } from "@/api/timeout.ts";
 import {
   MODE,
   getTrip,
@@ -25,7 +26,7 @@ export function useRouteSearch(): void {
     ) // 経由地なしのみ代替経路
       .then((routes) => tripActions.routesLoaded(pointsKey, notoll, routes))
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (isAbortError(error)) return;
         tripActions.routesFailed(pointsKey, notoll);
       });
     return () => abortController.abort();

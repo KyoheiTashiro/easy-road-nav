@@ -1,12 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
-import { useRef, useState, type ReactNode } from "react";
-import { searchAddress } from "@/api/gsi.ts";
-import { searchPoi } from "@/api/yahoo.ts";
-import { ROLE, type LatLng, type PickRole, type Point, type SavedPoint } from "@/model/point.ts";
+import { useState, type ReactNode } from "react";
+import { ROLE, type LatLng, type PickRole, type Point } from "@/model/point.ts";
 import { savedActions, useSaved } from "@/store/saved.ts";
-import { showToast } from "@/store/toast.ts";
 import { MODE, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
+import { useSearch } from "@/ui/edit/useSearch.ts";
 import { FromIcon, HomeIcon, SettingsIcon, ToIcon } from "@/ui/icons/index.tsx";
 import { colors, shadows } from "@/ui/tokens.stylex.ts";
 
@@ -98,10 +96,6 @@ const styles = stylex.create({
   },
 });
 
-type Result = { query: string; hits: SavedPoint[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
-
-const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
-
 export function SearchBox() {
   const mode = useTrip((state) => (state.mode === MODE.HOME ? MODE.HOME : MODE.EDIT));
   const from = useTrip((state) => state.from);
@@ -111,33 +105,12 @@ export function SearchBox() {
   const history = useSaved((state) => state.history);
   const [active, setActive] = useState<PickRole | null>(null);
   const [query, setQuery] = useState("");
-  const [gsi, setGsi] = useState<Result | null>(null);
-  const [poi, setPoi] = useState<Result | null>(null);
-  const [searched, setSearched] = useState<string | null>(null);
   const trimmedQuery = query.trim();
-  const inflight = useRef<AbortController | null>(null);
-
-  function search() {
-    if (!trimmedQuery) return;
-    setSearched(trimmedQuery);
-    inflight.current?.abort();
-    const abortController = new AbortController();
-    inflight.current = abortController;
-    searchAddress(trimmedQuery, abortController.signal)
-      .then((hits) => setGsi({ query: trimmedQuery, hits }))
-      .catch((error) => {
-        if (!isAbort(error)) showToast("住所検索に失敗しました");
-      });
-    searchPoi(trimmedQuery, abortController.signal)
-      .then((hits) => setPoi({ query: trimmedQuery, hits }))
-      .catch((error) => {
-        if (!isAbort(error)) showToast("施設検索に失敗しました");
-      });
-  }
+  const { search, searched, reset, gsiHits, poiHits } = useSearch(trimmedQuery);
 
   function pick(role: PickRole, point: LatLng, label: string | null) {
     setQuery("");
-    setSearched(null);
+    reset();
     setActive(null);
     tripActions.searchPicked(role, point, label);
   }
@@ -174,7 +147,7 @@ export function SearchBox() {
             onFocus={() => {
               setActive(role);
               setQuery("");
-              setSearched(null);
+              reset();
             }}
             // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら active は既に null
             onBlur={() =>
@@ -253,8 +226,6 @@ export function SearchBox() {
         </button>,
       );
     }
-    const gsiHits = gsi?.query === trimmedQuery ? gsi.hits : [];
-    const poiHits = poi?.query === trimmedQuery ? poi.hits : [];
     [...poiHits, ...gsiHits].forEach((hit, i) =>
       row(
         `hit-${i}`,

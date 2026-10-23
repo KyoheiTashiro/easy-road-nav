@@ -94,6 +94,10 @@ normalizePoiQuery: query.replace(/[（(][株有][）)]/g, " ").trim()
 export function withTimeout(signal?: AbortSignal): AbortSignal; // signal と AbortSignal.timeout(10_000) の合成。打ち切りは TimeoutError
 ```
 
+```ts
+export const isAbortError: (error: unknown) => boolean; // 呼び出し側の abort。TimeoutError は false
+```
+
 `fetchRoute`・`searchAddress`・`reverseGeocode` が fetch に渡す。`TimeoutError` は `AbortError` と区別され、呼び出し側では失敗扱い（トースト・座標表示）になる。
 
 ## `src/api/speech.ts`
@@ -390,7 +394,7 @@ reroute(state, fix):
 App 全体で 1 つの外部同期を書く（1 部品だけが使う Effect は部品の隣のフック）。いずれも引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
 
 - `useGeolocation`: マウントで `watchPosition`（`enableHighAccuracy: true`, `maximumAge: 0`, `timeout: 10000`）。アンマウントで `clearWatch`。成功: `tripActions.fixUpdated(fix)` → `navigationActions.onFix(fix)`。失敗（`PERMISSION_DENIED` / `POSITION_UNAVAILABLE` / `TIMEOUT`）: `tripActions.gpsFailed()`。Geolocation 非対応は store の初期値 `gpsError: true`
-- `useRouteSearch`: `useEffect([pointsKey, notoll])`。`getTrip()` で地点を読み、揃っていてナビ中でなければ `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（AbortError は無視）。cleanup で `abort()`
+- `useRouteSearch`: `useEffect([pointsKey, notoll])`。`getTrip()` で地点を読み、揃っていてナビ中でなければ `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（`isAbortError` は無視）。cleanup で `abort()`
 - `useReverseGeocode`: `useEffect([from, to, vias])` で `label === null` の地点ごとに `tripActions.labelRequested(point)`
 - `useUrlSync`: `useEffect([from, to, vias, notoll])` で `history.replaceState(null, "", buildQuery(...) || location.pathname)`
 - `useWakeLock(active)`: `active` 中 `navigator.wakeLock?.request("screen")`。非対応なら何もしない。`visibilitychange` で `visible` に戻ったら再取得。`active` が false になったら・アンマウントで `release`
@@ -469,19 +473,33 @@ props なし。`App` が `key={mode}` で入力 state を捨てる。購読: `mo
 
 空欄候補: `active` あり かつ `query.trim() === ""` のとき、検索結果の代わりに固定行を出す。出発地欄 = 現在地 → 自宅 → 履歴、到着地欄 = 自宅 → 履歴、自宅欄 = 現在地 → 履歴。「現在地」は `fix` あり、「自宅」は `home` ありのときだけ。自宅・履歴行のタップは `searchPicked(role, point, point.label)`（履歴には積まない）。
 
-内部 state: `active`（フォーカス中の欄）、`query`、`searched`（最後に検索したクエリ。フォーカス・候補選択で null）、`gsi` / `poi`（各 `{ query, hits }`）、`inflight`（ref。直近の `AbortController`）。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` あり かつ `result.query === trimmedQuery`（`trimmedQuery = query.trim()`） のものだけ（Enter 後に入力を変えると消える）。リストは `[...poiHits, ...gsiHits]` の順。末尾の出典行は各 hits が 1 件以上のとき（「Webサービス by Yahoo! JAPAN」リンク / 「出典: 国土地理院」）。
+内部 state: `active`（フォーカス中の欄）、`query`。検索の状態は `useSearch(trimmedQuery)`（`trimmedQuery = query.trim()`）が持つ。欄の表示値は `active === role ? query : point.label ?? "…"`。表示する候補は `active` ありのときの `gsiHits` / `poiHits`。リストは `[...poiHits, ...gsiHits]` の順。末尾の出典行は各 hits が 1 件以上のとき（「Webサービス by Yahoo! JAPAN」リンク / 「出典: 国土地理院」）。
 
-検索は各欄を包む `<form onSubmit>` の submit（Enter / スマホの「検索」キー。入力欄は `enterKeyHint="search"`）か、候補リスト先頭の「🔍 「trimmedQuery」で検索」行（`trimmedQuery !== "" && searched !== trimmedQuery` のとき表示。`onMouseDown` で preventDefault し入力欄の blur を防ぐ）で `search()` を 1 回:
-
-```
-search(): trimmedQuery が空なら何もしない。searched = trimmedQuery
-  inflight.current?.abort()、新しい AbortController を inflight に
-  searchAddress(trimmedQuery, signal) → setGsi({ query: trimmedQuery, hits })。失敗トースト「住所検索に失敗しました」
-  searchPoi(trimmedQuery, signal)     → setPoi({ query: trimmedQuery, hits })。失敗トースト「施設検索に失敗しました」
-  （AbortError は無視）
-```
+検索は各欄を包む `<form onSubmit>` の submit（Enter / スマホの「検索」キー。入力欄は `enterKeyHint="search"`）か、候補リスト先頭の「🔍 「trimmedQuery」で検索」行（`trimmedQuery !== "" && searched !== trimmedQuery` のとき表示。`onMouseDown` で preventDefault し入力欄の blur を防ぐ）で `search()` を 1 回呼ぶ（`useSearch`）。
 
 IME 変換確定の Enter は入力欄の `onKeyDown` で `event.nativeEvent.isComposing || event.keyCode === 229` なら `preventDefault`（Safari は確定 Enter の `isComposing` が false）。候補選択で `query` クリア・`active` null・`searchPicked`。blur は 150 ms 遅延で `active` を外す（候補タップより blur が先に来る）。
+
+### `useSearch.ts`
+
+```ts
+export function useSearch(query: string): {
+  search(): void;
+  searched: string | null; // 最後に検索したクエリ
+  reset(): void; // searched = null（フォーカス・候補選択）
+  gsiHits: SavedPoint[]; // 結果のクエリが query と一致するものだけ（Enter 後に入力を変えると消える）
+  poiHits: SavedPoint[];
+};
+```
+
+内部 state: `gsi` / `poi`（各 `{ query, hits }`）、`searched`、`inflight`（ref。直近の `AbortController`）。
+
+```
+search(): query が空なら何もしない。searched = query
+  inflight.current?.abort()、新しい AbortController を inflight に
+  searchAddress(query, signal) → setGsi({ query, hits })。失敗トースト「住所検索に失敗しました」
+  searchPoi(query, signal)     → setPoi({ query, hits })。失敗トースト「施設検索に失敗しました」
+  （isAbortError は無視）
+```
 
 ## `src/ui/map/PointPopup.tsx`
 

@@ -6,7 +6,13 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     caches
       .open(CACHE)
-      .then((c) => c.addAll(["/", "/icon.png", "/manifest.json"]))
+      .then((c) =>
+        c.addAll(
+          ["/", "/icon.png", "/manifest.json"].map(
+            (u) => new Request(u, { cache: "no-cache" }),
+          ),
+        ),
+      )
       .then(() => self.skipWaiting()),
   );
 });
@@ -20,7 +26,14 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== location.origin || url.pathname.startsWith("/gh/")) return;
   // URL 共有はクエリ形式なので、どの navigate も同じ "/" を返す
   const key = e.request.mode === "navigate" ? "/" : e.request;
-  e.respondWith(url.pathname.startsWith("/assets/") ? cacheFirst(key) : staleWhileRevalidate(key, e));
+  // no-store 要求にキャッシュを返すと新版を検知できない
+  if (e.request.cache === "no-store")
+    return e.respondWith(caches.open(CACHE).then((c) => fetchAndPut(c, key)));
+  e.respondWith(
+    url.pathname.startsWith("/assets/")
+      ? cacheFirst(key)
+      : staleWhileRevalidate(key, e),
+  );
 });
 
 // hash 付きファイル名は内容が変わらない
@@ -40,8 +53,9 @@ async function staleWhileRevalidate(key, e) {
   return hit;
 }
 
+// tailscale serve は Cache-Control を付けず、HTTP キャッシュが heuristic で旧版を返し続けるので毎回再検証する
 async function fetchAndPut(c, key) {
-  const r = await fetch(key);
+  const r = await fetch(key, { cache: "no-cache" });
   if (r.ok) await c.put(key, r.clone());
   return r;
 }

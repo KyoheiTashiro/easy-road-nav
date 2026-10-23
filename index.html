@@ -6,52 +6,24 @@
     <title>easy-road-nav</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- iOS standalone: 不透明バー。black-translucent だと iOS 26 が web view をバー高分短く作り下端に描画不能の帯が出る（WebKit 301108）。変更はホーム画面に再追加しないと反映されない -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- apple-mobile-web-app-status-bar-style は置かない。black-translucent は非推奨で iOS 26 で下端に描画不能の帯が出る（WebKit 301108 / 317153）。変更はホーム画面に再追加しないと反映されない -->
     <!-- 不透明バーを地図になじませる。値は tokens の colors.bg -->
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)" />
     <style>
-      /* 起動 splash: JS 到着まで #root 内の静的 HTML を表示。React の render が上書きして消える。
-         背景は manifest の background_color と同じにし、Android のネイティブ splash から途切れず繋ぐ */
-      #root:has(> .splash) {
-        position: fixed;
-        inset: 0;
-        display: grid;
-        place-content: center;
-        justify-items: center;
-        gap: 16px;
-        background: #1a73e8;
-        color: #fff;
-        font:
-          500 18px system-ui,
-          sans-serif;
+      /* iOS 26 のステータスバーはページ色・上端の fixed 要素の色を取り、起動後は拾い直さない。値は tokens の colors.bg */
+      html {
+        background: #ffffff;
       }
-      /* 速い読み込みでアイコン・文字がチラ見えしないよう、中身だけ 1 秒遅らせる（青地は即時） */
-      .splash {
-        opacity: 0;
-        animation: splash-in 0s 1s forwards;
-      }
-      @keyframes splash-in {
-        to {
-          opacity: 1;
+      @media (prefers-color-scheme: dark) {
+        html {
+          background: #121212;
         }
-      }
-      .splash img {
-        width: 96px;
-        height: 96px;
-        border-radius: 22px;
       }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div class="splash">
-        <img src="/icon.png" alt="" />
-        easy-road-nav
-      </div>
-    </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

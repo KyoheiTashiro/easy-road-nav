@@ -12,6 +12,9 @@ export const STYLE = {
 export const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 export const TOKYO_STATION: [number, number] = [139.7671, 35.6812];
 
+// MapLibre の paint は StyleX の変数を読めないので直値で持つ。route / narrow は tokens の accent / narrow のライト値と揃える
+const COLOR = { route: "#1a73e8", narrow: "#e8710a", white: "#fff", homeIcon: "#5f6368" } as const;
+
 const styles = stylex.create({
   marker: {
     width: 26,
@@ -35,8 +38,8 @@ const styles = stylex.create({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
-    color: "#5f6368",
+    backgroundColor: COLOR.white,
+    color: COLOR.homeIcon,
     boxShadow: shadows.marker,
   },
 });
@@ -143,7 +146,7 @@ export function applyStyleExtras(
       type: "line",
       source: "alternative",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#1a73e8", "line-width": 4, "line-opacity": 0.35 },
+      paint: { "line-color": COLOR.route, "line-width": 4, "line-opacity": 0.35 },
     },
     beforeId,
   );
@@ -154,7 +157,7 @@ export function applyStyleExtras(
       source: "route",
       filter: ["==", ["get", "kind"], ROAD_KIND.WIDE],
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#1a73e8", "line-width": 6 },
+      paint: { "line-color": COLOR.route, "line-width": 6 },
     },
     beforeId,
   );
@@ -165,7 +168,7 @@ export function applyStyleExtras(
       source: "route",
       filter: ["!=", ["get", "kind"], ROAD_KIND.WIDE],
       layout: { "line-join": "round" },
-      paint: { "line-color": "#e8710a", "line-width": 8, "line-dasharray": [1.5, 1.2] },
+      paint: { "line-color": COLOR.narrow, "line-width": 8, "line-dasharray": [1.5, 1.2] },
     },
     beforeId,
   );
@@ -185,7 +188,7 @@ export function applyStyleExtras(
         22,
         ["*", ["get", "baseRadius"], 4194304],
       ],
-      "circle-color": "#1a73e8",
+      "circle-color": COLOR.route,
       "circle-opacity": 0.15,
     },
   });
@@ -195,8 +198,8 @@ export function applyStyleExtras(
     source: "fix",
     paint: {
       "circle-radius": 7,
-      "circle-color": "#1a73e8",
-      "circle-stroke-color": "#fff",
+      "circle-color": COLOR.route,
+      "circle-stroke-color": COLOR.white,
       "circle-stroke-width": 2,
     },
   });

@@ -19,6 +19,18 @@
 - Lint: oxlint（`react-hooks` プラグイン）。Format: oxfmt。ESLint / Prettier は入れない。`exhaustive-deps` の無効化コメントは書かない（React Compiler がそのコンポーネントをスキップする）
 - スマホ実機検証: Geolocation は HTTPS 必須。Mac を tailnet に入れ `tailscale serve --bg 5173` で Vite dev を `https://<mac>.<tailnet>.ts.net` に公開。GraphHopper は Vite の `/gh` proxy 経由で一緒に届く。HMR は追加設定なしで wss になる。`tailscale serve` は Host ヘッダを透過するので `vite.config.ts` に `server.allowedHosts: [".ts.net"]` が必須（ないと "Blocked request"。先頭 `.` はサフィックス一致なのでホスト名を書かなくてよい）
 
+## 空行
+
+oxfmt は空行を足さない。関数本体を意味の段落に分け、段落の間に空行を 1 行、手で入れる。
+
+- 入れる: ガード節（1 行の早期 `return` / `throw` / `continue`）の塊の後。判定する値の宣言とガード節の間には入れない
+- 入れる: 宣言の塊と、それを使う処理の間
+- 入れる: 複数行の `if` / `for` / `while` / `switch` / コールバック付き呼び出しの前後。ブロックの先頭・末尾には入れない
+- 入れる: トップレベル宣言の間。1 行の型・定数宣言が続く塊の中には入れない
+- 最後の `return` は、直前が別の処理なら空行で離す。直前が返す値の計算なら離さない
+- テスト: 実行 → 検証が 1 回だけなら検証の前に入れる。実行と検証を繰り返すシナリオは、実行と検証の組を 1 段落にして組の間に入れる。組の中には入れない
+- 入れない: 3 文以下の関数、`switch` の `case` 間、オブジェクト・配列・引数リストの中、JSX の中、`import` 群の中
+
 ## ディレクトリ
 
 ```

@@ -97,7 +97,7 @@ const styles = stylex.create({
 });
 
 export function SearchBox() {
-  const mode = useTrip((state) => (state.mode === MODE.HOME ? MODE.HOME : MODE.EDIT));
+  const mode = useTrip((state) => (state.mode === MODE.HOME_SETUP ? MODE.HOME_SETUP : MODE.EDIT));
   const from = useTrip((state) => state.from);
   const to = useTrip((state) => state.to);
   const fix = useTrip((state) => (state.gpsError ? null : state.fix));
@@ -255,7 +255,7 @@ export function SearchBox() {
   return (
     <div {...stylex.props(styles.box)}>
       <div {...stylex.props(styles.card)}>
-        {mode === MODE.HOME ? (
+        {mode === MODE.HOME_SETUP ? (
           field(ROLE.HOME, null, "自宅", null)
         ) : (
           <>

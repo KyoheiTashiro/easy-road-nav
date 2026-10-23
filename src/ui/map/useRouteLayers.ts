@@ -19,7 +19,7 @@ export function useRouteLayers(map: maplibregl.Map | null) {
   const dataRef = useRef({ route: EMPTY, alternative: EMPTY, fix: EMPTY_FIX });
 
   useEffect(() => {
-    const hide = mode === MODE.HOME;
+    const hide = mode === MODE.HOME_SETUP;
     const route = hide ? undefined : routes[selected];
     const data = {
       route: route ? routeFeatures(route) : EMPTY,

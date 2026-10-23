@@ -60,7 +60,7 @@ export function useMapPopup(map: maplibregl.Map | null) {
   if (popup?.kind === "point") {
     popupContent = (
       <PointPopup
-        mode={mode === MODE.HOME ? MODE.HOME : MODE.EDIT}
+        mode={mode === MODE.HOME_SETUP ? MODE.HOME_SETUP : MODE.EDIT}
         label={popup.label}
         canAddVia={vias.length < MAX_VIAS}
         onAction={tripActions.popupActionTaken}

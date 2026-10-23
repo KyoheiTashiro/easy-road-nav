@@ -24,7 +24,7 @@ export const URL_HAD_POINTS = INITIAL_QUERY.from !== null || INITIAL_QUERY.to !=
 export const MODE = {
   EDIT: "edit",
   NAVIGATION: "navigation",
-  HOME: "home",
+  HOME_SETUP: "home",
   SETTINGS: "settings",
 } as const;
 export type Mode = (typeof MODE)[keyof typeof MODE];
@@ -272,11 +272,14 @@ export const tripActions = {
     set({ popup: null, sheetExpanded: false, mode: MODE.SETTINGS });
   },
   homeSetupEntered(): void {
-    set({ popup: null, mode: MODE.HOME });
+    set({ popup: null, mode: MODE.HOME_SETUP });
   },
   /** 「戻る」。home → settings → edit */
   backPressed(): void {
-    set((state) => ({ popup: null, mode: state.mode === MODE.HOME ? MODE.SETTINGS : MODE.EDIT }));
+    set((state) => ({
+      popup: null,
+      mode: state.mode === MODE.HOME_SETUP ? MODE.SETTINGS : MODE.EDIT,
+    }));
   },
   setSheet(sheetExpanded: boolean): void {
     set({ sheetExpanded });

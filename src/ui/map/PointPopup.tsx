@@ -17,7 +17,7 @@ const styles = stylex.create({
 });
 
 type PointPopupProps = {
-  mode: typeof MODE.EDIT | typeof MODE.HOME; // home = 「自宅にする」1 つ
+  mode: typeof MODE.EDIT | typeof MODE.HOME_SETUP; // home = 「自宅にする」1 つ
   label: string | null; // null = 逆ジオ中
   canAddVia: boolean;
   onAction(role: PointRole): void;
@@ -25,7 +25,7 @@ type PointPopupProps = {
 };
 
 export function PointPopup({ mode, label, canAddVia, onAction, onHome }: PointPopupProps) {
-  if (mode === MODE.HOME) {
+  if (mode === MODE.HOME_SETUP) {
     return (
       <div {...stylex.props(styles.box)}>
         <div {...stylex.props(styles.label)}>{label ?? "…"}</div>

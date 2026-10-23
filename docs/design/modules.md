@@ -297,7 +297,7 @@ export const MODE = {
   EDIT: "edit",
   NAVIGATION: "navigation",
   SETTINGS: "settings",
-  HOME: "home",
+  HOME_SETUP: "home",
 } as const;
 export const URL_HAD_POINTS: boolean; // 起動時の URL に from か to があった。Map の初回 fix easeTo を抑止
 export function useTrip<T>(selector: (state: TripState) => T): T;
@@ -505,7 +505,7 @@ search(): query が空なら何もしない。searched = query
 
 ```ts
 type PointPopupProps = {
-  mode: typeof MODE.EDIT | typeof MODE.HOME;
+  mode: typeof MODE.EDIT | typeof MODE.HOME_SETUP;
   label: string | null;
   canAddVia: boolean;
   onAction(role: PointRole): void;

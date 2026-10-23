@@ -103,7 +103,7 @@ export function useCamera(map: maplibregl.Map | null): void {
       if (!map.hasControl(compass)) map.addControl(compass, "top-left");
       map.jumpTo({ bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
     }
-    if (mode === MODE.HOME) easeToHome(map);
+    if (mode === MODE.HOME_SETUP) easeToHome(map);
   }, [map, mode, compass]);
 
   // 追従: navigation が更新されるたび（= 受理した fix ごと・follow/zoom 変更）に easeTo。heading null なら bearing 据え置き。

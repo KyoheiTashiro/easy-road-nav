@@ -25,7 +25,7 @@ function screenOf(mode: Mode): ReactElement {
       );
     case MODE.SETTINGS:
       return <Settings />;
-    case MODE.HOME:
+    case MODE.HOME_SETUP:
       return <SearchBox key={mode} />; // key: モード切替で入力 state を捨てる
     case MODE.EDIT:
       return (

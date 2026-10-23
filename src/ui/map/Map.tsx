@@ -80,7 +80,7 @@ export function Map() {
   );
 
   const locate =
-    (mode === MODE.EDIT && !sheetExpanded) || mode === MODE.HOME ? (
+    (mode === MODE.EDIT && !sheetExpanded) || mode === MODE.HOME_SETUP ? (
       <button
         {...stylex.props(button.base, styles.locate)}
         disabled={!fix || gpsError}

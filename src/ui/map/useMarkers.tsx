@@ -18,7 +18,7 @@ export function useMarkers(map: maplibregl.Map | null) {
   const [homeDiv] = useState(homeMarkerElement);
 
   useEffect(() => {
-    if (!map || mode === MODE.HOME) return;
+    if (!map || mode === MODE.HOME_SETUP) return;
     const markerDefinitions: {
       point: Point;
       color: string;

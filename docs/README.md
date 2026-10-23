@@ -14,6 +14,7 @@ Web で使える Google Maps ライクな地図・ナビアプリ。日本国内
 - [ADR-0001 経路エンジンに GraphHopper（セルフホスト）を採用](adr/0001-routing-engine.md)
 - [ADR-0002 施設名検索に Nominatim 公式インスタンスを採用](adr/0002-poi-geocoder.md)（廃止）
 - [ADR-0003 施設名検索を Yahoo! ローカルサーチ API に切り替え](adr/0003-poi-geocoder-yahoo.md)
+- [ADR-0004 src を機能別ディレクトリに再編し、関連物を同居させる](adr/0004-colocation.md)
 
 ## 要件
 

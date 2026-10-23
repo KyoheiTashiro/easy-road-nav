@@ -96,4 +96,4 @@ src/
 
 - `*.test.ts` を実装ファイルの隣に置く
 - fixture は `src/model/__fixtures__/`（[route-model.md](../design/route-model.md)）
-- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`api/gsi.ts`（`rankHits` の全文一致優先・安定ソート）、`store/saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）、`store/navigation.ts`（`fetchRoute` を差し替え、開始 → 経路外れ 3 回 → リルート → 到着）
+- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`api/gsi.ts`（`rankHits` の全文一致優先・安定ソート）、`store/saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）、`store/navigation.ts`（`fetchRoute` を差し替え、開始 → 経路外れ 3 回 → リルート → 到着、リルート打ち切りで旧経路継続）

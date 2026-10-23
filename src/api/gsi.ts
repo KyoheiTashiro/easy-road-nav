@@ -1,10 +1,13 @@
+import { withTimeout } from "@/api/timeout.ts";
 import type { LatLng, SavedPoint } from "@/model/point.ts";
 
 const REVERSE = "https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress";
 
-/** 国土地理院 逆ジオ。results.lv01Nm（町丁目）。海上などの応答 {} → null。失敗は throw */
+/** 国土地理院 逆ジオ。results.lv01Nm（町丁目）。海上などの応答 {} → null。失敗・10 秒は throw */
 export async function reverseGeocode(point: LatLng, signal?: AbortSignal): Promise<string | null> {
-  const response = await fetch(`${REVERSE}?lat=${point.lat}&lon=${point.lng}`, { signal });
+  const response = await fetch(`${REVERSE}?lat=${point.lat}&lon=${point.lng}`, {
+    signal: withTimeout(signal),
+  });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const json = (await response.json()) as { results?: { lv01Nm?: string } };
   return json.results?.lv01Nm ?? null;
@@ -18,9 +21,11 @@ export function rankHits(query: string, hits: SavedPoint[]): SavedPoint[] {
   return [...hits].sort((a, b) => has(a) - has(b));
 }
 
-/** 国土地理院 住所検索。応答は素の Feature 配列（coordinates = [lng, lat]）。全文一致を優先。件数制限なし。失敗は throw */
-export async function searchAddress(query: string, signal: AbortSignal): Promise<SavedPoint[]> {
-  const response = await fetch(`${SEARCH}?q=${encodeURIComponent(query)}`, { signal });
+/** 国土地理院 住所検索。応答は素の Feature 配列（coordinates = [lng, lat]）。全文一致を優先。件数制限なし。失敗・10 秒は throw */
+export async function searchAddress(query: string, signal?: AbortSignal): Promise<SavedPoint[]> {
+  const response = await fetch(`${SEARCH}?q=${encodeURIComponent(query)}`, {
+    signal: withTimeout(signal),
+  });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const json = (await response.json()) as {
     geometry: { coordinates: [number, number] };

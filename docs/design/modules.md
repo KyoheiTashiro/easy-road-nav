@@ -53,21 +53,21 @@ export function fetchRoute(
   points: LatLng[], // 出発地 → 経由地 → 到着地
   profile: Profile,
   alternatives: boolean, // vias.length === 0 のとき true → alternative_route.max_paths 3
-  signal: AbortSignal,
+  signal?: AbortSignal,
 ): Promise<RouteModel[]>; // paths[] を fromGraphHopperPath で変換。[0] が本線
 ```
 
-リクエスト body は [route-model.md](route-model.md) の契約。`AbortError` は呼び出し側で握りつぶす（トーストしない）。
+リクエスト body は [route-model.md](route-model.md) の契約。10 秒で `TimeoutError`（失敗扱い）。`AbortError` は呼び出し側で握りつぶす（トーストしない）。
 
 ## `src/api/gsi.ts`
 
 ```ts
 export function rankHits(query: string, hits: SavedPoint[]): SavedPoint[]; // query を label に含む候補を先頭へ（安定）
-export function searchAddress(query: string, signal: AbortSignal): Promise<SavedPoint[]>; // rankHits 後の全件。title を label に
+export function searchAddress(query: string, signal?: AbortSignal): Promise<SavedPoint[]>; // rankHits 後の全件。title を label に
 export function reverseGeocode(point: LatLng, signal?: AbortSignal): Promise<string | null>; // results.lv01Nm。応答 {} → null
 ```
 
-失敗は throw。呼び出し側がトースト（検索）または座標表示にフォールバック（逆ジオ）。
+失敗・10 秒タイムアウト（`TimeoutError`）は throw。呼び出し側がトースト（検索）または座標表示にフォールバック（逆ジオ）。
 
 ## `src/api/yahoo.ts`
 
@@ -88,6 +88,14 @@ JSONP。`<script>` を `document.head` に挿入し、`window[callback]` で受�
 normalizePoiQuery: query.replace(/[（(][株有][）)]/g, " ").trim()
   「○○（株）△△事業所」 → 「○○ △△事業所」（削除して「○○△△事業所」にすると 0 件、空白なら 1 件。ADR-0003）
 ```
+
+## `src/api/timeout.ts`
+
+```ts
+export function withTimeout(signal?: AbortSignal): AbortSignal; // signal と AbortSignal.timeout(10_000) の合成。打ち切りは TimeoutError
+```
+
+`fetchRoute`・`searchAddress`・`reverseGeocode` が fetch に渡す。`TimeoutError` は `AbortError` と区別され、呼び出し側では失敗扱い（トースト・座標表示）になる。
 
 ## `src/api/speech.ts`
 

@@ -1,4 +1,5 @@
 import type { LatLng } from "@/model/point.ts";
+import { withTimeout } from "@/api/timeout.ts";
 import { fromGraphHopperPath, type GraphHopperPath, type RouteModel } from "@/model/route.ts";
 
 export const PROFILE = { CAR: "car", NOTOLL: "car_notoll" } as const;
@@ -7,12 +8,12 @@ export type Profile = (typeof PROFILE)[keyof typeof PROFILE];
 /** 400 の message（"Cannot find point" 等）。ネットワーク不達は fetch の TypeError のまま */
 export class RouteError extends Error {}
 
-/** points は 出発地 → 経由地 → 到着地。alternatives は vias.length === 0 のとき true */
+/** points は 出発地 → 経由地 → 到着地。alternatives は vias.length === 0 のとき true。10 秒で TimeoutError */
 export async function fetchRoute(
   points: LatLng[],
   profile: Profile,
   alternatives: boolean,
-  signal: AbortSignal,
+  signal?: AbortSignal,
 ): Promise<RouteModel[]> {
   // 契約は docs/design/route-model.md
   const body = {
@@ -30,7 +31,7 @@ export async function fetchRoute(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal,
+    signal: withTimeout(signal),
   });
   if (!response.ok) {
     const message = await response

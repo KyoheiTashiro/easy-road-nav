@@ -90,4 +90,21 @@ describe("navigationActions", () => {
     expect(getNavigation().navigation).toBeNull();
     expect(getNavigation().hud).toBeNull();
   });
+
+  it("リルートの fetch が打ち切られたら rerouting を戻し旧経路で継続", async () => {
+    fetchMock.mockResolvedValue([straight()]);
+    tripActions.pointSet("to", { lat: 35, lng: 139 + 1000 / 91_300 }, "B");
+    gps(fixAt(0));
+    await navigationActions.start();
+
+    fetchMock.mockRejectedValueOnce(new DOMException("timeout", "TimeoutError"));
+    for (const s of [120, 140, 160]) gps(fixAt(s, 100));
+    expect(getNavigation().navigation?.rerouting).toBe(true);
+    await flush();
+    expect(getNavigation().navigation?.rerouting).toBe(false);
+    expect(getNavigation().navigation?.offRouteCount).toBe(0);
+    expect(getTrip().mode).toBe("navigation");
+    navigationActions.end(true);
+  });
+
 });

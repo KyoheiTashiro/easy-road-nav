@@ -12,7 +12,7 @@
 6. Wake Lock 取得。`visibilitychange` で `visible` に戻ったら再取得
 7. カメラをナビ設定へ（「カメラ」節）
 
-再探索失敗 → トースト、編集モードのまま。
+再探索失敗（10 秒タイムアウト含む） → トースト、編集モードのまま。
 
 ## 状態
 
@@ -133,7 +133,7 @@ React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、e
 2. 出発地 = 現在地から `heading` 方向へ リルート前方オフセット だけ進めた点。`heading` が null（停車中に外れた等）なら現在地そのまま
 3. `points` = [出発地, 未通過の経由地（`vias.slice(passedVia)`）, 到着地]。`profile` は現在の有料トグル。`alternative_route` なし
 4. 成功: `routes = [新経路]`、`selected = 0`、`navigation` を初期化（`s = 0`、`announced` 空、`passedVia = 0`、`follow`・`zoom`・`muted` は維持）。発話「経路を再探索しました」+ 開始時文言。`fitBounds` しない（追従継続）
-5. 失敗（400 / ネットワーク）: トースト「経路を再探索できません」、`rerouting = false`、旧経路のまま案内継続。`offRouteCount = 0` に戻し、次の連続外れで再試行
+5. 失敗（400 / ネットワーク / 10 秒タイムアウト）: トースト「経路を再探索できません」、`rerouting = false`、旧経路のまま案内継続。`offRouteCount = 0` に戻し、次の連続外れで再試行
 6. 地点リスト（編集モードに戻ったとき）: 通過済み経由地は薄色 + 「通過済」表示で残す。URL の `via` は全経由地を維持
 
 ## 終了・到着

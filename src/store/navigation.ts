@@ -91,7 +91,6 @@ async function reroute(state: NavigationState, fix: Fix) {
       [offsetOrigin(fix, state.heading), ...trip.vias.slice(passed), trip.to],
       selectProfile(trip),
       false,
-      new AbortController().signal,
     );
   } catch {}
   if (getTrip().mode !== MODE.NAVIGATION) return; // 応答前に終了・到着
@@ -129,12 +128,7 @@ export const navigationActions = {
     const origin: Point = { lat: fix.lat, lng: fix.lng, label: "現在地" };
     let route: RouteModel | undefined;
     try {
-      [route] = await fetchRoute(
-        [origin, ...trip.vias, trip.to],
-        selectProfile(trip),
-        false,
-        new AbortController().signal,
-      );
+      [route] = await fetchRoute([origin, ...trip.vias, trip.to], selectProfile(trip), false);
     } catch {
     } finally {
       set({ starting: false });

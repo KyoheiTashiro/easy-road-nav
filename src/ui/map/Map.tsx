@@ -50,7 +50,6 @@ const styles = stylex.create({
   },
 });
 
-
 export function Map() {
   const mode = useTrip((s) => s.mode);
   const nav = useNav((s) => s.nav);
@@ -64,6 +63,7 @@ export function Map() {
   const selected = useTrip((s) => s.selected);
   const fitVersion = useTrip((s) => s.fitVersion);
   const popup = useTrip((s) => s.popup);
+  const panTarget = useTrip((s) => s.panTarget);
   const sheetExpanded = useTrip((s) => s.sheetExpanded);
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -170,6 +170,8 @@ export function Map() {
     const map = mapRef.current;
     if (!map) return;
     for (const m of markersRef.current) m.remove();
+    markersRef.current = [];
+    if (mode === MODE.HOME) return;
     const specs: { p: Point; color: string; text: string; onDelete: () => void }[] = [];
     if (from)
       specs.push({
@@ -203,7 +205,7 @@ export function Map() {
         .setLngLat(p)
         .addTo(map),
     );
-  }, [from, to, vias]);
+  }, [from, to, vias, mode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -235,6 +237,12 @@ export function Map() {
     pp.setLngLat(target);
     if (!pp.isOpen()) pp.addTo(map); // addTo は開いていると remove() → close 発火 → 閉じてしまう
   }, [popup, markerPopup, popupDiv]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && panTarget)
+      map.easeTo({ center: panTarget, zoom: Math.max(map.getZoom(), LOCATE_ZOOM) });
+  }, [panTarget]);
 
   // 自宅設定モードに入ったら登録済みの自宅へ（home の変更ではカメラを動かさない）
   const easeToHome = useEffectEvent((map: maplibregl.Map) => {
@@ -324,7 +332,7 @@ export function Map() {
   }
 
   const locate =
-    mode === MODE.EDIT && !sheetExpanded ? (
+    (mode === MODE.EDIT && !sheetExpanded) || mode === MODE.HOME ? (
       <button
         {...stylex.props(button.base, styles.locate)}
         disabled={!fix || gpsError}
@@ -340,7 +348,7 @@ export function Map() {
 
   return (
     <>
-      <div ref={container} {...stylex.props(styles.map)} />
+      <div ref={container} {...stylex.props(styles.map)} data-mode={mode} />
       {createPortal(locate, locateDiv)}
       {createPortal(popupContent, popupDiv)}
       {createPortal(<HomeIcon size={18} />, homeDiv)}

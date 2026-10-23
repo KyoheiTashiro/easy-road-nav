@@ -40,6 +40,8 @@ export type TripState = {
   fitVersion: number;
   sheetExpanded: boolean;
   popup: Popup | null;
+  /** Map が easeTo する先（自宅設定の検索候補） */
+  panTarget: LatLng | null;
   fix: Fix | null;
   gpsError: boolean;
   fromDefaulted: boolean; // 出発地の既定（初回 fix）を適用済み。URL に from があれば最初から true
@@ -61,6 +63,7 @@ const useStore = create<TripState>(() => ({
   fitVersion: 0,
   sheetExpanded: false,
   popup: null,
+  panTarget: null,
   fix: null,
   gpsError: typeof navigator === "undefined" || !navigator.geolocation,
   fromDefaulted: INIT.from !== null,
@@ -218,11 +221,10 @@ export const tripActions = {
     const { popup } = getTrip();
     if (popup && popup.label !== null) tripActions.homeChosen(popup.p, popup.label);
   },
-  /** 検索欄の候補。home モードの「現在地」は label 未確定 → ポップアップで逆ジオを待ち「自宅にする」で確定 */
+  /** 検索欄の候補。home モードは地図を寄せるだけ。自宅の確定は地図タップのポップアップ「自宅にする」 */
   searchPicked(role: PickRole, p: LatLng, label: string | null): void {
     if (role !== ROLE.HOME) tripActions.pointSet(role, p, label);
-    else if (label === null) tripActions.popupOpened(p);
-    else tripActions.homeChosen(p, label);
+    else set({ popup: null, panTarget: { lat: p.lat, lng: p.lng } }); // 毎回新しい参照（同じ候補の再タップでも寄せる）
   },
   homeChosen(p: LatLng, label: string): void {
     savedActions.homeSaved({ lat: p.lat, lng: p.lng, label });
@@ -252,6 +254,7 @@ export const tripActions = {
         selected: 0,
         fittedKey: selectPointsKey(next), // ナビ中は fitBounds しない
         popup: null,
+        panTarget: null,
         sheetExpanded: false,
         passedVia: 0,
         mode: MODE.NAV,

@@ -22,6 +22,14 @@ body:has([data-sheet-empty]) .maplibregl-ctrl-bottom-left,
 body:has([data-sheet-empty]) .maplibregl-ctrl-bottom-right {
   margin-bottom: 88px; /* peekEmpty */
 }
+/* 自宅設定はシートなし・検索カード 1 行 */
+[data-mode="home"] .maplibregl-ctrl-bottom-left,
+[data-mode="home"] .maplibregl-ctrl-bottom-right {
+  margin-bottom: calc(env(safe-area-inset-bottom) + 10px);
+}
+[data-mode="home"] .maplibregl-ctrl-top-left {
+  margin-top: calc(env(safe-area-inset-top) + 52px); /* 検索カード 1 行（44px） */
+}
 /* コンパス: 赤い北針の円形アイコン。針は MapLibre が bearing に合わせて回す。
    円形アイコン自体が輪郭を持つので MapLibre の白地・影は消す */
 .maplibregl-ctrl-top-left .maplibregl-ctrl-group {

@@ -30,6 +30,7 @@ const styles = stylex.create({
     transition: "max-height 0.25s ease",
     zIndex: 5,
   },
+  empty: { maxHeight: `${layout.peekEmpty}px` },
   expanded: { maxHeight: `${layout.half}dvh` }, // vh だと Safari のツールバー表示中に innerHeight とずれ、指追従の終わりで跳ねる
   // ピーク時に body が覗かないよう高さを揃える。ホームインジケータ分は空けず、ボタンをその直上に置く
   header: {
@@ -38,6 +39,7 @@ const styles = stylex.create({
     display: "flex",
     flexDirection: "column",
   },
+  headerEmpty: { minHeight: `${layout.peekEmpty}px` },
   handle: {
     display: "block",
     width: "100%",
@@ -47,9 +49,18 @@ const styles = stylex.create({
     cursor: "pointer",
   },
   bar: { width: 40, height: 4, borderRadius: 2, margin: "0 auto", backgroundColor: colors.border },
-  summary: { flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "0 16px 12px" },
-  summaryText: { flex: 1, minWidth: 0, cursor: "pointer" },
-  start: { flexShrink: 0, height: 52, padding: "0 20px", fontSize: 16 },
+  // 2 行目はボタンの下まで使う（横に置くと 3 項目が揃ったとき重なる）
+  summary: {
+    flex: 1,
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    alignContent: "center",
+    alignItems: "center",
+    gap: "2px 12px",
+    padding: "0 16px 12px",
+  },
+  summaryText: { display: "contents", cursor: "pointer" },
+  start: { gridRow: 1, gridColumn: 2, height: 52, padding: "0 16px", fontSize: 16 },
   // スクロールは常に body。overflow を切り替えると iOS がタッチ開始時にスクロール対象を取り違える
   body: {
     flex: 1,
@@ -177,6 +188,8 @@ export function BottomSheet() {
   const gpsOk = useTrip((s) => s.fix !== null && !s.gpsError);
   const loading = useTrip(selectLoading) || starting;
   const route = routes[selected];
+  const empty = routes.length === 0;
+  const peek = empty ? layout.peekEmpty : layout.peek;
   const summaryProps = { routes, narrows, selected, onSelect: tripActions.routeSelected, loading };
   const sheet = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -205,7 +218,7 @@ export function BottomSheet() {
     // 展開済みはリストのスクロールが主。シートの高さを触ると iOS がスクロールもタップも取りこぼす（先頭でタップ時の数 px の揺れでも起きる）ので、閉じ方向へ明確に動くまで触らない（追従開始後の反転は追従を続ける）
     if (expanded && dy < DRAG_START_PX && !el.style.maxHeight) return;
     const max = (window.innerHeight * layout.half) / 100;
-    const h = Math.min(max, Math.max(layout.peek, startHeight.current - dy));
+    const h = Math.min(max, Math.max(peek, startHeight.current - dy));
     el.style.transition = "none";
     el.style.maxHeight = `${h}px`;
   };
@@ -225,13 +238,14 @@ export function BottomSheet() {
   return (
     <div
       ref={sheet}
-      {...stylex.props(styles.sheet, expanded && styles.expanded)}
+      {...stylex.props(styles.sheet, empty && styles.empty, expanded && styles.expanded)}
+      data-sheet-empty={empty || undefined}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={resetStyle}
     >
-      <div {...stylex.props(styles.header)}>
+      <div {...stylex.props(styles.header, empty && styles.headerEmpty)}>
         <button
           {...stylex.props(styles.handle)}
           onClick={toggle}

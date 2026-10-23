@@ -377,7 +377,7 @@ export function Map(): JSX.Element;
 
 `Map` の React 非依存部分。タイルスタイル URL（light / dark）、マーカー DOM（色は `tokens.stylex.ts` の `marker`）（`markerElement` `homeMarkerElement`）、GeoJSON 生成（`fixFeatures` `routeFeatures` `altFeatures`）、`bounds`、`applyStyleExtras`（ラベルの `name:ja` 上書き + 経路・代替・現在地の source / layer。`style.load` のたびに呼ぶ）。`maplibre-gl` を import するので vitest の対象外。
 
-同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置、コンパス画像 `ui/icons/compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
+同じディレクトリの `maplibre.css` は MapLibre 既定 UI の上書き（ポップアップの余白、コントロールの位置（左下はシートのピーク高に合わせ、経路なしは `data-sheet-empty` で切替）、コンパス画像 `ui/icons/compass.svg`）。`Map.tsx` が `maplibre-gl.css` の次に import する。
 
 ## `src/ui/edit/SearchBox.tsx`
 
@@ -417,7 +417,7 @@ type PointPopupProps = {
 
 props なし。購読: `sheetExpanded` `from` `to` `vias` `passedVia`（通過済 表示）`notoll` `selected`、`selectRoutes` `selectNarrows` `selectLoading`、`gpsOk`（= fix あり かつ gpsError でない）、nav store の `starting`。saved store は購読しない（自宅行は Settings へ移した）。`loading` = `selectLoading || starting`。「案内開始」は routes があるときだけ描画し、`!gpsOk`（文言「GPS 待ち」）か `starting` で disabled。操作: ハンドル / サマリ文字部のタップ・スワイプ → `setSheet`、× → `pointDeleted` / `viaDeleted`、▲▼ → `viaMoved`、トグル → `notollToggled`、代替カード → `routeSelected`、「案内開始」→ `navActions.start`。
 
-スワイプは `onTouchStart` で開始 Y・body の `scrollTop`・シートの現在高を取り、`onTouchMove` で inline `max-height` を `[layout.peek, innerHeight × layout.half / 100]` にクランプして追従（`transition: none`）、`onTouchEnd` で inline を外し 30px 以上なら `setSheet(dy < 0)`。下方向は開始時 `scrollTop > 0` なら無視。`useEffect([expanded])` で展開時に `scrollTop = 0`。
+スワイプは `onTouchStart` で開始 Y・body の `scrollTop`・シートの現在高を取り、`onTouchMove` で inline `max-height` を `[ピーク高, innerHeight × layout.half / 100]`（ピーク高 = 経路なしは `layout.peekEmpty`、ありは `layout.peek`）にクランプして追従（`transition: none`）、`onTouchEnd` で inline を外し 30px 以上なら `setSheet(dy < 0)`。下方向は開始時 `scrollTop > 0` なら無視。`useEffect([expanded])` で展開時に `scrollTop = 0`。経路なしはシートと header の高さを `layout.peekEmpty` にし、シートに `data-sheet-empty` を付ける（`maplibre.css` が `body:has([data-sheet-empty])` で左下コントロールの余白を合わせる）。
 
 内部に地点リスト（タイムライン。別ファイルにしない。記号は `FromIcon` / 番号 / `ToIcon` を `marker` 色で塗る）。ピーク = `RouteSummary`（compact）+ 「案内開始」。展開 = 地点リスト → section（トグル）→ section（代替カード。routes が 2 本以上）→ section（`StepList`）。section は `paddingTop 12` + 上罫線。
 
@@ -488,7 +488,7 @@ props なし。`useToast()` と `mode === "nav"`（位置を HUD 下へ。`layou
 ## `src/ui/layout.stylex.ts`
 
 ```ts
-export const layout = stylex.defineConsts({ peek: 112, half: 70, navbar: 64, hud: 88, next: 36 }); // px。half のみ vh
+export const layout = stylex.defineConsts({ peek: 108, peekEmpty: 88, half: 75, navbar: 80, hud: 88, next: 36 }); // px。half のみ vh
 ```
 
 画面部品の高さ。`BottomSheet`（`peek` 収納時 / `half` 展開時）`NavBar` `NavHud` が自分の高さに使い、`Map` が fitBounds / ナビ時の padding、`Toast` がナビ時の `top` に使う。`defineConsts` の値はコンパイル時に文字列で埋まる。数値は単位なしのまま埋まる（vite dev では `max-height:80` が無効になる。build は lightningcss が px を補うので気づきにくい）ので、`stylex.create` 内では `${layout.peek}px` のように単位を付け、JS で足さず `calc()` に並べる。JS からは数値として読める。

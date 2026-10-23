@@ -14,8 +14,8 @@ const styles = stylex.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: `${layout.navbar}px`,
-    paddingBottom: "env(safe-area-inset-bottom)",
+    // ホームインジケータ分を padding で空けると中身が上寄りに見えるので、高さに含めて全体で中央揃え
+    height: `calc(${layout.navbar}px + env(safe-area-inset-bottom))`,
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -27,8 +27,9 @@ const styles = stylex.create({
     zIndex: 5,
   },
   info: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" },
-  time: { fontSize: 24, fontWeight: 700 },
-  eta: { fontSize: 16, opacity: 0.7 },
+  // 和文フォントの既定行高は大きく、上下の隙間が消える
+  time: { fontSize: 24, fontWeight: 700, lineHeight: "30px" },
+  eta: { fontSize: 16, opacity: 0.7, lineHeight: "20px" },
   mute: { width: 44, height: 44, display: "grid", placeItems: "center" },
   end: { height: 52, padding: "0 20px", fontSize: 16, marginLeft: 8 }, // 案内開始と同じ大きさ。ミュートとの間を bar の gap より広げる
 });

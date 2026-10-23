@@ -38,12 +38,14 @@
 
 ### ボトムシート
 
-2 段（ピーク = `layout.peek`、展開 = 70dvh = `layout.half`）。CSS `max-height` transition のみ、ライブラリ不使用。
+2 段（ピーク = `layout.peek`（経路なしは `layout.peekEmpty`）、展開 = 75dvh = `layout.half`）。CSS `max-height` transition のみ、ライブラリ不使用。
+
+ピーク行は 2 行のグリッド。1 行目 = 所要時間・距離 +「案内開始」、2 行目 = 細い道・有料・右左折をシート幅いっぱいに並べる（ボタンの横に置くと 3 項目が揃ったとき重なる）。
 
 開閉の操作:
 
 - タップ: ハンドル（`<button aria-expanded>`）とピーク行の文字部分で切替。「案内開始」はタップ対象外
-- スワイプ: `touchmove` で `max-height` を指に追従（ピーク高〜70dvh にクランプ、追従中は transition なし）。`touchend` で縦移動 30px 以上なら方向で確定、未満なら元に戻る。`touchcancel` でも追従を解除。展開中の上方向はリストのスクロールに任せシートを触らない。リスト内で始めたタッチでリストがスクロール済み（`scrollTop > 0`）なら下方向は無視（ハンドル上なら閉じる）
+- スワイプ: `touchmove` で `max-height` を指に追従（ピーク高〜75dvh にクランプ、追従中は transition なし）。`touchend` で縦移動 30px 以上なら方向で確定、未満なら元に戻る。`touchcancel` でも追従を解除。展開中の上方向はリストのスクロールに任せシートを触らない。リスト内で始めたタッチでリストがスクロール済み（`scrollTop > 0`）なら下方向は無視（ハンドル上なら閉じる）
 - 地図タップ: 展開中は地点ポップアップを開かず収納だけ
 - 再展開は先頭から（展開時に body の `scrollTop` を 0 に）
 - 展開・収納のたびに `fitBounds` し直す（[探索](#探索)）
@@ -51,7 +53,7 @@
 内容:
 
 - **ピーク**: サマリ 2 行 + 「案内開始」ボタン
-  - 1 行目: 所要時間（20px 太字）+ 距離
+  - 1 行目: 所要時間（24px 太字）+ 距離（16px）
   - 2 行目: 細い道（あれば オレンジ背景チップ「`NarrowIcon` 細い道 x.x km」、なければ緑字「細い道なし」）/ 有料 x.x km（あれば）/ `TurnsIcon` 右左折 n 回。[アイコンのみ表示](#アイコンのみ表示) ON なら チップ「`NarrowIcon` x.x km」（なければチップ自体を出さない）/ 有料 x.x km / 「`TurnsIcon` n 回」
   - 探索中はスピナー + 「探索中…」、地点が揃っていなければ「出発地と到着地を設定してください」
   - 「案内開始」: 経路がないときは出さない。高さ 52px・文字 16px。GPS fix なし・エラー中は文言「GPS 待ち」で無効、開始処理中も無効
@@ -150,7 +152,7 @@ saved store の `iconOnly`（`localStorage` キー `iconOnly`、既定 false）�
 - 飛行中リクエストは `AbortController` で中断してから次を投げる。中断はトーストしない
 - ローディング表示: サマリ行にスピナー 1 個
 - 経由地なし → `alternative_route` 最大 3 本、あり → 1 本（[route-model.md](route-model.md) の契約）
-- 新しい経路が返ったら `fitBounds`（下パディング = シートの高さ。収納時はピーク高、展開時は 70dvh）。ボトムシートの展開・収納でも fit し直す。代替切替・トグル変更・再探索の結果ではカメラを動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（trip store が `routesLoaded` で地点集合の変化を検知して増やし、Map が `useEffect([fitVersion])` と `useEffect([sheetExpanded])` で fit）
+- 新しい経路が返ったら `fitBounds`（下パディング = シートの高さ。収納時はピーク高、展開時は 75dvh）。ボトムシートの展開・収納でも fit し直す。代替切替・トグル変更・再探索の結果ではカメラを動かさない（「新しい経路」= 地点集合が変わった探索のみ）。実装は `fitVersion` カウンタ（trip store が `routesLoaded` で地点集合の変化を検知して増やし、Map が `useEffect([fitVersion])` と `useEffect([sheetExpanded])` で fit）
 - 失敗（400 / ネットワーク）→ トースト 1 種「経路を探索できません」。経路表示は空にする
 
 ## 経路レイヤー

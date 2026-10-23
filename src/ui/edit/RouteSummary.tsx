@@ -9,13 +9,21 @@ import { colors } from "@/ui/tokens.stylex.ts";
 const spin = stylex.keyframes({ to: { transform: "rotate(360deg)" } });
 
 const styles = stylex.create({
-  compact: { display: "flex", flexDirection: "column", gap: 2 },
-  placeholder: { fontSize: 15, lineHeight: "24px" },
-  main: { display: "flex", alignItems: "baseline", gap: 8, lineHeight: "26px" },
-  time: { fontSize: 20, fontWeight: 700 },
-  km: { fontSize: 14, opacity: 0.8 },
-  sub: { display: "flex", alignItems: "center", gap: 10, fontSize: 13, lineHeight: "18px" },
-  stat: { display: "inline-flex", alignItems: "center", gap: 3 },
+  compact: { display: "contents" }, // 親のグリッドに 1 行目・2 行目を直接並べる
+  placeholder: { fontSize: 16, lineHeight: "24px" },
+  main: { display: "flex", alignItems: "baseline", gap: 8, lineHeight: "30px" },
+  time: { fontSize: 24, fontWeight: 700 },
+  km: { fontSize: 16, opacity: 0.8 },
+  sub: {
+    display: "flex",
+    flexWrap: "wrap",
+    gridColumn: "1 / -1",
+    alignItems: "center",
+    gap: "2px 8px",
+    fontSize: 14,
+    lineHeight: "20px",
+  },
+  stat: { display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" },
   narrowChip: {
     padding: "0 6px",
     borderRadius: 4,
@@ -70,15 +78,15 @@ function Stats({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }
     <div {...stylex.props(styles.sub)}>
       {narrowM > 0 ? (
         <span {...stylex.props(styles.stat, styles.narrowChip)} aria-label={narrowText}>
-          <NarrowIcon size={14} />
+          <NarrowIcon size={16} />
           {iconOnly ? formatKm(narrowM) : narrowText}
         </span>
       ) : (
         !iconOnly && <span {...stylex.props(styles.stat, styles.ok)}>細い道なし</span>
       )}
-      {toll > 0 && <span>有料 {formatKm(toll)}</span>}
+      {toll > 0 && <span {...stylex.props(styles.stat)}>有料 {formatKm(toll)}</span>}
       <span {...stylex.props(styles.stat)} aria-label={turnsText}>
-        <TurnsIcon size={16} />
+        <TurnsIcon size={18} />
         {iconOnly ? turnCount(route) : turnsText}
       </span>
     </div>

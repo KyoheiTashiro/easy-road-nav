@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ROLE, type Point, type PointRole } from "@/model/point.ts";

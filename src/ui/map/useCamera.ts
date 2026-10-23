@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { NavigationState } from "@/model/progress.ts";
 import { navigationActions, useNavigation } from "@/store/navigation.ts";

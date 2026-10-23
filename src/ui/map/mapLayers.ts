@@ -1,5 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
-import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { GeoJSONSource, LngLatBoundsLike } from "maplibre-gl";
 import type { FeatureCollection, LineString, Point as GeoPoint } from "geojson";
 import type { Fix } from "@/model/point.ts";
 import { ROAD_KIND, type RouteModel } from "@/model/route.ts";

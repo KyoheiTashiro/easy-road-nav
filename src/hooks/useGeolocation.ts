@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { navActions } from "@/store/nav.ts";
+import { navigationActions } from "@/store/navigation.ts";
 import { tripActions } from "@/store/trip.ts";
 
 /** 失敗時も fix は前回値を保持 */
@@ -7,15 +7,15 @@ export function useGeolocation(): void {
   useEffect(() => {
     if (!navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
-      (pos) => {
+      (position) => {
         const fix = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          t: pos.timestamp,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
         };
         tripActions.fixUpdated(fix);
-        navActions.onFix(fix);
+        navigationActions.onFix(fix);
       },
       () => tripActions.gpsFailed(),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },

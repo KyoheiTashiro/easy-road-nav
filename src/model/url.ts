@@ -2,10 +2,10 @@ import { MAX_VIAS, type LatLng } from "@/model/point.ts";
 
 export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
 
-function parseLatLng(s: string | null): LatLng | null {
-  if (!s) return null;
-  const parts = s.split(",");
-  if (parts.length !== 2 || parts.some((x) => x.trim() === "")) return null; // Number("") は 0 なので先に弾く
+function parseLatLng(text: string | null): LatLng | null {
+  if (!text) return null;
+  const parts = text.split(",");
+  if (parts.length !== 2 || parts.some((part) => part.trim() === "")) return null; // Number("") は 0 なので先に弾く
   const lat = Number(parts[0]);
   const lng = Number(parts[1]);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -23,22 +23,22 @@ export function parseQuery(search: string): Query {
       .split("|")
       .filter(Boolean)
       .map(parseLatLng)
-      .filter((p): p is LatLng => p !== null)
+      .filter((point): point is LatLng => point !== null)
       .slice(0, MAX_VIAS),
     notoll: params.get("notoll") !== "0", // 既定は避ける
   };
 }
 
-function fmt(p: LatLng): string {
-  return `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
+function formatLatLng(point: LatLng): string {
+  return `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`;
 }
 
 /** "?from=..&to=..&via=..|..&notoll=0"。地点なし・notoll true（既定）は省略。全部なしなら "" */
-export function buildQuery(q: Query): string {
+export function buildQuery(query: Query): string {
   const parts: string[] = [];
-  if (q.from) parts.push(`from=${fmt(q.from)}`);
-  if (q.to) parts.push(`to=${fmt(q.to)}`);
-  if (q.vias.length) parts.push(`via=${q.vias.map(fmt).join("|")}`);
-  if (!q.notoll) parts.push("notoll=0");
+  if (query.from) parts.push(`from=${formatLatLng(query.from)}`);
+  if (query.to) parts.push(`to=${formatLatLng(query.to)}`);
+  if (query.vias.length) parts.push(`via=${query.vias.map(formatLatLng).join("|")}`);
+  if (!query.notoll) parts.push("notoll=0");
   return parts.length ? `?${parts.join("&")}` : "";
 }

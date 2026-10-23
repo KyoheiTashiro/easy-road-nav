@@ -1,5 +1,5 @@
 export type LatLng = { lat: number; lng: number };
-export type Fix = LatLng & { accuracy: number; t: number }; // t = position.timestamp
+export type Fix = LatLng & { accuracy: number; timestamp: number }; // position.timestamp
 export type Point = LatLng & { label: string | null }; // label null = 逆ジオ中
 export const ROLE = { FROM: "from", TO: "to", VIA: "via", HOME: "home" } as const;
 export type Slot = typeof ROLE.FROM | typeof ROLE.TO;

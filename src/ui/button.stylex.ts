@@ -12,7 +12,7 @@ export const button = stylex.create({
     borderWidth: 0,
     borderRadius: 12,
     backgroundColor: colors.surface,
-    color: colors.fg,
+    color: colors.foreground,
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
     transitionProperty: "transform, filter, background-color",
@@ -37,7 +37,7 @@ export const button = stylex.create({
     color: fixedColors.onAccent,
     fontWeight: 600,
   },
-  active: { backgroundColor: colors.accentBg, color: colors.accent },
+  active: { backgroundColor: colors.accentBackground, color: colors.accent },
   icon: {
     width: 36,
     height: 36,

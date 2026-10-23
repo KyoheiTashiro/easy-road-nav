@@ -8,9 +8,9 @@ export function useWakeLock(active: boolean): void {
     const request = () =>
       navigator.wakeLock
         .request("screen")
-        .then((l) => {
-          if (released) l.release();
-          else lock = l;
+        .then((sentinel) => {
+          if (released) sentinel.release();
+          else lock = sentinel;
         })
         .catch(() => {}); // 低電力モード等で拒否される。致命的でない
     const onVisible = () => {

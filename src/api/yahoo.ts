@@ -4,11 +4,11 @@ const SEARCH = "https://map.yahooapis.jp/search/local/V1/localSearch";
 const TIMEOUT = 10_000;
 const RESULTS = 100; // API の上限
 
-let seq = 0;
+let sequence = 0;
 
 /** 法人格略号を空白に。削除すると 0 件になる（ADR-0003） */
-export function normalizePoiQuery(q: string): string {
-  return q.replace(/[（(][株有][）)]/g, " ").trim();
+export function normalizePoiQuery(query: string): string {
+  return query.replace(/[（(][株有][）)]/g, " ").trim();
 }
 
 type Response = {
@@ -20,12 +20,12 @@ type Response = {
  * Yahoo! ローカルサーチで施設名検索。API が CORS ヘッダを返さないため JSONP。
  * 最大 100 件（API 上限）。失敗（script error・10 秒・Status != 200・appid 未設定）は reject。abort は AbortError
  */
-export async function searchPoi(q: string, signal: AbortSignal): Promise<SavedPoint[]> {
+export async function searchPoi(query: string, signal: AbortSignal): Promise<SavedPoint[]> {
   const appid = import.meta.env.VITE_YAHOO_APPID as string | undefined;
   if (!appid) throw new Error("VITE_YAHOO_APPID is not set");
   signal.throwIfAborted();
-  const cb = `__yj${++seq}`;
-  const w = window as unknown as Record<string, unknown>;
+  const callbackName = `__yj${++sequence}`;
+  const windowRecord = window as unknown as Record<string, unknown>;
   const script = document.createElement("script");
   return new Promise<SavedPoint[]>((resolve, reject) => {
     // 決着（成功・失敗・中断）したら必ず後始末。どの経路も 1 回しか通らない
@@ -33,23 +33,24 @@ export async function searchPoi(q: string, signal: AbortSignal): Promise<SavedPo
       clearTimeout(timer);
       signal.removeEventListener("abort", onAbort);
       script.remove();
-      delete w[cb];
+      delete windowRecord[callbackName];
     };
-    const fail = (e: Error) => {
+    const fail = (error: Error) => {
       cleanup();
-      reject(e);
+      reject(error);
     };
     const onAbort = () => fail(new DOMException("aborted", "AbortError"));
     const timer = setTimeout(() => fail(new Error("timeout")), TIMEOUT);
     signal.addEventListener("abort", onAbort);
     script.onerror = () => fail(new Error("script error"));
-    w[cb] = (res: Response) => {
-      if (res.ResultInfo.Status !== 200) return fail(new Error(`Status ${res.ResultInfo.Status}`));
+    windowRecord[callbackName] = (response: Response) => {
+      if (response.ResultInfo.Status !== 200)
+        return fail(new Error(`Status ${response.ResultInfo.Status}`));
       cleanup();
       resolve(
-        (res.Feature ?? []).map((f) => {
-          const [lng = NaN, lat = NaN] = f.Geometry.Coordinates.split(",").map(Number);
-          return { label: f.Name, lat, lng };
+        (response.Feature ?? []).map((feature) => {
+          const [lng = NaN, lat = NaN] = feature.Geometry.Coordinates.split(",").map(Number);
+          return { label: feature.Name, lat, lng };
         }),
       );
     };
@@ -57,8 +58,8 @@ export async function searchPoi(q: string, signal: AbortSignal): Promise<SavedPo
       appid,
       output: "json",
       results: String(RESULTS),
-      query: normalizePoiQuery(q),
-      callback: cb,
+      query: normalizePoiQuery(query),
+      callback: callbackName,
     });
     script.src = `${SEARCH}?${params}`;
     document.head.appendChild(script);

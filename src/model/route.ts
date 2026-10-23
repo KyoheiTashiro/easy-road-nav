@@ -8,7 +8,7 @@ export type TollValue = (typeof TOLL)[keyof typeof TOLL];
 
 export type RouteModel = {
   points: [number, number][]; // [lng, lat]
-  cum: number[]; // cum[k] = P[0]..P[k] の累積距離 m
+  cumulativeDistances: number[]; // cumulativeDistances[i] = points[0]..points[i] の累積距離 m
   roadClass: { from: number; to: number; kind: RoadKind }[];
   toll: { from: number; to: number; value: TollValue }[];
   instructions: {
@@ -27,7 +27,7 @@ export type RouteModel = {
 export type Instruction = RouteModel["instructions"][number];
 
 /** GraphHopper paths[] 要素の必要フィールドだけ */
-export type GhPath = {
+export type GraphHopperPath = {
   distance: number;
   time: number;
   points: { coordinates: [number, number][] };
@@ -42,11 +42,11 @@ export type GhPath = {
   details: {
     road_class: [number, number, string][];
     toll: [number, number, string][];
-    intersection?: [number, number, GhIntersection][];
+    intersection?: [number, number, GraphHopperIntersection][];
   };
 };
 /** details=intersection の 1 要素。頂点 from にある交差点の全接続エッジ。bearings は昇順、in/out はその index */
-export type GhIntersection = {
+export type GraphHopperIntersection = {
   bearings: number[];
   entries: boolean[]; // 進入可能か（in エッジと一方通行の逆走は false）
   in?: number; // 先頭ノードには無い
@@ -58,9 +58,9 @@ export const FORK_ANGLE = 45;
 
 const WIDE = new Set(["motorway", "trunk", "primary", "secondary", "tertiary"]);
 
-function roadKind(cls: string): RoadKind {
-  if (WIDE.has(cls)) return ROAD_KIND.WIDE;
-  if (cls === "track") return ROAD_KIND.FORBIDDEN;
+function roadKind(roadClass: string): RoadKind {
+  if (WIDE.has(roadClass)) return ROAD_KIND.WIDE;
+  if (roadClass === "track") return ROAD_KIND.FORBIDDEN;
   return ROAD_KIND.NARROW;
 }
 
@@ -68,100 +68,121 @@ function toLatLng([lng, lat]: [number, number]): LatLng {
   return { lat, lng };
 }
 
-export function fromGhPath(path: GhPath): RouteModel {
+export function fromGraphHopperPath(path: GraphHopperPath): RouteModel {
   const points = path.points.coordinates;
-  const cum: number[] = [0];
+  const cumulativeDistances: number[] = [0];
   for (let i = 1; i < points.length; i++) {
-    cum.push(cum[i - 1]! + haversine(toLatLng(points[i - 1]!), toLatLng(points[i]!)));
+    cumulativeDistances.push(
+      cumulativeDistances[i - 1]! + haversine(toLatLng(points[i - 1]!), toLatLng(points[i]!)),
+    );
   }
-  const instructions = path.instructions.map((ins) => ({
-    text: ins.text,
-    sign: ins.sign,
-    streetName: ins.street_name,
-    from: ins.interval[0],
-    to: ins.interval[1],
-    time: ins.time,
-    exitNumber: ins.exit_number,
+  const instructions = path.instructions.map((instruction) => ({
+    text: instruction.text,
+    sign: instruction.sign,
+    streetName: instruction.street_name,
+    from: instruction.interval[0],
+    to: instruction.interval[1],
+    time: instruction.time,
+    exitNumber: instruction.exit_number,
   }));
   // intersection の詳細は [from, to, 交差点]。交差点は頂点 from にある
-  for (const [k, _to, x] of path.details.intersection ?? [])
-    addFork(instructions, cum, k, forkSign(x));
+  for (const [vertexIndex, _to, intersection] of path.details.intersection ?? [])
+    addFork(instructions, cumulativeDistances, vertexIndex, forkSign(intersection));
   return {
     points,
-    cum,
-    roadClass: path.details.road_class.map(([from, to, cls]) => ({
+    cumulativeDistances,
+    roadClass: path.details.road_class.map(([from, to, roadClass]) => ({
       from,
       to,
-      kind: roadKind(cls),
+      kind: roadKind(roadClass),
     })),
-    toll: path.details.toll.map(([from, to, v]) => ({ from, to, value: v as TollValue })),
+    toll: path.details.toll.map(([from, to, value]) => ({ from, to, value: value as TollValue })),
     instructions,
-    viaIndices: instructions.filter((i) => i.sign === 5).map((i) => i.from),
+    viaIndices: instructions
+      .filter((instruction) => instruction.sign === 5)
+      .map((instruction) => instruction.from),
     distance: path.distance,
     time: path.time,
   };
 }
 
-/** -180 < d <= 180。正 = b は a の右（時計回り） */
-function angleDiff(a: number, b: number): number {
+/** -180 < 差 <= 180。正 = b は a の右（時計回り） */
+function angleDifference(a: number, b: number): number {
   return ((b - a + 540) % 360) - 180;
 }
 
 /** 分岐なら 7（右寄り）/ -7（左寄り）、それ以外 0。GraphHopper が keep を出さない同格の分岐（高架下 vs 側道等）を補う */
-export function forkSign(x: GhIntersection): number {
-  const out = x.bearings[x.out]!;
+export function forkSign(intersection: GraphHopperIntersection): number {
+  const out = intersection.bearings[intersection.out]!;
   let sign = 0;
   let best = FORK_ANGLE; // 採用済みの最小方位差。初期値 = 分岐とみなす上限
-  x.bearings.forEach((b, i) => {
-    if (i === x.out || i === x.in || !x.entries[i]) return;
-    const d = angleDiff(out, b);
-    if (Math.abs(d) <= best) {
-      best = Math.abs(d);
-      sign = d > 0 ? -7 : 7; // 他方が右にある → 自分は左寄り
+  intersection.bearings.forEach((otherBearing, i) => {
+    if (i === intersection.out || i === intersection.in || !intersection.entries[i]) return;
+    const difference = angleDifference(out, otherBearing);
+    if (Math.abs(difference) <= best) {
+      best = Math.abs(difference);
+      sign = difference > 0 ? -7 : 7; // 他方が右にある → 自分は左寄り
     }
   });
   return sign;
 }
 
-/** 頂点 k に sign ±7 の指示を入れる。既に案内地点（sign != 0）なら何もしない。sign 0 の指示が k から始まるなら書き換え、途中なら分割 */
-function addFork(instructions: Instruction[], cum: number[], k: number, sign: number): void {
-  if (sign === 0 || k === 0) return; // 出発地は案内しない
+/** 頂点 vertexIndex に sign ±7 の指示を入れる。既に案内地点（sign != 0）なら何もしない。sign 0 の指示が vertexIndex から始まるなら書き換え、途中なら分割 */
+function addFork(
+  instructions: Instruction[],
+  cumulativeDistances: number[],
+  vertexIndex: number,
+  sign: number,
+): void {
+  if (sign === 0 || vertexIndex === 0) return; // 出発地は案内しない
   const text = sign > 0 ? "右寄り" : "左寄り";
-  const idx = instructions.findIndex((i) => i.from <= k && k < i.to);
-  const ins = instructions[idx];
-  if (!ins) return;
-  if (ins.from === k) {
-    if (ins.sign === 0) Object.assign(ins, { sign, text });
+  const index = instructions.findIndex(
+    (instruction) => instruction.from <= vertexIndex && vertexIndex < instruction.to,
+  );
+  const instruction = instructions[index];
+  if (!instruction) return;
+  if (instruction.from === vertexIndex) {
+    if (instruction.sign === 0) Object.assign(instruction, { sign, text });
     return;
   }
-  const t = timeWithin(cum, ins, cum[k]!);
-  const tail = { ...ins, sign, text, from: k, time: ins.time - t };
+  const time = timeWithin(cumulativeDistances, instruction, cumulativeDistances[vertexIndex]!);
+  const tail = { ...instruction, sign, text, from: vertexIndex, time: instruction.time - time };
   delete tail.exitNumber;
-  instructions.splice(idx, 1, { ...ins, to: k, time: t }, tail);
+  instructions.splice(index, 1, { ...instruction, to: vertexIndex, time }, tail);
 }
 
-/** 指示 ins の始点から累積距離 s までの所要時間 ms（距離に比例配分） */
-export function timeWithin(cum: number[], ins: Instruction, s: number): number {
-  const len = cum[ins.to]! - cum[ins.from]!;
-  return len > 0 ? (ins.time * (s - cum[ins.from]!)) / len : 0;
+/** 指示 instruction の始点から累積距離 s までの所要時間 ms（距離に比例配分） */
+export function timeWithin(
+  cumulativeDistances: number[],
+  instruction: Instruction,
+  s: number,
+): number {
+  const length = cumulativeDistances[instruction.to]! - cumulativeDistances[instruction.from]!;
+  return length > 0
+    ? (instruction.time * (s - cumulativeDistances[instruction.from]!)) / length
+    : 0;
 }
 
 function vertex(route: RouteModel, i: number): LatLng {
   return toLatLng(route.points[i]!);
 }
 
-/** 全線分に射影し dist 最小を採用。s = cum[i] + t × (cum[i+1] − cum[i]) */
+/** 全線分に射影し distance 最小を採用。s = cumulativeDistances[i] + t × (cumulativeDistances[i+1] − cumulativeDistances[i]) */
 export function nearest(
   route: RouteModel,
-  p: LatLng,
+  point: LatLng,
 ): { s: number; distanceToRoute: number; segmentIndex: number } {
   // ponytail: 全線分 O(n) 走査。遅ければ前回 index の近傍窓に限定
   let best = { s: 0, distanceToRoute: Infinity, segmentIndex: 0 };
   for (let i = 0; i + 1 < route.points.length; i++) {
-    const { t, dist } = projectToSegment(p, vertex(route, i), vertex(route, i + 1));
-    if (dist < best.distanceToRoute) {
-      const c0 = route.cum[i]!;
-      best = { s: c0 + t * (route.cum[i + 1]! - c0), distanceToRoute: dist, segmentIndex: i };
+    const { t, distance } = projectToSegment(point, vertex(route, i), vertex(route, i + 1));
+    if (distance < best.distanceToRoute) {
+      const segmentStart = route.cumulativeDistances[i]!;
+      best = {
+        s: segmentStart + t * (route.cumulativeDistances[i + 1]! - segmentStart),
+        distanceToRoute: distance,
+        segmentIndex: i,
+      };
     }
   }
   return best;
@@ -173,11 +194,17 @@ export function segmentBearing(route: RouteModel, i: number): number {
 
 /** 右左折の回数。直進（0）・経由地（5）・目的地（4）・分岐の寄り（±7）は数えない */
 export function turnCount(route: RouteModel): number {
-  return route.instructions.filter((i) => [1, 2, 3, 6, 8, 98].includes(Math.abs(i.sign))).length;
+  return route.instructions.filter((instruction) =>
+    [1, 2, 3, 6, 8, 98].includes(Math.abs(instruction.sign)),
+  ).length;
 }
 
 export function tollDistance(route: RouteModel): number {
   return route.toll
-    .filter((t) => t.value === TOLL.ALL)
-    .reduce((sum, t) => sum + route.cum[t.to]! - route.cum[t.from]!, 0);
+    .filter((range) => range.value === TOLL.ALL)
+    .reduce(
+      (sum, range) =>
+        sum + route.cumulativeDistances[range.to]! - route.cumulativeDistances[range.from]!,
+      0,
+    );
 }

@@ -1,5 +1,5 @@
 import type { LatLng } from "@/model/point.ts";
-import { fromGhPath, type GhPath, type RouteModel } from "@/model/route.ts";
+import { fromGraphHopperPath, type GraphHopperPath, type RouteModel } from "@/model/route.ts";
 
 export const PROFILE = { CAR: "car", NOTOLL: "car_notoll" } as const;
 export type Profile = (typeof PROFILE)[keyof typeof PROFILE];
@@ -17,7 +17,7 @@ export async function fetchRoute(
   // 契約は docs/design/route-model.md
   const body = {
     profile,
-    points: points.map((p) => [p.lng, p.lat]),
+    points: points.map((point) => [point.lng, point.lat]),
     points_encoded: false,
     elevation: false,
     instructions: true,
@@ -26,19 +26,19 @@ export async function fetchRoute(
     snap_preventions: ["tunnel", "bridge", "ferry"],
     ...(alternatives ? { algorithm: "alternative_route", "alternative_route.max_paths": 3 } : {}),
   };
-  const res = await fetch("/gh/route", {
+  const response = await fetch("/gh/route", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal,
   });
-  if (!res.ok) {
-    const msg = await res
+  if (!response.ok) {
+    const message = await response
       .json()
-      .then((j: { message?: string }) => j.message)
+      .then((errorBody: { message?: string }) => errorBody.message)
       .catch(() => undefined);
-    throw new RouteError(msg ?? `HTTP ${res.status}`);
+    throw new RouteError(message ?? `HTTP ${response.status}`);
   }
-  const json = (await res.json()) as { paths: GhPath[] };
-  return json.paths.map(fromGhPath);
+  const json = (await response.json()) as { paths: GraphHopperPath[] };
+  return json.paths.map(fromGraphHopperPath);
 }

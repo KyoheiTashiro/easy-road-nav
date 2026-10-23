@@ -23,10 +23,10 @@ describe("parseQuery", () => {
     expect(parseQuery("?via=35.5%2C139.6%7C35.7%2C139.8").vias).toHaveLength(2);
   });
   it("不正な地点は個別に無視", () => {
-    const q = parseQuery("?from=abc&to=35.3,139.4&via=1,2,3|91,0|35.5,139.6|0,181|x,y|35.7,");
-    expect(q.from).toBeNull();
-    expect(q.to).toEqual({ lat: 35.3, lng: 139.4 });
-    expect(q.vias).toEqual([{ lat: 35.5, lng: 139.6 }]);
+    const query = parseQuery("?from=abc&to=35.3,139.4&via=1,2,3|91,0|35.5,139.6|0,181|x,y|35.7,");
+    expect(query.from).toBeNull();
+    expect(query.to).toEqual({ lat: 35.3, lng: 139.4 });
+    expect(query.vias).toEqual([{ lat: 35.5, lng: 139.6 }]);
   });
   it("notoll は 0 のみ偽（既定は避ける、旧 notoll=1 も真）", () => {
     expect(parseQuery("?notoll=0").notoll).toBe(false);
@@ -35,9 +35,9 @@ describe("parseQuery", () => {
   });
   it("via 6 件目以降は切り捨て", () => {
     const via = Array.from({ length: 7 }, (_, i) => `35,${139 + i}`).join("|");
-    const q = parseQuery(`?via=${via}`);
-    expect(q.vias).toHaveLength(5);
-    expect(q.vias[4]).toEqual({ lat: 35, lng: 143 });
+    const query = parseQuery(`?via=${via}`);
+    expect(query.vias).toHaveLength(5);
+    expect(query.vias[4]).toEqual({ lat: 35, lng: 143 });
   });
 });
 
@@ -56,7 +56,7 @@ describe("buildQuery", () => {
     ).toBe("?from=35.12346,139.10000&via=35.50000,139.60000");
   });
   it("往復で一致", () => {
-    const q = {
+    const query = {
       from: { lat: 35.12345, lng: 139.12345 },
       to: { lat: 35.3, lng: 139.4 },
       vias: [
@@ -65,6 +65,6 @@ describe("buildQuery", () => {
       ],
       notoll: false,
     };
-    expect(parseQuery(buildQuery(q))).toEqual(q);
+    expect(parseQuery(buildQuery(query))).toEqual(query);
   });
 });

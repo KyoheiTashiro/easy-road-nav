@@ -9,7 +9,7 @@ export const STYLE = {
   light: "https://tiles.openfreemap.org/styles/liberty",
   dark: "https://tiles.openfreemap.org/styles/dark",
 };
-export const DARK_MQ = "(prefers-color-scheme: dark)";
+export const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 export const TOKYO_STATION: [number, number] = [139.7671, 35.6812];
 
 const styles = stylex.create({
@@ -42,91 +42,106 @@ const styles = stylex.create({
 });
 
 export function markerElement(color: string, text: string, onClick: () => void): HTMLDivElement {
-  const el = document.createElement("div");
-  el.className = stylex.props(styles.marker).className ?? "";
-  el.style.backgroundColor = color;
-  el.textContent = text;
+  const element = document.createElement("div");
+  element.className = stylex.props(styles.marker).className ?? "";
+  element.style.backgroundColor = color;
+  element.textContent = text;
   // マーカータップは地図 click に伝播させない（onTap が走ると地点ポップアップが開く）
-  el.addEventListener("click", (ev) => {
-    ev.stopPropagation();
+  element.addEventListener("click", (event) => {
+    event.stopPropagation();
     onClick();
   });
-  return el;
+  return element;
 }
 
-export type FC = FeatureCollection<LineString>;
-export type FixFC = FeatureCollection<GeoPoint>;
-export const EMPTY: FC = { type: "FeatureCollection", features: [] };
-export const EMPTY_FIX: FixFC = { type: "FeatureCollection", features: [] };
+export type LineFeatureCollection = FeatureCollection<LineString>;
+export type FixFeatureCollection = FeatureCollection<GeoPoint>;
+export const EMPTY: LineFeatureCollection = { type: "FeatureCollection", features: [] };
+export const EMPTY_FIX: FixFeatureCollection = { type: "FeatureCollection", features: [] };
 
-/** 精度円: zoom 0 での px 半径 r0 を持たせ、layer 側で 2^zoom 倍する */
-export function fixFeatures(fix: Fix | null): FixFC {
+/** 精度円: zoom 0 での px 半径 baseRadius を持たせ、layer 側で 2^zoom 倍する */
+export function fixFeatures(fix: Fix | null): FixFeatureCollection {
   if (!fix) return EMPTY_FIX;
-  const r0 = fix.accuracy / (156543.03 * Math.cos((fix.lat * Math.PI) / 180));
+  const baseRadius = fix.accuracy / (156543.03 * Math.cos((fix.lat * Math.PI) / 180));
   return {
     type: "FeatureCollection",
     features: [
       {
         type: "Feature",
-        properties: { r0 },
+        properties: { baseRadius },
         geometry: { type: "Point", coordinates: [fix.lng, fix.lat] },
       },
     ],
   };
 }
 
-export function routeFeatures(route: RouteModel): FC {
+export function routeFeatures(route: RouteModel): LineFeatureCollection {
   return {
     type: "FeatureCollection",
-    features: route.roadClass.map((r) => ({
+    features: route.roadClass.map((range) => ({
       type: "Feature",
-      properties: { kind: r.kind },
-      geometry: { type: "LineString", coordinates: route.points.slice(r.from, r.to + 1) },
+      properties: { kind: range.kind },
+      geometry: { type: "LineString", coordinates: route.points.slice(range.from, range.to + 1) },
     })),
   };
 }
 
-export function altFeatures(routes: RouteModel[], selected: number): FC {
+export function alternativeFeatures(routes: RouteModel[], selected: number): LineFeatureCollection {
   return {
     type: "FeatureCollection",
     features: routes
       .filter((_, i) => i !== selected)
-      .map((r) => ({
+      .map((route) => ({
         type: "Feature",
         properties: {},
-        geometry: { type: "LineString", coordinates: r.points },
+        geometry: { type: "LineString", coordinates: route.points },
       })),
   };
 }
 
-export function setSourceData(map: maplibregl.Map | null, id: string, data: FC | FixFC): void {
+export function setSourceData(
+  map: maplibregl.Map | null,
+  id: string,
+  data: LineFeatureCollection | FixFeatureCollection,
+): void {
   (map?.getSource(id) as GeoJSONSource | undefined)?.setData(data);
 }
 
 export function bounds(route: RouteModel): LngLatBoundsLike {
-  const b = new maplibregl.LngLatBounds();
-  for (const p of route.points) b.extend(p);
-  return b;
+  const lngLatBounds = new maplibregl.LngLatBounds();
+  for (const point of route.points) lngLatBounds.extend(point);
+  return lngLatBounds;
 }
 
 /** style.load のたびに呼ぶ: ラベル上書き + 経路・現在地 source / layer。初期化とダーク切替で同じ */
-export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC; fix: FixFC }) {
+export function applyStyleExtras(
+  map: maplibregl.Map,
+  data: {
+    route: LineFeatureCollection;
+    alternative: LineFeatureCollection;
+    fix: FixFeatureCollection;
+  },
+) {
   const layers = map.getStyle().layers;
-  for (const l of layers) {
-    const tf = l.type === "symbol" ? l.layout?.["text-field"] : undefined;
+  for (const layer of layers) {
+    const textField = layer.type === "symbol" ? layer.layout?.["text-field"] : undefined;
     // ref（道路番号）を出す層は地名ではないので触らない
-    if (tf === undefined || JSON.stringify(tf).includes('"ref"')) continue;
-    map.setLayoutProperty(l.id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]]);
+    if (textField === undefined || JSON.stringify(textField).includes('"ref"')) continue;
+    map.setLayoutProperty(layer.id, "text-field", [
+      "coalesce",
+      ["get", "name:ja"],
+      ["get", "name"],
+    ]);
   }
   // 経路線は地名ラベルの下に置く
-  const beforeId = layers.find((l) => l.type === "symbol")?.id;
-  map.addSource("alt", { type: "geojson", data: data.alt });
+  const beforeId = layers.find((layer) => layer.type === "symbol")?.id;
+  map.addSource("alternative", { type: "geojson", data: data.alternative });
   map.addSource("route", { type: "geojson", data: data.route });
   map.addLayer(
     {
-      id: "alt-line",
+      id: "alternative-line",
       type: "line",
-      source: "alt",
+      source: "alternative",
       layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": "#1a73e8", "line-width": 4, "line-opacity": 0.35 },
     },
@@ -166,9 +181,9 @@ export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC
         ["exponential", 2],
         ["zoom"],
         0,
-        ["get", "r0"],
+        ["get", "baseRadius"],
         22,
-        ["*", ["get", "r0"], 4194304],
+        ["*", ["get", "baseRadius"], 4194304],
       ],
       "circle-color": "#1a73e8",
       "circle-opacity": 0.15,
@@ -189,8 +204,8 @@ export function applyStyleExtras(map: maplibregl.Map, data: { route: FC; alt: FC
 
 /** 中身（アイコン）は portal で描く */
 export function homeMarkerElement(): HTMLDivElement {
-  const el = document.createElement("div");
-  el.className = stylex.props(styles.homeMarker).className ?? "";
-  el.addEventListener("click", (ev) => ev.stopPropagation());
-  return el;
+  const element = document.createElement("div");
+  element.className = stylex.props(styles.homeMarker).className ?? "";
+  element.addEventListener("click", (event) => event.stopPropagation());
+  return element;
 }

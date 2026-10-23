@@ -1,19 +1,19 @@
 # UI 設計（編集モード・共通部品）
 
-要件は [map-display.md](../requirements/map-display.md) [search.md](../requirements/search.md) [routing.md](../requirements/routing.md)。ここでは画面・操作・状態の「どう作るか」。ナビ中の画面は [nav.md](nav.md)。
+要件は [map-display.md](../requirements/map-display.md) [search.md](../requirements/search.md) [routing.md](../requirements/routing.md)。ここでは画面・操作・状態の「どう作るか」。ナビ中の画面は [navigation.md](navigation.md)。
 
 ## 画面モード
 
-`edit`（経路編集）・`nav`（案内中）・`settings`（設定）・`home`（自宅設定）の 4 つ。trip store の `mode` で切替。
+`edit`（経路編集）・`navigation`（案内中）・`settings`（設定）・`home`（自宅設定）の 4 つ。trip store の `mode` で切替。
 
-- `edit` → `nav`: 「案内開始」（[nav.md](nav.md) の開始手順）
-- `nav` → `edit`: 「終了」（確認なし）または到着。経路・地点はそのまま残り、再度「案内開始」できる。GPS watch は継続
+- `edit` → `navigation`: 「案内開始」（[navigation.md](navigation.md) の開始手順）
+- `navigation` → `edit`: 「終了」（確認なし）または到着。経路・地点はそのまま残り、再度「案内開始」できる。GPS watch は継続
 - `edit` → `settings`: 検索欄の下の歯車。経路・地点はそのまま残る（[設定画面](#設定画面)）
 - `settings` → `edit`: 「戻る」
 - `settings` → `home`: 「自宅を設定」/「変更」
 - `home` → `settings`: 自宅を選んで保存したとき、または「戻る」（[自宅設定モード](#自宅設定モード)）
 
-`settings` `home` は `edit` の入れ子。どちらからも `nav` へは行かず、`edit` へは `settings` を経由して戻る。戻り先を記憶する state は持たない（遷移元が 1 つずつしかない）。
+`settings` `home` は `edit` の入れ子。どちらからも `navigation` へは行かず、`edit` へは `settings` を経由して戻る。戻り先を記憶する state は持たない（遷移元が 1 つずつしかない）。
 
 ## 初期表示
 
@@ -35,7 +35,7 @@
 - 下部: ボトムシート
 - 左下（ボトムシートの直上）: MapLibre `ScaleControl` + 帰属表示（compact）
 - 左上（検索欄の下）: MapLibre `NavigationControl`（コンパスのみ、`visualizePitch`）。アイコンは自前 SVG（赤い北針の円形）に CSS で差替、MapLibre の白地・影は消す（40px）。押下で北上・pitch 0。ナビ中は外す（heading 追従と衝突するため）
-- 右下（ボトムシートの直上）: 現在地ボタン（[現在地](#現在地)）。40px の円、背景 `colors.bg`、影なし。MapLibre の `bottom-right` コントロールに入れ、縮尺・出典と同じ CSS の `margin-bottom` でシートのピーク高の上に置く。スワイプ中はシートの下に隠れ、展開中は描画しない
+- 右下（ボトムシートの直上）: 現在地ボタン（[現在地](#現在地)）。40px の円、背景 `colors.background`、影なし。MapLibre の `bottom-right` コントロールに入れ、縮尺・出典と同じ CSS の `margin-bottom` でシートのピーク高の上に置く。スワイプ中はシートの下に隠れ、展開中は描画しない
 
 ### ボトムシート
 
@@ -62,7 +62,7 @@
   1. 地点リスト（タイムライン）。検索欄と同じ記号を縦線で繋ぐ: 出発地は中空の丸（`FromIcon`）、経由地は番号、到着地はピン（`ToIcon`）。色は地図マーカーと同じ（`tokens` の `marker`）、未設定は `colors.border`。塗り丸にしない（地図マーカーと紛れ、見た目も重い）。各行: 記号・地点名・削除ボタン。経由地行は ▲▼ 並べ替えボタン付き。未設定は薄字「<役割>未設定（地図をタップ）」。役割名は記号の `aria-label`
   2. 「高速・有料を避ける」トグル（経路ごとに切り替える探索条件なのでここに残す。端末設定は[設定画面](#設定画面)）
   3. 代替経路カード（経路が 2 本以上のときだけ。最大 3 枚）。各カードはピーク行と同じ 2 行、1 行目の先頭にラベル「推奨」/「代替 n」。左縁 4px、選択中は枠が accent 色。タップで本線入替。シートは開いたまま（閉じると選択結果が見えず「選択されていない」と誤認する）
-  4. 案内文リスト（`StepList`。GraphHopper の返却全部（`sign 0` 含む）。ステップごとに 距離 / 指示 / 道路名。細い道区間に入るステップは先頭に「⚠ 細い道」、行全体に薄いオレンジ背景 `colors.narrowBg`。アイコンのみ表示 ON なら「⚠ 細い道」の代わりに `NarrowIcon`（`colors.narrow` 色、14px）だけ）
+  4. 案内文リスト（`StepList`。GraphHopper の返却全部（`sign 0` 含む）。ステップごとに 距離 / 指示 / 道路名。細い道区間に入るステップは先頭に「⚠ 細い道」、行全体に薄いオレンジ背景 `colors.narrowBackground`。アイコンのみ表示 ON なら「⚠ 細い道」の代わりに `NarrowIcon`（`colors.narrow` 色、14px）だけ）
 
 表示文字列（距離・時間・時刻）は `src/model/format.ts` に集約（[modules.md](modules.md)）。所要時間は「1 時間 20 分」「25 分」「1 分」。
 
@@ -80,7 +80,7 @@
 - 住所検索・施設名検索の候補タップは、その地点を検索履歴の先頭に入れる（`saved.ts` の `pushHistory`）。「現在地」「自宅」「履歴」行のタップは入れない
 - 失敗（ネットワーク・非 2xx）→ トースト「住所検索に失敗しました」/「施設検索に失敗しました」。もう片方の候補は出る。地図タップで代替
 - blur で候補リストを閉じる。候補タップより blur が先に来るので 150 ms 遅らせる
-- カードの下、右寄せに歯車の丸ボタン（40px、`SettingsIcon` 24px、`colors.bg` + カードと同じ影、aria-label「設定」）。コンパスは左上に置き、右側は歯車だけにする。タップで `settings` モード（[設定画面](#設定画面)）。常時見える入口にし、ボトムシートは経路情報だけにする。候補リスト表示中と自宅設定モードでは出さない
+- カードの下、右寄せに歯車の丸ボタン（40px、`SettingsIcon` 24px、`colors.background` + カードと同じ影、aria-label「設定」）。コンパスは左上に置き、右側は歯車だけにする。タップで `settings` モード（[設定画面](#設定画面)）。常時見える入口にし、ボトムシートは経路情報だけにする。候補リスト表示中と自宅設定モードでは出さない
 
 ### 地点ポップアップ
 
@@ -104,7 +104,7 @@ MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（�
 
 - 起動時に `watchPosition` 開始（`enableHighAccuracy: true`）。アンマウントまで常時継続。ナビ終了でも止めない
 - 現在地マーカー: 青ドット + 精度円（GeoJSON `circle` layer、半径は `accuracy` をズームでメートル換算。式は [modules.md](modules.md)）。編集・ナビとも常時表示
-- 出発地の既定 = 現在地。URL に `from` がなければ初回 fix で 1 回だけ出発地にセット（地点名は逆ジオ）。以後 fix に追従しない（追従すると毎 fix 再探索。ナビ開始時に最新 fix で置換される: [nav.md](nav.md)）。× で消したら再セットしない
+- 出発地の既定 = 現在地。URL に `from` がなければ初回 fix で 1 回だけ出発地にセット（地点名は逆ジオ）。以後 fix に追従しない（追従すると毎 fix 再探索。ナビ開始時に最新 fix で置換される: [navigation.md](navigation.md)）。× で消したら再セットしない
 - 出発地欄の候補「現在地」: 最新 fix を出発地に置換（地点名は逆ジオ）。fix なし・GPS エラー中は非表示
 - 権限拒否・取得失敗 → トースト「現在地を取得できません」（`error` の立ち上がりで 1 回）。「現在地」候補を隠し「案内開始」を無効化。ナビ中の失敗はトーストのみ、ナビ継続
 - 現在地ボタン（編集・自宅設定モード）: 最新 fix へ `easeTo`。zoom は `max(現在の zoom, 15)`、bearing・pitch は変えない。寄せるのは 1 回だけで、以後の fix には追従しない（追従は地図を動かすたびに解除する状態が要り、編集中は経路の確認でパンすることが多い）
@@ -113,7 +113,7 @@ MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（�
 
 ## 設定画面
 
-`mode === "settings"`。検索欄の下の歯車で開く。地図の上に不透明なパネル（`position: fixed; inset: 0`、`colors.bg`）を重ねる。地図は描画したまま隠すだけ（アンマウントすると MapLibre の再初期化とタイル再取得が要る）。検索欄・ボトムシートは出さない。トーストはパネルより上。
+`mode === "settings"`。検索欄の下の歯車で開く。地図の上に不透明なパネル（`position: fixed; inset: 0`、`colors.background`）を重ねる。地図は描画したまま隠すだけ（アンマウントすると MapLibre の再初期化とタイル再取得が要る）。検索欄・ボトムシートは出さない。トーストはパネルより上。
 
 端末に保存する設定だけを置く。経路ごとに変える条件（高速・有料）はボトムシートに残す。
 
@@ -128,10 +128,10 @@ MapLibre DOM `Marker`。出発地（緑）・到着地（赤）・経由地（�
 
 saved store の `iconOnly`（`localStorage` キー `iconOnly`、既定 false）。細い道・右左折の表示から文言を抜き、アイコンと数値だけにする。ピーク行の横幅が足りず折り返す機種向け。
 
-| 場所                        | OFF（既定）                                       | ON                                                 |
-| --------------------------- | ------------------------------------------------- | -------------------------------------------------- |
+| 場所                                | OFF（既定）                                                               | ON                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- |
 | サマリ 2 行目（ピーク・代替カード） | 「`NarrowIcon` 細い道 x.x km」/「細い道なし」/「`TurnsIcon` 右左折 n 回」 | 「`NarrowIcon` x.x km」/（なし）/「`TurnsIcon` n 回」 |
-| 案内文リストの行頭          | 「⚠ 細い道」                                      | `NarrowIcon`（`colors.narrow` 色、14px）           |
+| 案内文リストの行頭                  | 「⚠ 細い道」                                                              | `NarrowIcon`（`colors.narrow` 色、14px）              |
 
 - 有料 x.x km・所要時間・距離・案内文本文・ナビ HUD の「細い道を走行中」バナーは変えない（走行中は一瞥で読める文言が要る）
 - 文言を消した要素には OFF 時の文言を `aria-label` で付ける（「細い道 1.2 km」「右左折 5 回」「細い道」）。見た目だけの切替で意味は落とさない
@@ -164,11 +164,11 @@ saved store の `iconOnly`（`localStorage` キー `iconOnly`、既定 false）�
 
 GeoJSON source 2 つ、line layer 3 つ。描画分割は [route-model.md](route-model.md)。
 
-| source  | layer          | 内容                            | 見た目                               |
-| ------- | -------------- | ------------------------------- | ------------------------------------ |
-| `alt`   | `alt-line`     | 非選択の代替経路（全区間 1 本） | 青、薄い、細い                       |
-| `route` | `route-wide`   | 選択経路の広い道区間            | 青 実線                              |
-| `route` | `route-narrow` | 選択経路の細い道区間            | オレンジ 破線、`route-wide` より太い |
+| source        | layer              | 内容                            | 見た目                               |
+| ------------- | ------------------ | ------------------------------- | ------------------------------------ |
+| `alternative` | `alternative-line` | 非選択の代替経路（全区間 1 本） | 青、薄い、細い                       |
+| `route`       | `route-wide`       | 選択経路の広い道区間            | 青 実線                              |
+| `route`       | `route-narrow`     | 選択経路の細い道区間            | オレンジ 破線、`route-wide` より太い |
 
 `route` source の feature は `kind` プロパティで filter。短区間無視は描画に適用しない。
 
@@ -180,7 +180,7 @@ zustand の store を関心ごとに分ける。UI は 1 値 1 セレクタで�
 type Point = { lat: number; lng: number; label: string | null }; // label null = 逆ジオ中
 
 // trip.ts
-mode: "edit" | "nav" | "settings" | "home";
+mode: "edit" | "navigation" | "settings" | "home";
 from: Point | null; to: Point | null; vias: Point[]; notoll: boolean;
 result: { key: string; routes: RouteModel[]; narrows: NarrowSegment[][] } | null; // 探索結果 + リクエストキー
 selected: number; // routes の index
@@ -190,8 +190,8 @@ popup: { p: LatLng; label: string | null } | null; // 地図タップ専用
 fix: Fix | null; gpsError: boolean; // 最新 GPS fix
 fromDefaulted: boolean; // 出発地の既定（初回 fix）を適用済み
 passedVia: number; // 現在の経路より前に通過した経由地数
-// nav.ts
-nav: NavState | null; // nav.md
+// navigation.ts
+navigation: NavigationState | null; // navigation.md
 hud: { instruction: Instruction | null; remaining: number; next: NextNext | null } | null;
 inNarrow: boolean; muted: boolean; starting: boolean; // muted はセッション内のみ
 // saved.ts
@@ -203,12 +203,12 @@ message: string | null;
 - `fix` `gpsError` は `hooks/useGeolocation` が `fixUpdated` / `gpsFailed` で入れる
 - 派生値はセレクタ（`selectRoutes` `selectNarrows` `selectLoading` `selectRoute`）。`useMemo` は書かない（React Compiler）
 - URL: `hooks/useUrlSync` が `from` `to` `vias` `notoll` の変更で `history.replaceState`。初期化時にクエリから復元し探索（不正な地点は無視、`via` 先頭 5 件。parse 規則は [modules.md](modules.md)）。ナビ開始で出発地が現在地に置換されたときも更新する
-- 探索は `hooks/useRouteSearch` の `useEffect([reqKey])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）、`reqKey` = `pointsKey` + notoll。cleanup で `abort()`
-- `routes` `loading` は派生値: `routes` = 地点が揃い `result.key === reqKey` のときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い `result.key !== reqKey`。effect 内で同期 setState しない（地点欠けで即空になる）
+- 探索は `hooks/useRouteSearch` の `useEffect([requestKey])`。`pointsKey` = 地点座標の文字列化（label 変化で再探索しない）、`requestKey` = `pointsKey` + notoll。cleanup で `abort()`
+- `routes` `loading` は派生値: `routes` = 地点が揃い `result.key === requestKey` のときだけ `result.routes`、それ以外 `[]`。`loading` = 地点が揃い `result.key !== requestKey`。effect 内で同期 setState しない（地点欠けで即空になる）
 
 ## トースト
 
-1 つだけ。新しいメッセージで置換。4 秒で自動消去（タイマーは `Toast.tsx`）。画面上部（ナビ中は NavHud の下）。
+1 つだけ。新しいメッセージで置換。4 秒で自動消去（タイマーは `Toast.tsx`）。画面上部（ナビ中は NavigationHud の下）。
 
 ## PWA
 

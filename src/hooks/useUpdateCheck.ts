@@ -11,15 +11,15 @@ export function useUpdateCheck(blocked: boolean): void {
 
   useEffect(() => {
     if (import.meta.env.DEV) return;
-    const src = document
+    const scriptSource = document
       .querySelector<HTMLScriptElement>('script[type="module"]')
       ?.getAttribute("src");
-    if (!src) return;
+    if (!scriptSource) return;
     const check = async () => {
       if (document.visibilityState !== "visible") return;
       try {
         const html = await (await fetch("/", { cache: "no-store" })).text();
-        staleRef.current = !html.includes(src);
+        staleRef.current = !html.includes(scriptSource);
       } catch {
         return; // オフライン等。次回 visible で再試行
       }

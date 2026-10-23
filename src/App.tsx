@@ -9,18 +9,18 @@ import { MODE, useTrip, type Mode } from "@/store/trip.ts";
 import { BottomSheet } from "@/ui/edit/BottomSheet.tsx";
 import { Settings } from "@/ui/edit/Settings.tsx";
 import { Map } from "@/ui/map/Map.tsx";
-import { NavBar } from "@/ui/nav/NavBar.tsx";
-import { NavHud } from "@/ui/nav/NavHud.tsx";
+import { NavigationBar } from "@/ui/navigation/NavigationBar.tsx";
+import { NavigationHud } from "@/ui/navigation/NavigationHud.tsx";
 import { SearchBox } from "@/ui/edit/SearchBox.tsx";
 import { Toast } from "@/ui/Toast.tsx";
 
 function screenOf(mode: Mode): ReactElement {
   switch (mode) {
-    case MODE.NAV:
+    case MODE.NAVIGATION:
       return (
         <>
-          <NavHud />
-          <NavBar />
+          <NavigationHud />
+          <NavigationBar />
         </>
       );
     case MODE.SETTINGS:
@@ -43,9 +43,9 @@ export default function App() {
   useRouteSearch();
   useReverseGeocode();
   useUrlSync();
-  const mode = useTrip((s) => s.mode);
-  useWakeLock(mode === MODE.NAV);
-  useUpdateCheck(mode === MODE.NAV);
+  const mode = useTrip((state) => state.mode);
+  useWakeLock(mode === MODE.NAVIGATION);
+  useUpdateCheck(mode === MODE.NAVIGATION);
 
   return (
     <>

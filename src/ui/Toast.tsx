@@ -15,27 +15,27 @@ const styles = stylex.create({
     paddingBlock: 10,
     paddingInline: 16,
     borderRadius: 8,
-    backgroundColor: colors.fg,
-    color: colors.bg,
+    backgroundColor: colors.foreground,
+    color: colors.background,
     fontSize: 14,
     boxShadow: shadows.float,
     zIndex: 10,
   },
   // defineConsts の値はコンパイル時に文字列で埋まるので JS で足さず calc に並べる
-  nav: { top: `calc(env(safe-area-inset-top) + ${layout.hud}px + ${layout.next}px + 16px)` },
+  navigation: { top: `calc(env(safe-area-inset-top) + ${layout.hud}px + ${layout.next}px + 16px)` },
 });
 
 export function Toast() {
   const message = useToast();
-  const navMode = useTrip((s) => s.mode === MODE.NAV);
+  const navigationMode = useTrip((state) => state.mode === MODE.NAVIGATION);
   useEffect(() => {
     if (!message) return;
-    const t = setTimeout(clearToast, 4000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(clearToast, 4000);
+    return () => clearTimeout(timer);
   }, [message]);
   if (!message) return null;
   return (
-    <div role="status" {...stylex.props(styles.toast, navMode && styles.nav)}>
+    <div role="status" {...stylex.props(styles.toast, navigationMode && styles.navigation)}>
       {message}
     </div>
   );

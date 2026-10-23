@@ -4,21 +4,21 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "@/ui/map/maplibre.css";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import type { NavState } from "@/model/progress.ts";
+import type { NavigationState } from "@/model/progress.ts";
 import { MAX_VIAS, ROLE, type LatLng, type Point } from "@/model/point.ts";
-import { navActions, useNav } from "@/store/nav.ts";
+import { navigationActions, useNavigation } from "@/store/navigation.ts";
 import { useSaved } from "@/store/saved.ts";
 import { MODE, URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { layout } from "@/ui/layout.stylex.ts";
 import { colors, marker } from "@/ui/tokens.stylex.ts";
 import {
-  DARK_MQ,
+  DARK_MEDIA_QUERY,
   EMPTY,
   EMPTY_FIX,
   STYLE,
   TOKYO_STATION,
-  altFeatures,
+  alternativeFeatures,
   applyStyleExtras,
   bounds,
   fixFeatures,
@@ -30,8 +30,8 @@ import {
 import { PointPopup } from "@/ui/map/PointPopup.tsx";
 import { HomeIcon, LocateIcon } from "@/ui/icons/index.tsx";
 
-/** ナビ中のカメラ pitch（nav.md「カメラ」節。zoom は store/nav.ts の NAV_ZOOM） */
-export const NAV_PITCH = 50;
+/** ナビ中のカメラ pitch（navigation.md「カメラ」節。zoom は store/navigation.ts の NAVIGATION_ZOOM） */
+export const NAVIGATION_PITCH = 50;
 
 const LOCATE_ZOOM = 15;
 
@@ -46,39 +46,41 @@ const styles = stylex.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: "50%",
-    backgroundColor: colors.bg,
+    backgroundColor: colors.background,
     color: colors.accent,
   },
 });
 
 export function Map() {
-  const mode = useTrip((s) => s.mode);
-  const nav = useNav((s) => s.nav);
-  const from = useTrip((s) => s.from);
-  const to = useTrip((s) => s.to);
-  const vias = useTrip((s) => s.vias);
-  const home = useSaved((s) => s.home); // 自宅マーカー。全モードで表示
-  const fix = useTrip((s) => s.fix);
-  const gpsError = useTrip((s) => s.gpsError);
+  const mode = useTrip((state) => state.mode);
+  const navigation = useNavigation((state) => state.navigation);
+  const from = useTrip((state) => state.from);
+  const to = useTrip((state) => state.to);
+  const vias = useTrip((state) => state.vias);
+  const home = useSaved((state) => state.home); // 自宅マーカー。全モードで表示
+  const fix = useTrip((state) => state.fix);
+  const gpsError = useTrip((state) => state.gpsError);
   const routes = useTrip(selectRoutes);
-  const selected = useTrip((s) => s.selected);
-  const fitVersion = useTrip((s) => s.fitVersion);
-  const popup = useTrip((s) => s.popup);
-  const panTarget = useTrip((s) => s.panTarget);
-  const sheetExpanded = useTrip((s) => s.sheetExpanded);
+  const selected = useTrip((state) => state.selected);
+  const fitVersion = useTrip((state) => state.fitVersion);
+  const popup = useTrip((state) => state.popup);
+  const panTarget = useTrip((state) => state.panTarget);
+  const sheetExpanded = useTrip((state) => state.sheetExpanded);
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   // マーカータップで開く「削除」ポップアップ（地点ポップアップとは排他）
-  const [markerPopup, setMarkerPopup] = useState<{ p: LatLng; onDelete: () => void } | null>(null);
+  const [markerPopup, setMarkerPopup] = useState<{ point: LatLng; onDelete: () => void } | null>(
+    null,
+  );
   const [popupDiv] = useState(() => document.createElement("div"));
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [homeDiv] = useState(homeMarkerElement);
   // 現在地ボタン。縮尺・出典と同じくコントロールに入れ、CSS でシート直上に置く
   const [locateDiv] = useState(() => {
-    const d = document.createElement("div");
-    d.className = "maplibregl-ctrl";
-    return d;
+    const div = document.createElement("div");
+    div.className = "maplibregl-ctrl";
+    return div;
   });
   const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   // 方位アイコン（押下で北上）。ナビ中は heading 追従と衝突するので外す
@@ -86,32 +88,32 @@ export function Map() {
     new maplibregl.NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }),
   );
   // style.load 時に最新データで source を作り直すため ref に持つ
-  const dataRef = useRef({ route: EMPTY, alt: EMPTY, fix: EMPTY_FIX });
+  const dataRef = useRef({ route: EMPTY, alternative: EMPTY, fix: EMPTY_FIX });
   const easedToFix = useRef(false);
 
   // 一度だけ登録する map イベントから最新の mode を読む
-  const onMapClick = useEffectEvent((p: LatLng) => {
-    if (mode === MODE.NAV) return;
+  const onMapClick = useEffectEvent((point: LatLng) => {
+    if (mode === MODE.NAVIGATION) return;
     // 展開中は地図を見たい操作とみなし、ポップアップを開かず収納だけ
     if (mode === MODE.EDIT && sheetExpanded) {
       tripActions.setSheet(false);
       return;
     }
     setMarkerPopup(null);
-    tripActions.popupOpened(p);
+    tripActions.popupOpened(point);
   });
   const onMapDragStart = useEffectEvent(() => {
-    if (mode === MODE.NAV) navActions.setFollow(false);
+    if (mode === MODE.NAVIGATION) navigationActions.setFollow(false);
   });
   const onMapZoomEnd = useEffectEvent((zoom: number) => {
-    if (mode === MODE.NAV) navActions.setZoom(zoom);
+    if (mode === MODE.NAVIGATION) navigationActions.setZoom(zoom);
   });
 
   useEffect(() => {
-    const mq = matchMedia(DARK_MQ);
+    const mediaQuery = matchMedia(DARK_MEDIA_QUERY);
     const map = new maplibregl.Map({
       container: container.current!,
-      style: mq.matches ? STYLE.dark : STYLE.light,
+      style: mediaQuery.matches ? STYLE.dark : STYLE.light,
       center: TOKYO_STATION,
       zoom: 10,
       attributionControl: false,
@@ -121,23 +123,23 @@ export function Map() {
     map.addControl(compassRef.current, "top-left");
     map.addControl({ onAdd: () => locateDiv, onRemove: () => locateDiv.remove() }, "bottom-right");
     map.on("style.load", () => applyStyleExtras(map, dataRef.current));
-    map.on("click", (e) => onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
-    map.on("dragstart", (e) => {
-      const oe = e.originalEvent;
-      if (oe && "touches" in oe && oe.touches.length > 1) return; // ピンチ中のパンは追従解除しない
+    map.on("click", (event) => onMapClick({ lat: event.lngLat.lat, lng: event.lngLat.lng }));
+    map.on("dragstart", (event) => {
+      const originalEvent = event.originalEvent;
+      if (originalEvent && "touches" in originalEvent && originalEvent.touches.length > 1) return; // ピンチ中のパンは追従解除しない
       onMapDragStart();
     });
-    map.on("zoomend", (e) => {
+    map.on("zoomend", (event) => {
       // originalEvent なし = easeTo 等プログラム由来
-      if (e.originalEvent) onMapZoomEnd(map.getZoom());
+      if (event.originalEvent) onMapZoomEnd(map.getZoom());
     });
-    const onScheme = (e: MediaQueryListEvent) =>
-      map.setStyle(e.matches ? STYLE.dark : STYLE.light, { diff: false });
-    mq.addEventListener("change", onScheme);
+    const onScheme = (event: MediaQueryListEvent) =>
+      map.setStyle(event.matches ? STYLE.dark : STYLE.light, { diff: false });
+    mediaQuery.addEventListener("change", onScheme);
     mapRef.current = map;
     if (import.meta.env.DEV) (window as { __map?: maplibregl.Map }).__map = map; // 机上確認用
     return () => {
-      mq.removeEventListener("change", onScheme);
+      mediaQuery.removeEventListener("change", onScheme);
       map.remove();
       mapRef.current = null;
     };
@@ -148,11 +150,11 @@ export function Map() {
     const route = hide ? undefined : routes[selected];
     const data = {
       route: route ? routeFeatures(route) : EMPTY,
-      alt: hide ? EMPTY : altFeatures(routes, selected),
+      alternative: hide ? EMPTY : alternativeFeatures(routes, selected),
     };
     dataRef.current = { ...dataRef.current, ...data };
     setSourceData(mapRef.current, "route", data.route);
-    setSourceData(mapRef.current, "alt", data.alt);
+    setSourceData(mapRef.current, "alternative", data.alternative);
   }, [routes, selected, mode]);
 
   // 初回 fix: URL に地点があれば探索後の fitBounds を優先し easeTo しない
@@ -170,40 +172,41 @@ export function Map() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    for (const m of markersRef.current) m.remove();
+    for (const existingMarker of markersRef.current) existingMarker.remove();
     markersRef.current = [];
     if (mode === MODE.HOME) return;
-    const specs: { p: Point; color: string; text: string; onDelete: () => void }[] = [];
+    const markerDefinitions: { point: Point; color: string; text: string; onDelete: () => void }[] =
+      [];
     if (from)
-      specs.push({
-        p: from,
+      markerDefinitions.push({
+        point: from,
         color: marker.from,
         text: "",
         onDelete: () => tripActions.pointDeleted(ROLE.FROM),
       });
-    vias.forEach((p, i) =>
-      specs.push({
-        p,
+    vias.forEach((via, i) =>
+      markerDefinitions.push({
+        point: via,
         color: marker.via,
         text: String(i + 1),
         onDelete: () => tripActions.viaDeleted(i),
       }),
     );
     if (to)
-      specs.push({
-        p: to,
+      markerDefinitions.push({
+        point: to,
         color: marker.to,
         text: "",
         onDelete: () => tripActions.pointDeleted(ROLE.TO),
       });
-    markersRef.current = specs.map(({ p, color, text, onDelete }) =>
+    markersRef.current = markerDefinitions.map(({ point, color, text, onDelete }) =>
       new maplibregl.Marker({
         element: markerElement(color, text, () => {
           tripActions.popupClosed();
-          setMarkerPopup({ p, onDelete });
+          setMarkerPopup({ point, onDelete });
         }),
       })
-        .setLngLat(p)
+        .setLngLat(point)
         .addTo(map),
     );
   }, [from, to, vias, mode]);
@@ -218,25 +221,25 @@ export function Map() {
   // ポップアップは 1 個。地点ポップアップ優先
   useEffect(() => {
     const map = mapRef.current;
-    const target = popup?.p ?? markerPopup?.p;
+    const target = popup?.point ?? markerPopup?.point;
     if (!map || !target) {
       popupRef.current?.remove();
       popupRef.current = null;
       return;
     }
-    let pp = popupRef.current;
-    if (!pp) {
-      pp = new maplibregl.Popup({ closeOnClick: false, offset: 14, maxWidth: "none" });
-      pp.setDOMContent(popupDiv);
-      pp.on("close", () => {
+    let mapPopup = popupRef.current;
+    if (!mapPopup) {
+      mapPopup = new maplibregl.Popup({ closeOnClick: false, offset: 14, maxWidth: "none" });
+      mapPopup.setDOMContent(popupDiv);
+      mapPopup.on("close", () => {
         // × ボタン。自前の remove() でも発火するが state は既に null なので無害
         tripActions.popupClosed();
         setMarkerPopup(null);
       });
-      popupRef.current = pp;
+      popupRef.current = mapPopup;
     }
-    pp.setLngLat(target);
-    if (!pp.isOpen()) pp.addTo(map); // addTo は開いていると remove() → close 発火 → 閉じてしまう
+    mapPopup.setLngLat(target);
+    if (!mapPopup.isOpen()) mapPopup.addTo(map); // addTo は開いていると remove() → close 発火 → 閉じてしまう
   }, [popup, markerPopup, popupDiv]);
 
   useEffect(() => {
@@ -253,15 +256,20 @@ export function Map() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (mode === MODE.NAV) {
+    if (mode === MODE.NAVIGATION) {
       map.touchZoomRotate.disableRotation();
       map.touchPitch.disable();
       map.dragRotate.disable();
       map.removeControl(compassRef.current);
-      const h = map.getContainer().clientHeight;
+      const containerHeight = map.getContainer().clientHeight;
       map.jumpTo({
-        pitch: NAV_PITCH,
-        padding: { top: Math.round(h / 3), bottom: layout.navbar, left: 0, right: 0 },
+        pitch: NAVIGATION_PITCH,
+        padding: {
+          top: Math.round(containerHeight / 3),
+          bottom: layout.navigationBar,
+          left: 0,
+          right: 0,
+        },
       });
     } else {
       map.touchZoomRotate.enableRotation();
@@ -273,21 +281,21 @@ export function Map() {
     if (mode === MODE.HOME) easeToHome(map);
   }, [mode]);
 
-  // 追従: nav が更新されるたび（= 受理した fix ごと・follow/zoom 変更）に easeTo。heading null なら bearing 据え置き。
-  // fix は nav と同時に更新されるので依存にしない（二重 easeTo 防止）
-  const followFix = useEffectEvent((map: maplibregl.Map, n: NavState) => {
+  // 追従: navigation が更新されるたび（= 受理した fix ごと・follow/zoom 変更）に easeTo。heading null なら bearing 据え置き。
+  // fix は navigation と同時に更新されるので依存にしない（二重 easeTo 防止）
+  const followFix = useEffectEvent((map: maplibregl.Map, navigationState: NavigationState) => {
     if (!fix) return;
     map.easeTo({
       center: fix,
-      zoom: n.zoom,
-      bearing: n.heading ?? map.getBearing(),
+      zoom: navigationState.zoom,
+      bearing: navigationState.heading ?? map.getBearing(),
       duration: 600,
     });
   });
   useEffect(() => {
     const map = mapRef.current;
-    if (map && mode === MODE.NAV && nav?.follow) followFix(map, nav);
-  }, [nav, mode]);
+    if (map && mode === MODE.NAVIGATION && navigation?.follow) followFix(map, navigation);
+  }, [navigation, mode]);
 
   // 選択経路に fitBounds。下パディングはシートの高さに追従。selected は意図的に依存にしない: 代替切替でカメラを動かさない（ui.md「探索」）
   const fitSelected = useEffectEvent(() => {

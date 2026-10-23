@@ -5,7 +5,7 @@
 - 状態は zustand の store（`src/store/`）に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。Effect は `src/hooks/`（外部システムとの同期）にだけ書く。ルーター不使用。状態の一覧は [design/ui.md](../design/ui.md)
 - URL クエリ（[map-display.md](map-display.md)）が地点 + notoll の正。編集で `history.replaceState`、読み込み時に復元して探索
 - 依存方向は `ui/` `hooks/` `App` → `store/` → `api/` → `model/`。`store/` と `model/` は React・DOM 非依存。`api/` は外部システムへの出口（HTTP・JSONP・speechSynthesis）
-- `ui/` は画面モードで `map/` `edit/` `nav/` に分ける。3 つは互いに import しない。共有するもの（stylex トークン・アイコン・Toast）は `ui/` 直下
+- `ui/` は画面モードで `map/` `edit/` `navigation/` に分ける。3 つは互いに import しない。共有するもの（stylex トークン・アイコン・Toast）は `ui/` 直下
 - `src/` 内の import は `@/` からの絶対パス（`@/store/trip.ts`）。相対パスは書かない
 - Vitest は `src/model/` `src/store/` と `src/api/gsi.ts` の純関数のみ。UI・API 呼び出しは手動確認
 - ライブラリは React / Vite / TypeScript / MapLibre GL JS / Vitest + StyleX（CSS）+ zustand（状態）+ React Compiler（babel plugin）のみ。追加しない（turf 不採用: 必要な計算は `geo.ts` 数十行）
@@ -42,14 +42,14 @@ src/
   stylex.css                # button リセット + @stylex;（StyleX 出力先）
   store/                    # zustand。React 非依存、セレクタとアクションだけ export
     trip.ts                 # 地点・notoll・探索結果・mode・popup・fix
-    nav.ts                  # NavState・hud。start / onFix / end（design/nav.md）
+    navigation.ts                  # NavigationState・hud。start / onFix / end（design/navigation.md）
     saved.ts                # 自宅・検索履歴・アイコンのみ表示（localStorage、search.md / map-display.md）
     toast.ts                # メッセージ 1 つ
   hooks/                    # Effect はここだけ（外部システムとの同期）
     useRouteSearch.ts       # 地点・notoll → fetchRoute → store
     useReverseGeocode.ts    # label null の地点 → 逆ジオ
     useUrlSync.ts           # 地点・notoll → history.replaceState
-    useGeolocation.ts       # watchPosition（起動時から常時）→ trip.fixUpdated + nav.onFix
+    useGeolocation.ts       # watchPosition（起動時から常時）→ trip.fixUpdated + navigation.onFix
     useWakeLock.ts
     useUpdateCheck.ts       # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
   api/                      # 外部システムへの出口
@@ -62,15 +62,15 @@ src/
     geo.ts                  # haversine・方位・線分射影
     route.ts                # RouteModel、GraphHopper 応答 → RouteModel、累積距離、最近傍点
     narrow.ts               # 細い道区間の生成
-    progress.ts             # step(state, fix) → {state, events}（design/nav.md）
+    progress.ts             # step(state, fix) → {state, events}（design/navigation.md）
     format.ts               # 距離・時間・時刻の表示文字列
     url.ts                  # クエリ ↔ 地点・notoll
     __fixtures__/           # GraphHopper 実応答 JSON
     *.test.ts               # 実装と同居
-  ui/                       # 直下は map/ edit/ nav/ が共有するものだけ
+  ui/                       # 直下は map/ edit/ navigation/ が共有するものだけ
     tokens.stylex.ts        # 色トークン（ライト / ダーク）
     button.stylex.ts        # ボタンの共通スタイル
-    layout.stylex.ts        # 部品の高さ（peek / navbar / hud / next）
+    layout.stylex.ts        # 部品の高さ（peek / navigationBar / hud / next）
     icons/                  # アイコン。SVG は形だけ持ち、index.tsx が mask + currentColor で着色
       index.tsx             # FromIcon / ToIcon / HomeIcon / SettingsIcon / DirectionIcon
       *.svg                 # arrow / uturn / keep / pin / pin-dot / roundabout / home / gear / circle / volume / volume-off（viewBox 24、stroke 2）
@@ -87,13 +87,13 @@ src/
       Settings.tsx          # 設定画面（自宅行・アイコンのみ表示トグル）。settings モードで App が描く
       RouteSummary.tsx      # 距離 / 時間 / 細い道 / 有料、代替経路の切替
       StepList.tsx
-    nav/                    # ナビモード
-      NavHud.tsx            # 次の指示・残り距離・細い道バナー
-      NavBar.tsx            # 残り時間・到着予想・ミュート・終了・現在地
+    navigation/             # ナビモード
+      NavigationHud.tsx     # 次の指示・残り距離・細い道バナー
+      NavigationBar.tsx     # 残り時間・到着予想・ミュート・終了・現在地
 ```
 
 ## テスト
 
 - `*.test.ts` を実装ファイルの隣に置く
 - fixture は `src/model/__fixtures__/`（[route-model.md](../design/route-model.md)）
-- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`api/gsi.ts`（`rankHits` の全文一致優先・安定ソート）、`store/saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）、`store/nav.ts`（`fetchRoute` を差し替え、開始 → 経路外れ 3 回 → リルート → 到着）
+- 対象: `geo.ts`（距離・方位・射影）、`route.ts`（fixture → RouteModel、累積距離・最近傍点）、`narrow.ts`（結合 → 短区間無視の順、先頭/末尾判定）、`progress.ts`（単調増加・トリガー・リルート連続回数）、`format.ts`（境界値）、`url.ts`（往復変換・不正値無視）、`api/gsi.ts`（`rankHits` の全文一致優先・安定ソート）、`store/saved.ts`（`pushHistory` の先頭追加・同座標の除去・5 件上限）、`store/navigation.ts`（`fetchRoute` を差し替え、開始 → 経路外れ 3 回 → リルート → 到着）

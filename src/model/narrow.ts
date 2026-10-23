@@ -5,7 +5,7 @@ export type NarrowSegment = {
   to: number; // 頂点 index 範囲
   length: number; // m
   atStart: boolean; // from === 0（出発地に接する → 警告しない）
-  atEnd: boolean; // to === n − 1（到着地に接する → 「目的地付近」）
+  atEnd: boolean; // to === 頂点数 − 1（到着地に接する → 「目的地付近」）
 };
 
 /** 結合（間の広い道 < mergeBelow）→ 短区間無視（length < ignoreBelow）の順 */
@@ -14,26 +14,29 @@ export function narrowSegments(
   ignoreBelow = 30,
   mergeBelow = 50,
 ): NarrowSegment[] {
-  const { cum } = route;
-  const n = route.points.length;
+  const { cumulativeDistances } = route;
+  const vertexCount = route.points.length;
   const merged: { from: number; to: number }[] = [];
-  for (const seg of route.roadClass) {
-    if (seg.kind === ROAD_KIND.WIDE) continue;
+  for (const range of route.roadClass) {
+    if (range.kind === ROAD_KIND.WIDE) continue;
     const last = merged.at(-1);
-    if (last && cum[seg.from]! - cum[last.to]! < mergeBelow) last.to = seg.to;
-    else merged.push({ from: seg.from, to: seg.to });
+    if (last && cumulativeDistances[range.from]! - cumulativeDistances[last.to]! < mergeBelow)
+      last.to = range.to;
+    else merged.push({ from: range.from, to: range.to });
   }
   return merged
-    .map((s) => ({
-      ...s,
-      length: cum[s.to]! - cum[s.from]!,
-      atStart: s.from === 0,
-      atEnd: s.to === n - 1,
+    .map((segment) => ({
+      ...segment,
+      length: cumulativeDistances[segment.to]! - cumulativeDistances[segment.from]!,
+      atStart: segment.from === 0,
+      atEnd: segment.to === vertexCount - 1,
     }))
-    .filter((s) => s.length >= ignoreBelow);
+    .filter((segment) => segment.length >= ignoreBelow);
 }
 
 /** 指示の interval 内で細い道区間が始まるか */
-export function entersNarrow(instr: Instruction, segs: NarrowSegment[]): boolean {
-  return segs.some((s) => instr.from <= s.from && s.from < instr.to);
+export function entersNarrow(instruction: Instruction, segments: NarrowSegment[]): boolean {
+  return segments.some(
+    (segment) => instruction.from <= segment.from && segment.from < instruction.to,
+  );
 }

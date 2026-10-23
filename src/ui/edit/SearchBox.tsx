@@ -22,8 +22,8 @@ const styles = stylex.create({
     gap: 6,
   },
   card: {
-    backgroundColor: colors.bg,
-    color: colors.fg,
+    backgroundColor: colors.background,
+    color: colors.foreground,
     borderRadius: 12,
     boxShadow: shadows.card,
   },
@@ -38,15 +38,15 @@ const styles = stylex.create({
     justifyContent: "center",
     borderWidth: 0,
     borderRadius: "50%",
-    backgroundColor: colors.bg,
-    color: colors.fg,
+    backgroundColor: colors.background,
+    color: colors.foreground,
     boxShadow: shadows.card,
     cursor: "pointer",
   },
   row: { display: "flex", alignItems: "center", height: 44, paddingBlock: 0, paddingInline: 8 },
   divider: { borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: colors.border },
   role: { width: 32, display: "flex", justifyContent: "center", flexShrink: 0 },
-  inputWrap: { position: "relative", flex: 1 },
+  inputWrapper: { position: "relative", flex: 1 },
   input: {
     width: "100%",
     boxSizing: "border-box",
@@ -59,7 +59,7 @@ const styles = stylex.create({
     fontSize: 16,
     borderWidth: 0,
     backgroundColor: "transparent",
-    color: colors.fg,
+    color: colors.foreground,
   },
   clear: {
     position: "absolute",
@@ -67,11 +67,11 @@ const styles = stylex.create({
     top: 4,
     borderWidth: 0,
     backgroundColor: "transparent",
-    color: colors.fg,
+    color: colors.foreground,
     fontSize: 18,
   },
   back: { marginRight: 4 },
-  sub: { marginLeft: 8, fontSize: 13, opacity: 0.6 },
+  secondary: { marginLeft: 8, fontSize: 13, opacity: 0.6 },
   home: { display: "flex", alignItems: "center", gap: 8 },
   // 出典行。Yahoo のクレジットは色・サイズを変えられない（ガイドライン）ので国土地理院側も同じ見た目に揃える
   credit: {
@@ -89,8 +89,8 @@ const styles = stylex.create({
     listStyle: "none",
     margin: 0,
     padding: 4,
-    backgroundColor: colors.bg,
-    color: colors.fg,
+    backgroundColor: colors.background,
+    color: colors.foreground,
     borderRadius: 8,
     boxShadow: shadows.float,
     maxHeight: "40vh",
@@ -98,48 +98,48 @@ const styles = stylex.create({
   },
 });
 
-type Result = { q: string; hits: SavedPoint[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
+type Result = { query: string; hits: SavedPoint[] }; // 結果はクエリ付き。現在のクエリと一致するものだけ表示
 
-const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
+const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
 
 export function SearchBox() {
-  const mode = useTrip((s) => (s.mode === MODE.HOME ? MODE.HOME : MODE.EDIT));
-  const from = useTrip((s) => s.from);
-  const to = useTrip((s) => s.to);
-  const fix = useTrip((s) => (s.gpsError ? null : s.fix));
-  const home = useSaved((s) => s.home);
-  const history = useSaved((s) => s.history);
+  const mode = useTrip((state) => (state.mode === MODE.HOME ? MODE.HOME : MODE.EDIT));
+  const from = useTrip((state) => state.from);
+  const to = useTrip((state) => state.to);
+  const fix = useTrip((state) => (state.gpsError ? null : state.fix));
+  const home = useSaved((state) => state.home);
+  const history = useSaved((state) => state.history);
   const [active, setActive] = useState<PickRole | null>(null);
   const [query, setQuery] = useState("");
   const [gsi, setGsi] = useState<Result | null>(null);
   const [poi, setPoi] = useState<Result | null>(null);
   const [searched, setSearched] = useState<string | null>(null);
-  const q = query.trim();
+  const trimmedQuery = query.trim();
   const inflight = useRef<AbortController | null>(null);
 
   function search() {
-    if (!q) return;
-    setSearched(q);
+    if (!trimmedQuery) return;
+    setSearched(trimmedQuery);
     inflight.current?.abort();
-    const ac = new AbortController();
-    inflight.current = ac;
-    searchAddress(q, ac.signal)
-      .then((hits) => setGsi({ q, hits }))
-      .catch((e) => {
-        if (!isAbort(e)) showToast("住所検索に失敗しました");
+    const abortController = new AbortController();
+    inflight.current = abortController;
+    searchAddress(trimmedQuery, abortController.signal)
+      .then((hits) => setGsi({ query: trimmedQuery, hits }))
+      .catch((error) => {
+        if (!isAbort(error)) showToast("住所検索に失敗しました");
       });
-    searchPoi(q, ac.signal)
-      .then((hits) => setPoi({ q, hits }))
-      .catch((e) => {
-        if (!isAbort(e)) showToast("施設検索に失敗しました");
+    searchPoi(trimmedQuery, abortController.signal)
+      .then((hits) => setPoi({ query: trimmedQuery, hits }))
+      .catch((error) => {
+        if (!isAbort(error)) showToast("施設検索に失敗しました");
       });
   }
 
-  function pick(role: PickRole, p: LatLng, label: string | null) {
+  function pick(role: PickRole, point: LatLng, label: string | null) {
     setQuery("");
     setSearched(null);
     setActive(null);
-    tripActions.searchPicked(role, p, label);
+    tripActions.searchPicked(role, point, label);
   }
 
   function field(role: PickRole, point: Point | null, name: string, icon: ReactNode) {
@@ -148,8 +148,8 @@ export function SearchBox() {
     return (
       <form
         {...stylex.props(styles.row, role === ROLE.TO && styles.divider)}
-        onSubmit={(e) => {
-          e.preventDefault();
+        onSubmit={(event) => {
+          event.preventDefault();
           search();
         }}
       >
@@ -164,7 +164,7 @@ export function SearchBox() {
         ) : (
           <span {...stylex.props(styles.role)}>{icon}</span>
         )}
-        <div {...stylex.props(styles.inputWrap)}>
+        <div {...stylex.props(styles.inputWrapper)}>
           <input
             {...stylex.props(styles.input)}
             type="search"
@@ -177,12 +177,14 @@ export function SearchBox() {
               setSearched(null);
             }}
             // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら active は既に null
-            onBlur={() => setTimeout(() => setActive((a) => (a === role ? null : a)), 150)}
-            onChange={(e) => setQuery(e.target.value)}
+            onBlur={() =>
+              setTimeout(() => setActive((current) => (current === role ? null : current)), 150)
+            }
+            onChange={(event) => setQuery(event.target.value)}
             // IME 変換確定の Enter で submit しない（Safari は isComposing が false なので keyCode 229 も見る）
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.nativeEvent.isComposing || e.keyCode === 229))
-                e.preventDefault();
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.nativeEvent.isComposing || event.keyCode === 229))
+                event.preventDefault();
             }}
             aria-label={name}
           />
@@ -214,7 +216,7 @@ export function SearchBox() {
         </button>,
       );
     }
-    if (q === "") {
+    if (trimmedQuery === "") {
       if (active !== ROLE.HOME && home) {
         row(
           "home",
@@ -223,47 +225,47 @@ export function SearchBox() {
             onClick={() => pick(active, home, home.label)}
           >
             <HomeIcon size={20} />
-            自宅<span {...stylex.props(styles.sub)}>{home.label}</span>
+            自宅<span {...stylex.props(styles.secondary)}>{home.label}</span>
           </button>,
         );
       }
-      history.forEach((h, i) =>
+      history.forEach((historyPoint, i) =>
         row(
           `history-${i}`,
           <button
             {...stylex.props(button.base, button.ghost)}
-            onClick={() => pick(active, h, h.label)}
+            onClick={() => pick(active, historyPoint, historyPoint.label)}
           >
-            {h.label}
+            {historyPoint.label}
           </button>,
         ),
       );
-    } else if (searched !== q) {
+    } else if (searched !== trimmedQuery) {
       row(
         "search",
         <button
           {...stylex.props(button.base, button.ghost)}
           // 入力欄の blur（→ リスト非表示）を防ぐ
-          onMouseDown={(e) => e.preventDefault()}
+          onMouseDown={(event) => event.preventDefault()}
           onClick={search}
         >
-          🔍 「{q}」で検索
+          🔍 「{trimmedQuery}」で検索
         </button>,
       );
     }
-    const gsiHits = gsi?.q === q ? gsi.hits : [];
-    const poiHits = poi?.q === q ? poi.hits : [];
-    [...poiHits, ...gsiHits].forEach((h, i) =>
+    const gsiHits = gsi?.query === trimmedQuery ? gsi.hits : [];
+    const poiHits = poi?.query === trimmedQuery ? poi.hits : [];
+    [...poiHits, ...gsiHits].forEach((hit, i) =>
       row(
         `hit-${i}`,
         <button
           {...stylex.props(button.base, button.ghost)}
           onClick={() => {
-            savedActions.historyPushed(h); // 住所 / 施設名の候補だけ履歴に残す
-            pick(active, { lat: h.lat, lng: h.lng }, h.label);
+            savedActions.historyPushed(hit); // 住所 / 施設名の候補だけ履歴に残す
+            pick(active, { lat: hit.lat, lng: hit.lng }, hit.label);
           }}
         >
-          {h.label}
+          {hit.label}
         </button>,
       ),
     );

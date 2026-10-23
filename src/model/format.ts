@@ -1,28 +1,28 @@
 export function formatDuration(ms: number): string {
-  const min = Math.max(1, Math.round(ms / 60_000));
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  if (h === 0) return `${m} 分`;
-  return m === 0 ? `${h} 時間` : `${h} 時間 ${m} 分`;
+  const totalMinutes = Math.max(1, Math.round(ms / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes} 分`;
+  return minutes === 0 ? `${hours} 時間` : `${hours} 時間 ${minutes} 分`;
 }
 
-export function formatKm(m: number): string {
-  return `${(m / 1000).toFixed(1)} km`;
+export function formatKm(meters: number): string {
+  return `${(meters / 1000).toFixed(1)} km`;
 }
 
-export function formatDistance(m: number): string {
-  const r = Math.round(m / 10) * 10;
-  return r >= 1000 ? `${(r / 1000).toFixed(1)} km` : `${r} m`;
+export function formatDistance(meters: number): string {
+  const rounded = Math.round(meters / 10) * 10;
+  return rounded >= 1000 ? `${(rounded / 1000).toFixed(1)} km` : `${rounded} m`;
 }
 
-export function formatSpokenDistance(m: number): string {
-  const r = Math.round(m / 100) * 100;
-  if (r < 1000) return `${r} メートル`;
-  return `${(r / 1000).toFixed(1).replace(/\.0$/, "")} キロ`;
+export function formatSpokenDistance(meters: number): string {
+  const rounded = Math.round(meters / 100) * 100;
+  if (rounded < 1000) return `${rounded} メートル`;
+  return `${(rounded / 1000).toFixed(1).replace(/\.0$/, "")} キロ`;
 }
 
-export function formatClock(d: Date): string {
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+export function formatClock(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }

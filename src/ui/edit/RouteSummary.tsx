@@ -14,7 +14,7 @@ const styles = stylex.create({
   main: { display: "flex", alignItems: "baseline", gap: 8, lineHeight: "30px" },
   time: { fontSize: 24, fontWeight: 700 },
   km: { fontSize: 16, opacity: 0.8 },
-  sub: {
+  details: {
     display: "flex",
     flexWrap: "wrap",
     gridColumn: "1 / -1",
@@ -24,7 +24,7 @@ const styles = stylex.create({
     fontSize: 14,
     lineHeight: "20px",
   },
-  stat: { display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" },
+  statistic: { display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" },
   narrowChip: {
     paddingBlock: 0,
     paddingInline: 6,
@@ -63,7 +63,7 @@ const styles = stylex.create({
     borderColor: colors.border,
     borderRadius: 8,
     backgroundColor: colors.surface,
-    color: colors.fg,
+    color: colors.foreground,
     cursor: "pointer",
   },
   selected: { borderColor: colors.accent },
@@ -71,24 +71,24 @@ const styles = stylex.create({
 });
 
 /** 2 行目: 細い道（主役）/ 有料 / 右左折。ピーク行と代替カードで共通。iconOnly は文言を落とし aria-label に残す */
-function Stats({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
-  const iconOnly = useSaved((s) => s.iconOnly);
+function Statistics({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
+  const iconOnly = useSaved((state) => state.iconOnly);
   const toll = tollDistance(route);
-  const narrowM = narrow.reduce((sum, s) => sum + s.length, 0);
+  const narrowM = narrow.reduce((sum, segment) => sum + segment.length, 0);
   const narrowText = `細い道 ${formatKm(narrowM)}`;
   const turnsText = `右左折 ${turnCount(route)} 回`;
   return (
-    <div {...stylex.props(styles.sub)}>
+    <div {...stylex.props(styles.details)}>
       {narrowM > 0 ? (
-        <span {...stylex.props(styles.stat, styles.narrowChip)} aria-label={narrowText}>
+        <span {...stylex.props(styles.statistic, styles.narrowChip)} aria-label={narrowText}>
           <NarrowIcon size={16} />
           {iconOnly ? formatKm(narrowM) : narrowText}
         </span>
       ) : (
-        !iconOnly && <span {...stylex.props(styles.stat, styles.ok)}>細い道なし</span>
+        !iconOnly && <span {...stylex.props(styles.statistic, styles.ok)}>細い道なし</span>
       )}
-      {toll > 0 && <span {...stylex.props(styles.stat)}>有料 {formatKm(toll)}</span>}
-      <span {...stylex.props(styles.stat)} aria-label={turnsText}>
+      {toll > 0 && <span {...stylex.props(styles.statistic)}>有料 {formatKm(toll)}</span>}
+      <span {...stylex.props(styles.statistic)} aria-label={turnsText}>
         <TurnsIcon size={18} />
         {iconOnly ? turnCount(route) : turnsText}
       </span>
@@ -138,22 +138,22 @@ export function RouteSummary({
     return (
       <div {...stylex.props(styles.compact)}>
         <Main route={route} />
-        <Stats route={route} narrow={narrows[selected] ?? []} />
+        <Statistics route={route} narrow={narrows[selected] ?? []} />
       </div>
     );
   }
   if (routes.length < 2) return null; // 1 本ならピーク行と重複
   return (
     <div {...stylex.props(styles.cards)}>
-      {routes.map((r, i) => (
+      {routes.map((route, i) => (
         <button
           key={i}
           {...stylex.props(styles.card, i === selected && styles.selected)}
           onClick={() => onSelect(i)}
           aria-pressed={i === selected}
         >
-          <Main route={r} label={i === 0 ? "推奨" : `代替 ${i}`} />
-          <Stats route={r} narrow={narrows[i] ?? []} />
+          <Main route={route} label={i === 0 ? "推奨" : `代替 ${i}`} />
+          <Statistics route={route} narrow={narrows[i] ?? []} />
         </button>
       ))}
     </div>

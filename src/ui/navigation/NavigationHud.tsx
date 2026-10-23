@@ -1,7 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { formatDistance } from "@/model/format.ts";
 import { signWord } from "@/model/progress.ts";
-import { useNav } from "@/store/nav.ts";
+import { useNavigation } from "@/store/navigation.ts";
 import { selectRoute, useTrip } from "@/store/trip.ts";
 import { DirectionIcon, NarrowIcon } from "@/ui/icons/index.tsx";
 import { layout } from "@/ui/layout.stylex.ts";
@@ -24,12 +24,12 @@ const styles = stylex.create({
     height: `${layout.hud}px`,
     paddingBlock: 0,
     paddingInline: 16,
-    backgroundColor: colors.bg,
-    color: colors.fg,
+    backgroundColor: colors.background,
+    color: colors.foreground,
   },
   icon: { flexShrink: 0, color: colors.accent, display: "flex" },
-  col: { minWidth: 0, display: "flex", flexDirection: "column" },
-  dist: { fontSize: 32, fontWeight: 700, lineHeight: "36px" },
+  column: { minWidth: 0, display: "flex", flexDirection: "column" },
+  distance: { fontSize: 32, fontWeight: 700, lineHeight: "36px" },
   name: {
     fontSize: 16,
     opacity: 0.8,
@@ -45,8 +45,8 @@ const styles = stylex.create({
     paddingBlock: 0,
     paddingInline: 16,
     fontSize: 18,
-    backgroundColor: colors.bg,
-    color: colors.fg,
+    backgroundColor: colors.background,
+    color: colors.foreground,
     opacity: 0.85,
   },
   banner: {
@@ -60,17 +60,17 @@ const styles = stylex.create({
     fontWeight: 600,
   },
   narrow: { backgroundColor: colors.narrow, color: fixedColors.onAccent },
-  reroute: { backgroundColor: colors.surface, color: colors.fg },
+  reroute: { backgroundColor: colors.surface, color: colors.foreground },
 });
 
-export function NavHud() {
-  const nav = useNav((s) => s.nav);
-  const hud = useNav((s) => s.hud);
-  const inNarrow = useNav((s) => s.inNarrow);
+export function NavigationHud() {
+  const navigation = useNavigation((state) => state.navigation);
+  const hud = useNavigation((state) => state.hud);
+  const inNarrow = useNavigation((state) => state.inNarrow);
   const route = useTrip(selectRoute);
-  if (!nav || !route) return null;
+  if (!navigation || !route) return null;
   const instruction = hud?.instruction ?? null; // null = 案内地点が残っていない → 「目的地まで」
-  const remaining = hud?.remaining ?? route.distance - nav.s; // 初回 hud event 前は経路末尾まで
+  const remaining = hud?.remaining ?? route.distance - navigation.s; // 初回 hud event 前は経路末尾まで
   const next = hud?.next ?? null; // 次の次。null なら行は空のまま（高さ固定）
   const name = instruction ? instruction.streetName : "目的地まで";
   return (
@@ -79,8 +79,8 @@ export function NavHud() {
         <span {...stylex.props(styles.icon)}>
           <DirectionIcon sign={instruction?.sign ?? 4} size={56} />
         </span>
-        <div {...stylex.props(styles.col)}>
-          <span {...stylex.props(styles.dist)}>{formatDistance(remaining)}</span>
+        <div {...stylex.props(styles.column)}>
+          <span {...stylex.props(styles.distance)}>{formatDistance(remaining)}</span>
           {name && <span {...stylex.props(styles.name)}>{name}</span>}
         </div>
       </div>
@@ -101,7 +101,9 @@ export function NavHud() {
           細い道を走行中
         </div>
       )}
-      {nav.rerouting && <div {...stylex.props(styles.banner, styles.reroute)}>再探索中…</div>}
+      {navigation.rerouting && (
+        <div {...stylex.props(styles.banner, styles.reroute)}>再探索中…</div>
+      )}
     </div>
   );
 }

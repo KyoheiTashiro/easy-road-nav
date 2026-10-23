@@ -1,25 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HISTORY_MAX, pushHistory } from "@/store/saved.ts";
 
-const pt = (n: number, label = `p${n}`) => ({ lat: n, lng: n, label });
+const point = (index: number, label = `p${index}`) => ({ lat: index, lng: index, label });
 
 describe("pushHistory", () => {
   it("先頭に追加", () => {
-    expect(pushHistory([pt(1)], pt(2))).toEqual([pt(2), pt(1)]);
+    expect(pushHistory([point(1)], point(2))).toEqual([point(2), point(1)]);
   });
   it("同座標は 1 件にまとめ、最新の位置へ", () => {
-    expect(pushHistory([pt(1), pt(2), pt(3)], pt(2, "renamed"))).toEqual([
-      pt(2, "renamed"),
-      pt(1),
-      pt(3),
+    expect(pushHistory([point(1), point(2), point(3)], point(2, "renamed"))).toEqual([
+      point(2, "renamed"),
+      point(1),
+      point(3),
     ]);
   });
   it("HISTORY_MAX 件で古いものから消える", () => {
-    const list = Array.from({ length: HISTORY_MAX }, (_, i) => pt(i));
-    const next = pushHistory(list, pt(99));
+    const list = Array.from({ length: HISTORY_MAX }, (_, i) => point(i));
+    const next = pushHistory(list, point(99));
     expect(next).toHaveLength(HISTORY_MAX);
-    expect(next[0]).toEqual(pt(99));
-    expect(next.at(-1)).toEqual(pt(HISTORY_MAX - 2));
+    expect(next[0]).toEqual(point(99));
+    expect(next.at(-1)).toEqual(point(HISTORY_MAX - 2));
   });
 });
 
@@ -29,13 +29,13 @@ describe("iconOnly", () => {
     vi.resetModules();
     const store = { ...stored };
     vi.stubGlobal("localStorage", {
-      getItem: (k: string) => store[k] ?? null,
-      setItem: (k: string, v: string) => {
-        store[k] = v;
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => {
+        store[key] = value;
       },
     });
-    const mod = await import("@/store/saved.ts");
-    return { ...mod, store };
+    const savedModule = await import("@/store/saved.ts");
+    return { ...savedModule, store };
   };
   afterEach(() => vi.unstubAllGlobals());
 

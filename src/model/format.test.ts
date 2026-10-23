@@ -16,8 +16,8 @@ describe("formatDuration", () => {
     [60 * 60_000, "1 時間"],
     [80 * 60_000, "1 時間 20 分"],
     [150 * 60_000, "2 時間 30 分"],
-  ])("%d ms → %s", (ms, s) => {
-    expect(formatDuration(ms)).toBe(s);
+  ])("%d ms → %s", (ms, expected) => {
+    expect(formatDuration(ms)).toBe(expected);
   });
 });
 
@@ -26,8 +26,8 @@ describe("formatKm", () => {
     [0, "0.0 km"],
     [999, "1.0 km"],
     [12_345, "12.3 km"],
-  ])("%d m → %s", (m, s) => {
-    expect(formatKm(m)).toBe(s);
+  ])("%d m → %s", (meters, expected) => {
+    expect(formatKm(meters)).toBe(expected);
   });
 });
 
@@ -40,8 +40,8 @@ describe("formatDistance", () => {
     [999, "1.0 km"],
     [1000, "1.0 km"],
     [1234, "1.2 km"],
-  ])("%d m → %s", (m, s) => {
-    expect(formatDistance(m)).toBe(s);
+  ])("%d m → %s", (meters, expected) => {
+    expect(formatDistance(meters)).toBe(expected);
   });
 });
 
@@ -55,8 +55,8 @@ describe("formatSpokenDistance", () => {
     [1000, "1 キロ"],
     [1200, "1.2 キロ"],
     [1249, "1.2 キロ"],
-  ])("%d m → %s", (m, s) => {
-    expect(formatSpokenDistance(m)).toBe(s);
+  ])("%d m → %s", (meters, expected) => {
+    expect(formatSpokenDistance(meters)).toBe(expected);
   });
 });
 

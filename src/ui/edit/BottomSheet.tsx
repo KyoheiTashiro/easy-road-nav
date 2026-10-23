@@ -1,7 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef } from "react";
 import { ROLE, type Point } from "@/model/point.ts";
-import { navActions, useNav } from "@/store/nav.ts";
+import { navigationActions, useNavigation } from "@/store/navigation.ts";
 import { selectLoading, selectNarrows, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { RouteSummary } from "@/ui/edit/RouteSummary.tsx";
 import { StepList } from "@/ui/edit/StepList.tsx";
@@ -23,8 +23,8 @@ const styles = stylex.create({
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
-    backgroundColor: colors.bg,
-    color: colors.fg,
+    backgroundColor: colors.background,
+    color: colors.foreground,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     boxShadow: shadows.up,
@@ -133,7 +133,7 @@ const styles = stylex.create({
     justifyContent: "center",
     width: DOT,
     height: DOT,
-    backgroundColor: colors.bg, // 縦線を隠す
+    backgroundColor: colors.background, // 縦線を隠す
     color: colors.border, // 未設定
     fontSize: 14,
     fontWeight: 700,
@@ -158,7 +158,7 @@ function Row({
   role,
   dot,
   text = "",
-  p,
+  point,
   passed = false,
   onDelete,
   children,
@@ -166,21 +166,21 @@ function Row({
   role: string; // aria 用（出発地 / 経由地 n / 到着地）
   dot: keyof typeof marker;
   text?: string; // 経由地の番号
-  p: Point | null;
+  point: Point | null;
   passed?: boolean;
   onDelete(): void;
   children?: React.ReactNode;
 }) {
   return (
     <li {...stylex.props(styles.row, passed && styles.passed)}>
-      <span {...stylex.props(styles.mark, p && styles[dot])} aria-label={role}>
+      <span {...stylex.props(styles.mark, point && styles[dot])} aria-label={role}>
         {dot === "from" && <FromIcon size={20} />}
         {dot === "via" && text}
         {dot === "to" && <ToIcon size={20} />}
       </span>
-      {p ? (
+      {point ? (
         <>
-          <span {...stylex.props(styles.name)}>{p.label ?? "…"}</span>
+          <span {...stylex.props(styles.name)}>{point.label ?? "…"}</span>
           {passed && <span {...stylex.props(styles.note)}>通過済</span>}
           {children}
           <button
@@ -199,17 +199,17 @@ function Row({
 }
 
 export function BottomSheet() {
-  const expanded = useTrip((s) => s.sheetExpanded);
-  const from = useTrip((s) => s.from);
-  const to = useTrip((s) => s.to);
-  const vias = useTrip((s) => s.vias);
-  const passedVia = useTrip((s) => s.passedVia);
-  const notoll = useTrip((s) => s.notoll);
+  const expanded = useTrip((state) => state.sheetExpanded);
+  const from = useTrip((state) => state.from);
+  const to = useTrip((state) => state.to);
+  const vias = useTrip((state) => state.vias);
+  const passedVia = useTrip((state) => state.passedVia);
+  const notoll = useTrip((state) => state.notoll);
   const routes = useTrip(selectRoutes);
   const narrows = useTrip(selectNarrows);
-  const selected = useTrip((s) => s.selected);
-  const starting = useNav((s) => s.starting);
-  const gpsOk = useTrip((s) => s.fix !== null && !s.gpsError);
+  const selected = useTrip((state) => state.selected);
+  const starting = useNavigation((state) => state.starting);
+  const gpsOk = useTrip((state) => state.fix !== null && !state.gpsError);
   const loading = useTrip(selectLoading) || starting;
   const route = routes[selected];
   const empty = routes.length === 0;
@@ -227,35 +227,37 @@ export function BottomSheet() {
     if (expanded && body.current) body.current.scrollTop = 0;
   }, [expanded]);
 
-  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    touchY.current = e.touches[0]?.clientY ?? 0;
+  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    touchY.current = event.touches[0]?.clientY ?? 0;
     // ハンドル上の下スワイプはリストがスクロール済みでも閉じる
-    touchScrollTop.current = body.current?.contains(e.target as Node) ? body.current.scrollTop : 0;
+    touchScrollTop.current = body.current?.contains(event.target as Node)
+      ? body.current.scrollTop
+      : 0;
     startHeight.current = sheet.current?.getBoundingClientRect().height ?? 0;
   };
   // 指に追従。途中からのスクロールで先頭に戻っても閉じない。先頭にいる状態で始めた下スワイプだけ閉じる
   const dragAllowed = (dy: number) => !(dy > 0 && touchScrollTop.current > 0);
-  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    const el = sheet.current;
-    const dy = (e.touches[0]?.clientY ?? touchY.current) - touchY.current;
-    if (!el || !dragAllowed(dy)) return;
+  const onTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    const element = sheet.current;
+    const dy = (event.touches[0]?.clientY ?? touchY.current) - touchY.current;
+    if (!element || !dragAllowed(dy)) return;
     // 展開済みはリストのスクロールが主。シートの高さを触ると iOS がスクロールもタップも取りこぼす（先頭でタップ時の数 px の揺れでも起きる）ので、閉じ方向へ明確に動くまで触らない（追従開始後の反転は追従を続ける）
-    if (expanded && dy < DRAG_START_PX && !el.style.maxHeight) return;
-    const max = (window.innerHeight * layout.half) / 100;
-    const h = Math.min(max, Math.max(peek, startHeight.current - dy));
-    el.style.transition = "none";
-    el.style.maxHeight = `${h}px`;
+    if (expanded && dy < DRAG_START_PX && !element.style.maxHeight) return;
+    const expandedHeight = (window.innerHeight * layout.half) / 100;
+    const height = Math.min(expandedHeight, Math.max(peek, startHeight.current - dy));
+    element.style.transition = "none";
+    element.style.maxHeight = `${height}px`;
   };
   // 以降は class の max-height へアニメーション。touchcancel（画面端のシステムジェスチャ等）でも戻さないと固着する
   const resetStyle = () => {
-    const el = sheet.current;
-    if (!el) return;
-    el.style.transition = "";
-    el.style.maxHeight = "";
+    const element = sheet.current;
+    if (!element) return;
+    element.style.transition = "";
+    element.style.maxHeight = "";
   };
-  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
     resetStyle();
-    const dy = (e.changedTouches[0]?.clientY ?? touchY.current) - touchY.current;
+    const dy = (event.changedTouches[0]?.clientY ?? touchY.current) - touchY.current;
     if (Math.abs(dy) < SWIPE_PX || !dragAllowed(dy)) return;
     tripActions.setSheet(dy < 0);
   };
@@ -286,7 +288,7 @@ export function BottomSheet() {
             <button
               {...stylex.props(button.base, button.primary, styles.start)}
               disabled={!gpsOk || starting}
-              onClick={navActions.start}
+              onClick={navigationActions.start}
             >
               {gpsOk ? "案内開始" : "GPS 待ち"}
             </button>
@@ -298,16 +300,16 @@ export function BottomSheet() {
           <Row
             role="出発地"
             dot="from"
-            p={from}
+            point={from}
             onDelete={() => tripActions.pointDeleted(ROLE.FROM)}
           />
-          {vias.map((v, i) => (
+          {vias.map((via, i) => (
             <Row
               key={i}
               role={`経由地 ${i + 1}`}
               dot="via"
               text={String(i + 1)}
-              p={v}
+              point={via}
               passed={i < passedVia}
               onDelete={() => tripActions.viaDeleted(i)}
             >
@@ -329,14 +331,19 @@ export function BottomSheet() {
               </button>
             </Row>
           ))}
-          <Row role="到着地" dot="to" p={to} onDelete={() => tripActions.pointDeleted(ROLE.TO)} />
+          <Row
+            role="到着地"
+            dot="to"
+            point={to}
+            onDelete={() => tripActions.pointDeleted(ROLE.TO)}
+          />
         </ul>
         <div {...stylex.props(styles.section)}>
           <label {...stylex.props(styles.toggle)}>
             <input
               type="checkbox"
               checked={notoll}
-              onChange={(e) => tripActions.notollToggled(e.target.checked)}
+              onChange={(event) => tripActions.notollToggled(event.target.checked)}
             />
             高速・有料を避ける
           </label>

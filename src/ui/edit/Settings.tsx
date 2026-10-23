@@ -20,8 +20,8 @@ const styles = stylex.create({
     paddingTop: "calc(env(safe-area-inset-top) + 12px)",
     paddingInline: 16,
     paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)",
-    backgroundColor: colors.bg,
-    color: colors.fg,
+    backgroundColor: colors.background,
+    color: colors.foreground,
   },
   header: { display: "flex", alignItems: "center", gap: 12 },
   title: { margin: 0, fontSize: 18, fontWeight: 700 },
@@ -47,8 +47,8 @@ const REGIONS = [
 ];
 
 export function Settings() {
-  const home = useSaved((s) => s.home);
-  const iconOnly = useSaved((s) => s.iconOnly);
+  const home = useSaved((state) => state.home);
+  const iconOnly = useSaved((state) => state.iconOnly);
   return (
     <div {...stylex.props(styles.panel)}>
       <div {...stylex.props(styles.header)}>
@@ -76,7 +76,7 @@ export function Settings() {
         <input
           type="checkbox"
           checked={iconOnly}
-          onChange={(e) => savedActions.iconOnlyToggled(e.target.checked)}
+          onChange={(event) => savedActions.iconOnlyToggled(event.target.checked)}
         />
         細い道・右左折をアイコンだけで表示
       </label>

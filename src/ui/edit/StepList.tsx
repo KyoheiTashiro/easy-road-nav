@@ -19,7 +19,7 @@ const styles = stylex.create({
     borderTopStyle: "solid",
     borderTopColor: colors.border,
   },
-  narrowRow: { backgroundColor: colors.narrowBg }, // 経路線の細い道（オレンジ）と対応
+  narrowRow: { backgroundColor: colors.narrowBackground }, // 経路線の細い道（オレンジ）と対応
   icon: { flexShrink: 0, color: colors.accent, paddingTop: 2 },
   body: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 },
   warn: { display: "flex", fontSize: 12, fontWeight: 600, color: colors.narrow },
@@ -29,16 +29,16 @@ const styles = stylex.create({
 
 /** instructions を全部表示（sign 0 含む）。細い道区間に入るステップの先頭に「⚠ 細い道」（iconOnly はアイコンだけ） */
 export function StepList({ route, narrow }: { route: RouteModel; narrow: NarrowSegment[] }) {
-  const iconOnly = useSaved((s) => s.iconOnly);
-  const { cum } = route;
+  const iconOnly = useSaved((state) => state.iconOnly);
+  const { cumulativeDistances } = route;
   return (
     <ol {...stylex.props(styles.list)}>
-      {route.instructions.map((ins, i) => {
-        const enters = entersNarrow(ins, narrow);
+      {route.instructions.map((instruction, i) => {
+        const enters = entersNarrow(instruction, narrow);
         return (
           <li key={i} {...stylex.props(styles.row, enters && styles.narrowRow)}>
             <span {...stylex.props(styles.icon)}>
-              <DirectionIcon sign={ins.sign} />
+              <DirectionIcon sign={instruction.sign} />
             </span>
             <div {...stylex.props(styles.body)}>
               {enters && (
@@ -46,10 +46,12 @@ export function StepList({ route, narrow }: { route: RouteModel; narrow: NarrowS
                   {iconOnly ? <NarrowIcon size={14} /> : "⚠ 細い道"}
                 </span>
               )}
-              <span {...stylex.props(styles.text)}>{ins.text}</span>
+              <span {...stylex.props(styles.text)}>{instruction.text}</span>
               <span {...stylex.props(styles.meta)}>
-                {formatDistance(cum[ins.to]! - cum[ins.from]!)}
-                {ins.streetName && ` · ${ins.streetName}`}
+                {formatDistance(
+                  cumulativeDistances[instruction.to]! - cumulativeDistances[instruction.from]!,
+                )}
+                {instruction.streetName && ` · ${instruction.streetName}`}
               </span>
             </div>
           </li>

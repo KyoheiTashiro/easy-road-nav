@@ -1,20 +1,32 @@
 import { useEffect } from "react";
 import { fetchRoute } from "@/api/graphhopper.ts";
-import { MODE, getTrip, selectProfile, selectReqKey, tripActions, useTrip } from "@/store/trip.ts";
+import {
+  MODE,
+  getTrip,
+  selectProfile,
+  selectRequestKey,
+  tripActions,
+  useTrip,
+} from "@/store/trip.ts";
 
-/** ナビ中は探索しない（経路は nav store が入れる） */
+/** ナビ中は探索しない（経路は navigation store が入れる） */
 export function useRouteSearch(): void {
-  const reqKey = useTrip(selectReqKey);
+  const requestKey = useTrip(selectRequestKey);
   useEffect(() => {
-    const s = getTrip();
-    if (!s.from || !s.to || s.mode === MODE.NAV) return;
-    const ac = new AbortController();
-    fetchRoute([s.from, ...s.vias, s.to], selectProfile(s), s.vias.length === 0, ac.signal) // 経由地なしのみ代替経路
-      .then((routes) => tripActions.routesLoaded(reqKey, routes))
-      .catch((e: unknown) => {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        tripActions.routesFailed(reqKey);
+    const trip = getTrip();
+    if (!trip.from || !trip.to || trip.mode === MODE.NAVIGATION) return;
+    const abortController = new AbortController();
+    fetchRoute(
+      [trip.from, ...trip.vias, trip.to],
+      selectProfile(trip),
+      trip.vias.length === 0,
+      abortController.signal,
+    ) // 経由地なしのみ代替経路
+      .then((routes) => tripActions.routesLoaded(requestKey, routes))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        tripActions.routesFailed(requestKey);
       });
-    return () => ac.abort();
-  }, [reqKey]);
+    return () => abortController.abort();
+  }, [requestKey]);
 }

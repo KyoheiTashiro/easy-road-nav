@@ -10,7 +10,7 @@ const styles = stylex.create({
     flexDirection: "column",
     gap: 8,
     minWidth: 180,
-    color: fixedColors.popupFg,
+    color: fixedColors.popupForeground,
   },
   label: { fontSize: 14, fontWeight: 600 },
   row: { display: "flex", flexDirection: "column", gap: 4 },

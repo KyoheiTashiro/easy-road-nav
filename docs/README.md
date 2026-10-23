@@ -28,7 +28,7 @@ Web で使える Google Maps ライクな地図・ナビアプリ。日本国内
 ## 設計
 
 - [UI](design/ui.md) — 画面モード、ボトムシート、設定画面、地点ポップアップ、探索トリガ、App の状態
-- [ナビ](design/nav.md) — 開始手順、NavState、`step` の処理順、発話テンプレ、カメラ、リルート
+- [ナビ](design/navigation.md) — 開始手順、NavigationState、`step` の処理順、発話テンプレ、カメラ、リルート
 - [経路モデル](design/route-model.md) — GraphHopper リクエスト/応答契約、内部構造、幾何計算
 - [モジュール](design/modules.md) — `src/` 各ファイルの export・シグネチャ、分岐箇所の擬似コード、設定ファイル
 

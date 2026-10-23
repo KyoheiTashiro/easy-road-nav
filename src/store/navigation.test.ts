@@ -107,4 +107,18 @@ describe("navigationActions", () => {
     navigationActions.end(true);
   });
 
+  it("開始の応答待ちに地点が変わったら開始しない", async () => {
+    let resolve!: (routes: RouteModel[]) => void;
+    fetchMock.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    tripActions.pointSet("to", { lat: 35, lng: 139 + 1000 / 91_300 }, "B");
+    gps(fixAt(0));
+    const starting = navigationActions.start();
+
+    tripActions.pointSet("to", { lat: 35, lng: 139 + 2000 / 91_300 }, "C");
+    resolve([straight()]);
+    await starting;
+    expect(getTrip().mode).toBe("edit");
+    expect(getNavigation().navigation).toBeNull();
+    expect(getNavigation().starting).toBe(false);
+  });
 });

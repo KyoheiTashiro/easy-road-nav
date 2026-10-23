@@ -19,6 +19,7 @@ import {
   getTrip,
   selectNarrow,
   selectProfile,
+  selectRequestKey,
   selectRoute,
   tripActions,
 } from "@/store/trip.ts";
@@ -123,6 +124,7 @@ export const navigationActions = {
     const trip = getTrip();
     const fix = trip.fix;
     if (!fix || !trip.to || getNavigation().starting) return;
+    const requestKey = selectRequestKey(trip);
     speech.unlock(); // iOS: ユーザー操作内で初回 speak
     set({ starting: true });
     const origin: Point = { lat: fix.lat, lng: fix.lng, label: "現在地" };
@@ -135,6 +137,11 @@ export const navigationActions = {
     }
     if (!route) {
       showToast("経路を探索できません");
+      return;
+    }
+    // 応答待ちの間にボトムシートで地点・有料トグルを変えられる
+    if (selectRequestKey(getTrip()) !== requestKey) {
+      showToast("地点が変わったため案内を開始しませんでした");
       return;
     }
     const now = getTrip().fix ?? fix;

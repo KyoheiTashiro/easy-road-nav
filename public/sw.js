@@ -7,11 +7,12 @@ self.addEventListener("install", (e) => {
     caches
       .open(CACHE)
       .then((c) =>
-        c.addAll(
-          ["/", "/icon.png", "/manifest.json"].map(
-            (u) => new Request(u, { cache: "no-cache" }),
+        Promise.all([
+          fetchAndPut(c, "/"),
+          c.addAll(
+            ["/icon.png", "/manifest.json"].map((u) => new Request(u, { cache: "no-cache" })),
           ),
-        ),
+        ]),
       )
       .then(() => self.skipWaiting()),
   );
@@ -25,14 +26,12 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin || url.pathname.startsWith("/gh/")) return;
   // URL 共有はクエリ形式なので、どの navigate も同じ "/" を返す
-  const key = e.request.mode === "navigate" ? "/" : e.request;
+  const key = e.request.mode === "navigate" || url.pathname === "/" ? "/" : e.request;
   // no-store 要求にキャッシュを返すと新版を検知できない
   if (e.request.cache === "no-store")
     return e.respondWith(caches.open(CACHE).then((c) => fetchAndPut(c, key)));
   e.respondWith(
-    url.pathname.startsWith("/assets/")
-      ? cacheFirst(key)
-      : staleWhileRevalidate(key, e),
+    url.pathname.startsWith("/assets/") ? cacheFirst(key) : staleWhileRevalidate(key, e),
   );
 });
 
@@ -56,6 +55,17 @@ async function staleWhileRevalidate(key, e) {
 // tailscale serve は Cache-Control を付けず、HTTP キャッシュが heuristic で旧版を返し続けるので毎回再検証する
 async function fetchAndPut(c, key) {
   const r = await fetch(key, { cache: "no-cache" });
-  if (r.ok) await c.put(key, r.clone());
+  if (!r.ok) return r;
+  // デプロイ（rsync --delete）で旧 /assets/* は消える。参照先が手元にない HTML をキャッシュすると
+  // 次回起動で JS が 404 になり白画面のまま復帰しないので、参照先を先に揃え、揃わなければ置かない
+  if (key === "/") {
+    const assets = (await r.clone().text()).match(/\/assets\/[^"']+/g) ?? [];
+    try {
+      await Promise.all(assets.map(async (a) => (await c.match(a)) || c.add(a)));
+    } catch {
+      return r;
+    }
+  }
+  await c.put(key, r.clone());
   return r;
 }

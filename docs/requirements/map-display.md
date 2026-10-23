@@ -6,7 +6,7 @@
 
 - スマホ・タブレットの縦画面前提。PC ブラウザでも動くが最適化しない
 - 地図がフルスクリーン、操作 UI はオーバーレイ
-- PWA: `manifest.json`（standalone、アイコン1枚）のみ。ホーム画面追加で全画面起動。Service Worker（`public/sw.js`）が app shell（`/` `/assets/*` `/icon.png` `/manifest.json`）を Cache Storage から即返す（iOS standalone 起動時の HTML 到着待ちで白画面が数秒出るのを防ぐ）。`/assets/*` は cache-first、それ以外は stale-while-revalidate（デプロイ後の初回起動は旧版、次回起動から新版）。`cache: "no-store"` の要求（`useUpdateCheck`）はネットワークから取得してキャッシュを更新する（キャッシュを返すと更新を検知できない）。SW からの取得は `cache: "no-cache"`（`tailscale serve` は Cache-Control を付けず、HTTP キャッシュが heuristic で旧版を返し続ける）。`/gh/*` と外部オリジンは素通し。オフライン対応は目的外
+- PWA: `manifest.json`（standalone、アイコン1枚）のみ。ホーム画面追加で全画面起動。Service Worker（`public/sw.js`）が app shell（`/` `/assets/*` `/icon.png` `/manifest.json`）を Cache Storage から即返す（iOS standalone 起動時の HTML 到着待ちで白画面が数秒出るのを防ぐ）。`/assets/*` は cache-first、それ以外は stale-while-revalidate（デプロイ後の初回起動は旧版、次回起動から新版）。`/` をキャッシュに置く前に HTML が参照する `/assets/*` を揃え、揃わなければ置かない（デプロイの `rsync --delete` で旧 assets が消えると、キャッシュした旧 HTML の JS が 404 になり白画面のまま戻らない）。`cache: "no-store"` の要求（`useUpdateCheck`）はネットワークから取得してキャッシュを更新する（キャッシュを返すと更新を検知できない）。SW からの取得は `cache: "no-cache"`（`tailscale serve` は Cache-Control を付けず、HTTP キャッシュが heuristic で旧版を返し続ける）。`/gh/*` と外部オリジンは素通し。オフライン対応は目的外
 
 ## タイル
 

@@ -11,7 +11,7 @@ import { useSaved } from "@/store/saved.ts";
 import { MODE, URL_HAD_POINTS, selectRoutes, tripActions, useTrip } from "@/store/trip.ts";
 import { button } from "@/ui/button.stylex.ts";
 import { layout } from "@/ui/layout.stylex.ts";
-import { marker } from "@/ui/tokens.stylex.ts";
+import { colors, marker } from "@/ui/tokens.stylex.ts";
 import {
   DARK_MQ,
   EMPTY,
@@ -28,12 +28,28 @@ import {
   setSourceData,
 } from "@/ui/map/mapLayers.ts";
 import { PointPopup } from "@/ui/map/PointPopup.tsx";
-import { HomeIcon } from "@/ui/icons/index.tsx";
+import { HomeIcon, LocateIcon } from "@/ui/icons/index.tsx";
 
 /** ナビ中のカメラ pitch（nav.md「カメラ」節。zoom は store/nav.ts の NAV_ZOOM） */
 export const NAV_PITCH = 50;
 
-const styles = stylex.create({ map: { position: "fixed", inset: 0 } });
+const LOCATE_ZOOM = 15;
+
+const styles = stylex.create({
+  map: { position: "fixed", inset: 0 },
+  locate: {
+    width: 40,
+    height: 40,
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "50%",
+    backgroundColor: colors.bg,
+    color: colors.accent,
+  },
+});
+
 
 export function Map() {
   const mode = useTrip((s) => s.mode);
@@ -43,6 +59,7 @@ export function Map() {
   const vias = useTrip((s) => s.vias);
   const home = useSaved((s) => s.home); // 自宅マーカー。全モードで表示
   const fix = useTrip((s) => s.fix);
+  const gpsError = useTrip((s) => s.gpsError);
   const routes = useTrip(selectRoutes);
   const selected = useTrip((s) => s.selected);
   const fitVersion = useTrip((s) => s.fitVersion);
@@ -56,6 +73,12 @@ export function Map() {
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [homeDiv] = useState(homeMarkerElement);
+  // 現在地ボタン。縮尺・出典と同じくコントロールに入れ、CSS でシート直上に置く
+  const [locateDiv] = useState(() => {
+    const d = document.createElement("div");
+    d.className = "maplibregl-ctrl";
+    return d;
+  });
   const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   // 方位アイコン（押下で北上）。ナビ中は heading 追従と衝突するので外す
   const compassRef = useRef(
@@ -95,6 +118,7 @@ export function Map() {
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.addControl(new maplibregl.ScaleControl(), "bottom-left"); // 出典と縦積み。右下だと展開した出典と重なる
     map.addControl(compassRef.current, "top-left");
+    map.addControl({ onAdd: () => locateDiv, onRemove: () => locateDiv.remove() }, "bottom-right");
     map.on("style.load", () => applyStyleExtras(map, dataRef.current));
     map.on("click", (e) => onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
     map.on("dragstart", (e) => {
@@ -116,7 +140,7 @@ export function Map() {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [locateDiv]);
 
   useEffect(() => {
     const hide = mode === MODE.HOME;
@@ -299,9 +323,25 @@ export function Map() {
     );
   }
 
+  const locate =
+    mode === MODE.EDIT && !sheetExpanded ? (
+      <button
+        {...stylex.props(button.base, styles.locate)}
+        disabled={!fix || gpsError}
+        onClick={() => {
+          const map = mapRef.current;
+          if (map && fix) map.easeTo({ center: fix, zoom: Math.max(map.getZoom(), LOCATE_ZOOM) });
+        }}
+        aria-label="現在地に戻る"
+      >
+        <LocateIcon />
+      </button>
+    ) : null;
+
   return (
     <>
       <div ref={container} {...stylex.props(styles.map)} />
+      {createPortal(locate, locateDiv)}
       {createPortal(popupContent, popupDiv)}
       {createPortal(<HomeIcon size={18} />, homeDiv)}
     </>

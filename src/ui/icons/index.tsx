@@ -4,6 +4,7 @@ import circle from "./circle.svg";
 import gear from "./gear.svg";
 import home from "./home.svg";
 import keep from "./keep.svg";
+import locate from "./locate.svg";
 import narrow from "./narrow.svg";
 import pin from "./pin.svg";
 import pinDot from "./pin-dot.svg";
@@ -46,6 +47,10 @@ export function HomeIcon({ size = 24 }: { size?: number }) {
 
 export function SettingsIcon({ size = 24 }: { size?: number }) {
   return <Icon src={gear} size={size} />;
+}
+
+export function LocateIcon({ size = 24 }: { size?: number }) {
+  return <Icon src={locate} size={size} />;
 }
 
 export function NarrowIcon({ size = 24 }: { size?: number }) {

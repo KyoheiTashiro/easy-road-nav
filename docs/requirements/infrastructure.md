@@ -53,6 +53,27 @@ flowchart LR
 - 到達経路は Tailscale のみ。認証は Tailscale アカウント（ノード共有の受諾）
 - VPS 上の設定ファイルは compose 1 つ。リバースプロキシ・`.env` なし
 
+## 外部サービス
+
+このアプリが使う外部サービスの一覧。帰属表示は「ライセンス・帰属」、料金は「費用」にある。
+
+アプリ実行中（スマホのブラウザから直接呼ぶ。VPS は経由しない）:
+
+- OpenFreeMap（`tiles.openfreemap.org`）: 地図のスタイル・ベクトルタイル・フォント・アイコン。アプリはスタイル URL（`src/map/mapLayers.ts` の `STYLE`）を MapLibre に渡すだけで、残りは MapLibre がスタイルの記述に従って取得する。詳細は [map-display.md](map-display.md)「タイル」
+- 国土地理院 住所検索 API（`msearch.gsi.go.jp`）: 住所から座標を引く。`src/search/gsi.ts`。詳細は [search.md](search.md)
+- 国土地理院 逆ジオ API（`mreversegeocoder.gsi.go.jp`）: 座標から市区町村 + 町字を引く。`src/search/gsi.ts`
+- Yahoo! ローカルサーチ API（`map.yahooapis.jp`）: 施設名から座標を引く。CORS ヘッダを返さないので JSONP で呼ぶ。Client ID は `.env.local` の `VITE_YAHOO_APPID` をビルド時に埋め込む。`src/search/yahoo.ts`。採用経緯は [ADR-0003](../adr/0003-poi-geocoder-yahoo.md)、ID 発行は [runbook.md](../runbook.md) 6 章
+
+データ作成（Mac から。手動・不定期）:
+
+- Geofabrik（`download.geofabrik.de`）: 関東・中部の OSM pbf。`make pbf`（`scripts/build-pbf.sh`）が取得する
+- Nominatim（`nominatim.openstreetmap.org`）: 県境 GeoJSON。県を足すときだけ手で取得し、`scripts/regions/` に置く。手順は [runbook.md](../runbook.md) 5 章
+
+配信・運用:
+
+- Tailscale: 公開（`tailscale serve` と HTTPS 証明書）、認証（ノード共有）、SSH。端末どうしが直接つながらないときは Tailscale の DERP 中継を通る。VPS への導入は `scripts/vps-setup.sh`。詳細は「公開」
+- Docker Hub: GraphHopper のイメージ `israelhikingmap/graphhopper:11.0`。Mac と VPS が `compose.yml` に従って取得する
+
 ## GraphHopper 設定
 
 - compose は 1 ファイル（`compose.yml`）を Mac と VPS で共用。イメージ tag は共通設定 `x-common` の 1 箇所に固定、`latest` は使わない

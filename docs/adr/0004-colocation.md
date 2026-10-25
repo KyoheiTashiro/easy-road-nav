@@ -48,6 +48,7 @@ src/
 - 使う側が 1 つなら、使う側の隣に置く
 - 複数の機能が使うなら、意味上の持ち主の機能に置く。`saved.ts`（自宅・検索履歴・アイコンのみ表示）は search・map・route・settings の UI と trip が使うが、持ち主は `settings/`
 - どの機能にも属さないものは `shared/`。App 全体のフックは `App.tsx` と同じ `src/` 直下
+  - 追記（2026-10-25）: `src/` 直下には `main.tsx` `App.tsx` `stylex.css` だけを置くことにした。App 全体のものも上の規則で置く。`useGeolocation.ts` は fix・`gpsError` を持つ `trip/` へ、機能を import しない `useUpdateCheck.ts` は `shared/` へ移した。`Toast.tsx` は `mode` の購読をやめてナビ中かを prop で受け取る形に変え、`toast.ts` の隣の `shared/` へ移した
 
 fixture は GraphHopper の実応答で、route の契約そのものなので `route/__fixtures__/` に置く。`navigation/progress.test.ts` も使うため、厳密に「全利用者の共通祖先」で決めれば `src/` 直下になる。持ち主を優先して、ここは例外とする。
 

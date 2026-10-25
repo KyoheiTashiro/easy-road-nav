@@ -369,7 +369,7 @@ reroute(state, fix):
 
 ## App が呼ぶ外部同期フック
 
-`useGeolocation` `useUpdateCheck` は `src/` 直下、ほかは関係する機能のディレクトリ（[frontend.md](../requirements/frontend.md)「ディレクトリ」）。1 部品だけが使う Effect は部品の隣のフック。`useWakeLock` `useUpdateCheck` 以外は引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
+`useGeolocation` は `trip/`、`useUpdateCheck` は `shared/`、ほかは関係する機能のディレクトリ（[frontend.md](../requirements/frontend.md)「ディレクトリ」）。1 部品だけが使う Effect は部品の隣のフック。`useWakeLock` `useUpdateCheck` 以外は引数なし・戻り値なしで、`App` がマウント時に呼ぶ。
 
 - `useGeolocation`: マウントで `watchPosition`（`enableHighAccuracy: true`, `maximumAge: 0`, `timeout: 10000`）。アンマウントで `clearWatch`。成功: `tripActions.fixUpdated(fix)` → `navigationActions.onFix(fix)`。失敗（`PERMISSION_DENIED` / `POSITION_UNAVAILABLE` / `TIMEOUT`）: `tripActions.gpsFailed()`。Geolocation 非対応は store の初期値 `gpsError: true`
 - `useRouteSearch`: `useEffect([pointsKey, notoll, ナビ中か])`。`getTrip()` で地点を読み、揃っていてナビ中でなく、現在の地点集合の結果がまだなければ（`selectLoading`） `fetchRoute(points, profile, 経由地なし, signal)` → `routesLoaded` / `routesFailed`（`isAbortError` は無視）。cleanup で `abort()`
@@ -562,9 +562,9 @@ export function DirectionIcon(props: { sign: number; size?: number }): JSX.Eleme
 
 GraphHopper の sign（`SIGN`）に依存するので `shared/icons/` ではなく route に置く。SVG は `shared/icons/` のものを使う。sign → 11 種（navigation.md）。矢印 `arrow.svg` 1 本を `rotate()` で回し、左向きは `scaleX(-1)`。`4` `5` は `pin-dot.svg`、`6` は `roundabout.svg`、`±8` `-98` は `uturn.svg`、`±7` は `keep.svg`。未知の sign は直進。
 
-## `src/Toast.tsx`
+## `src/shared/Toast.tsx`
 
-props なし。`useToast()` と `mode === "navigation"`（位置を HUD 下へ。`layout.hud + layout.next + 16px`）を購読。`useEffect([message])` で 4 秒後に `clearToast()`（新しいメッセージでタイマーを張り直す）。
+props `navigationMode: boolean`（`App` が `mode === "navigation"` を渡す。true なら位置を HUD 下へ。`layout.hud + layout.next + 16px`）。`shared/` は trip を import できないので購読しない。`useToast()` を購読。`useEffect([message])` で 4 秒後に `clearToast()`（新しいメッセージでタイマーを張り直す）。
 
 ## `src/shared/tokens.stylex.ts`
 
@@ -593,7 +593,7 @@ export const layout = stylex.defineConsts({
 
 ## `src/App.tsx`
 
-状態を持たない。`useGeolocation()` `useRouteSearch()` `useReverseGeocode()` `useUrlSync()` を呼び、`mode` を購読して `useWakeLock(mode === "navigation")` `useUpdateCheck(mode === "navigation")`。描画は `<Map />` + モード別: navigation → `<NavigationHud /> <NavigationBar />`、settings → `<Settings />`、edit / home → `<SearchBox key={mode} />` と edit のとき `<BottomSheet />`。末尾に `<Toast />`（Settings より上に重ねる）。
+状態を持たない。`useGeolocation()` `useRouteSearch()` `useReverseGeocode()` `useUrlSync()` を呼び、`mode` を購読して `useWakeLock(mode === "navigation")` `useUpdateCheck(mode === "navigation")`。描画は `<Map />` + モード別: navigation → `<NavigationHud /> <NavigationBar />`、settings → `<Settings />`、edit / home → `<SearchBox key={mode} />` と edit のとき `<BottomSheet />`。末尾に `<Toast navigationMode={mode === "navigation"} />`（Settings より上に重ねる）。
 
 主要な流れ（どこで起きるか）:
 

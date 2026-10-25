@@ -1,7 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 import { useEffect } from "react";
 import { clearToast, useToast } from "@/shared/toast.ts";
-import { MODE, useTrip } from "@/trip/trip.ts";
 import { layout } from "@/shared/layout.stylex.ts";
 import { colors, shadows } from "@/shared/tokens.stylex.ts";
 
@@ -25,9 +24,8 @@ const styles = stylex.create({
   navigation: { top: `calc(env(safe-area-inset-top) + ${layout.hud}px + ${layout.next}px + 16px)` },
 });
 
-export function Toast() {
+export function Toast({ navigationMode }: { navigationMode: boolean }) {
   const message = useToast((state) => state.message);
-  const navigationMode = useTrip((state) => state.mode === MODE.NAVIGATION);
 
   useEffect(() => {
     if (!message) return;

@@ -13,8 +13,7 @@ rsync -az compose.yml "$VPS:$DIR/"
 ssh "$VPS" sh -s <<REMOTE
 set -eu
 cd $DIR
-# serve は profile 付き。--profile 無しの down は対象外で止まらない
-docker compose --profile serve down
+docker compose down
 rm -rf data/graph-cache.old
 [ ! -d data/graph-cache ] || mv data/graph-cache data/graph-cache.old
 mv data/graph-cache.new data/graph-cache
@@ -24,7 +23,7 @@ for i in \$(seq 1 30); do
   curl -sf localhost:8989/info >/dev/null && { echo "serve OK"; rm -rf data/graph-cache.old; exit 0; }
 done
 echo "serve NG: 旧 graph-cache に戻す" >&2
-docker compose --profile serve down
+docker compose down
 [ ! -d data/graph-cache.old ] || { rm -rf data/graph-cache; mv data/graph-cache.old data/graph-cache; }
 docker compose up -d serve
 exit 1

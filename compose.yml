@@ -1,9 +1,7 @@
 # GraphHopper 11.0。Mac（import + serve）と VPS（serve）で共用。
 # 詳細: docs/requirements/infrastructure.md「GraphHopper 設定」
-x-image: &gh-image israelhikingmap/graphhopper:11.0
-
 x-common: &gh-common
-  image: *gh-image
+  image: israelhikingmap/graphhopper:11.0
   volumes:
     - ./data:/data
     - ./graphhopper/config.yml:/graphhopper/config.yml:ro
@@ -15,16 +13,7 @@ services:
   import:
     <<: *gh-common
     profiles: [import]
-    command:
-      [
-        "-c",
-        "/graphhopper/config.yml",
-        "--import",
-        "-i",
-        "/data/kanto-koshinetsu.osm.pbf",
-        "-o",
-        "/data/graph-cache",
-      ]
+    command: -c /graphhopper/config.yml --import -i /data/kanto-koshinetsu.osm.pbf -o /data/graph-cache
     environment:
       JAVA_OPTS: -Xmx4g -Xms4g
 
@@ -32,7 +21,6 @@ services:
   #   docker compose up -d serve
   serve:
     <<: *gh-common
-    profiles: [serve]
     command: ["-c", "/graphhopper/config.yml", "-o", "/data/graph-cache"]
     environment:
       # MMAP_STORE: graph-cache をヒープ外（OS ページキャッシュ）に置く

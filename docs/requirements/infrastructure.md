@@ -55,9 +55,9 @@ flowchart LR
 
 ## GraphHopper 設定
 
-- compose は 1 ファイル（`compose.yml`）を Mac と VPS で共用。イメージ tag は YAML anchor で 1 箇所に固定、`latest` は使わない
-- `profiles` で役割を分ける
-  - `import`: Mac 専用。`--import`。ヒープ 4 GB
+- compose は 1 ファイル（`compose.yml`）を Mac と VPS で共用。イメージ tag は共通設定 `x-common` の 1 箇所に固定、`latest` は使わない
+- サービスで役割を分ける
+  - `import`: Mac 専用。`--import`。ヒープ 4 GB。`profiles: [import]` で `up` / `down` の対象外にし、明示実行のみ
   - `serve`: Mac 開発・VPS 共通。`-Xmx1g`、`mem_limit: 1.5g`
 - `ports` は `127.0.0.1:8989:8989` 必須。`8989:8989` と書くと Docker が iptables を貫通して全開になる
 - `graph.dataaccess.default_type`: `serve` は `MMAP_STORE`（graph-cache を mmap、ヒープ外・OS ページキャッシュに乗る）。`import` は `RAM_STORE`（既定、速い）。両者は同じ graph-cache を読める
@@ -111,7 +111,7 @@ VPS:
 ## デプロイ
 
 - `npm run deploy`: `vite build` → `rsync --delete` で `/srv/easy-road-nav/web` へ。web は build 出力の鏡、VPS 側で手で置くファイルなし。CI なし
-- `npm run deploy:graph`: graph-cache + `graphhopper/` + `compose.yml` を一括転送（整合必須なので分けない）。`graph-cache.new` へ rsync → `docker compose --profile serve down` → 入替 → `up -d serve` → `/info` 確認。返らなければ旧 graph-cache に戻して `up`。稼働中の graph-cache への上書きは不可（mmap 中）。停止は数十秒、許容する
+- `npm run deploy:graph`: graph-cache + `graphhopper/` + `compose.yml` を一括転送（整合必須なので分けない）。`graph-cache.new` へ rsync → `docker compose down` → 入替 → `up -d serve` → `/info` 確認。返らなければ旧 graph-cache に戻して `up`。稼働中の graph-cache への上書きは不可（mmap 中）。停止は数十秒、許容する
 - 頻度が違うので web と graph は別コマンド
 
 ## 運用

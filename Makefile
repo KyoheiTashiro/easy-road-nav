@@ -16,7 +16,7 @@ up: ## serve 起動（:8989、graph-cache 必須）
 	docker compose up -d serve
 
 down: ## serve 停止
-	docker compose --profile serve down
+	docker compose down
 
 logs: ## serve ログ追従
 	docker compose logs -f serve

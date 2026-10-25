@@ -8,72 +8,44 @@
 2. 出発地を最新 fix の座標に置換（地点名は「現在地」）。経由地・到着地は維持
 3. 再探索。`alternative_route` なし（1 本）。リルートと同じリクエスト形。選択していた代替経路は引き継がない
 4. 応答で `navigation` state を初期化、`mode = "navigation"`
-5. 発話「案内を開始します。この先 1.2 キロ、右方向です」（最初の案内地点までの距離 + 指示。距離の丸めは「発話」節）。この発話がユーザー操作直後の初回 `speechSynthesis.speak` になり iOS の制約を満たす
+5. 発話「案内を開始します。この先 1.2 キロ、右方向です」（最初の案内地点までの距離 + 指示。距離の丸めは「発話」節）
 6. Wake Lock 取得。`visibilitychange` で `visible` に戻ったら再取得
 7. カメラをナビ設定へ（「カメラ」節）
+
+iOS Safari はユーザー操作内で `speechSynthesis.speak` を呼ばないと以後の発話が鳴らない。再探索の await 後では操作文脈が切れるので、手順 2 より前、click ハンドラの先頭で空発話（`unlock`）しておく。
 
 再探索失敗（10 秒タイムアウト含む） → トースト、編集モードのまま。応答待ちの間に地点・有料トグルが変わった（`selectPointsKey` か `notoll` が開始時と異なる） → トースト「地点が変わったため案内を開始しませんでした」、編集モードのまま。
 
 ## 状態
 
-```ts
-type Fix = { lat: number; lng: number; accuracy: number; t: number };
+型は `src/navigation/progress.ts` の `NavigationState`。設計上の決めごとだけ書く。
 
-type NavigationState = {
-  s: number; // 進捗（累積距離 m）。単調増加
-  segmentIndex: number; // 進捗点が乗る線分
-  heading: number | null; // 進行方向 deg。経路線の方位、経路外れ中は fix 方位
-  lastFix: Fix | null; // 方位算出用
-  announced: Set<string>; // 発火済みトリガ。key = `${種別}:${index}:${段階}` 例 "instruction:12:far" "narrow:3" "via:1"
-  passedVia: number; // この経路の viaIndices のどこまで通過したか（経路内の位置。全体の通過数は trip.passedVia）
-  offRouteCount: number; // 経路外れ連続回数
-  rerouting: boolean; // リルート要求中
-  follow: boolean; // 地図追従
-  zoom: number; // 現在のズーム（ピンチで更新、復帰時に維持）
-};
-```
-
-`announced` は文字列 Set 1 つで全種別を持つ。リルートで全リセット。
+- 進捗 `s` は累積距離（m）で、単調増加
+- 発火済みの案内は文字列の Set 1 つで全種別を持つ。key は `${種別}:${index}:${段階}`（例 `instruction:12:far` `narrow:3`）。リルートで全リセット
+- 経由地の通過数は 2 か所にある。`navigation.passedVia` はこの経路の `viaIndices` のどこまで通過したか、trip の `passedVia` は全体の通過数（リルートで経路が変わっても積み上がる）
 
 ## 純ロジック `step`（`src/navigation/progress.ts`）
 
-```ts
-type NavigationEvent =
-  | { type: "speak"; text: string }
-  | { type: "hud"; instruction: Instruction | null; remaining: number; next: NextNext | null }
-  | { type: "narrow"; segment: NarrowSegment | null } // 走行中バナー用。null = 細い道でない
-  | { type: "viaPassed"; index: number }
-  | { type: "arrived" }
-  | { type: "reroute" };
-
-function step(
-  route: RouteModel,
-  narrow: NarrowSegment[],
-  state: NavigationState,
-  fix: Fix,
-): { state: NavigationState; events: NavigationEvent[] };
-```
-
-React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、events を発話・表示・fetch に変換する。テストは fix 列 → events 列で書く。処理順に書いていない境界条件（経路外れ中の `heading` 更新、複数経由地の同時通過、案内地点が残っていない場合等）は [modules.md](modules.md) の `progress.ts` 節。
+React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、返った events を発話・表示・fetch に変換する。テストは fix 列 → events 列で書く。処理順に書いていない境界条件は `progress.test.ts` のケースが正。
 
 処理順（1 fix ごと）:
 
 1. **精度フィルタ**: `fix.accuracy >= 進捗採用精度` なら state を返すだけ（events 空）。マーカー位置は Map が trip store の fix から直接描く
-2. **最近傍点**: `nearest(route, fix, { from: s - 経路外れ距離, to: s + 進捗探索範囲 })` → `{ s, distanceToRoute, segmentIndex }`（[route-model.md](route-model.md)）。`distanceToRoute > 経路外れ距離` なら範囲を外して `nearest(route, fix)` で探し直す（トンネルなどで fix が途切れた後）
-3. **経路外れ判定**: `distanceToRoute > 経路外れ距離` かつ直前 fix から 方位算出最小移動 以上動いていれば `offRouteCount++`（停車中は数えない。出発前の準備中や途中停車で連発するのを防ぐ）。`>= リルート連続回数` かつ `!rerouting` なら `reroute` event、`rerouting = true`。経路外れ中は進捗更新せず、`heading` は直近 2 fix の方位（移動 ≥ 方位算出最小移動 のときのみ更新）。以降の手順は飛ばす。経路内なら `offRouteCount = 0`
-4. **進捗更新**: `s` は単調増加。`nearest.s < state.s` なら据え置き（後戻りは無視）。`heading` = 線分 `segmentIndex` の方位
-5. **経由地通過**: `passedVia < viaIndices.length` かつ `s >= cumulativeDistances[viaIndices[passedVia]]` → `viaPassed`、発話「経由地を通過しました」、`passedVia++`
-6. **到着**: `cumulativeDistances[n-1] - s < 到着判定` → 発話「目的地に到着しました」、`arrived`。以降の手順は飛ばす
-7. **次の案内地点**: `instructions` のうち `sign != 0`（直進は案内地点にしない）かつ `cumulativeDistances[from] > s` の最初のもの。残り `r = cumulativeDistances[from] - s`
-   - `r <= 50` かつ `"instruction:i:near"` 未発火 → 直前案内。`"instruction:i:far"` も発火済みにする（1 fix で両方飛び越えたら直前のみ）
-   - それ以外で `r <= 300` かつ `"instruction:i:far"` 未発火 → 予告。ただし直前の案内地点との間隔が 300 m 未満なら予告しない（直前案内だけ）
-   - `hud` event は毎 fix。`next` = `index` より後で `sign != 0` の最初の指示。次の案内地点からの距離 `cumulativeDistances[next.from] - cumulativeDistances[instruction.from]` が「次の次表示上限」以内のときだけ、超えたら null
-8. **細い道**: `narrow` 区間 j で `cumulativeDistances[segment.from] - s` が `(0, 細い道警告距離]` かつ `"narrow:j"` 未発火 → 警告発話。先頭区間（出発地に接する）は警告しない。末尾区間（到着地に接する）は「この先細い道、目的地付近です」。走行中判定: `cumulativeDistances[segment.from] <= s < cumulativeDistances[segment.to]` の区間を `narrow` event で通知
+2. **最近傍点**: 進捗 s の少し手前から「進捗探索範囲」先までに絞って探す（往復する経路で帰り側へ飛ばないため）。範囲内で経路外れなら経路全体から探し直す（トンネルなどで fix が途切れた後）
+3. **経路外れ判定**: 経路線から「経路外れ距離」を超え、かつ直前 fix から「方位算出最小移動」以上動いていれば外れを 1 回数える（停車中は数えない。出発前の準備中や途中停車で連発するのを防ぐ）。「リルート連続回数」に達し、リルート要求中でなければ `reroute` event。経路外れ中は進捗を更新せず、`heading` は直近 2 fix の方位。以降の手順は飛ばす。経路内なら回数を 0 に戻す
+4. **進捗更新**: 後戻りは無視して据え置き。`heading` は乗っている線分の方位
+5. **経由地通過**: 次の経由地の累積距離を越えたら `viaPassed`、発話「経由地を通過しました」
+6. **到着**: 残りが「到着判定」未満なら発話「目的地に到着しました」、`arrived`。以降の手順は飛ばす
+7. **次の案内地点**: `sign != 0`（直進は案内地点にしない）で、まだ通過していない最初の指示
+   - 「案内トリガー距離（直前）」以内で未発火 → 直前案内。予告も発火済みにする（1 fix で両方飛び越えたら直前のみ）
+   - それ以外で「案内トリガー距離（予告）」以内で未発火 → 予告。ただし直前の案内地点との間隔が予告距離未満なら予告しない（直前案内だけ）
+   - `hud` event は毎 fix。次の次の案内地点が「次の次表示上限」以内なら `next` に載せる
+8. **細い道**: 細い道区間の開始が「細い道警告距離」以内に入り、未発火なら警告発話。先頭区間（出発地に接する）は警告しない。末尾区間（到着地に接する）は「この先細い道、目的地付近です」。走行中かどうかは毎 fix `narrow` event で通知
 9. 同一 fix で 7 と 8 が両方発火したら発話順は 案内 → 細い道警告
 
 ## 発話（`src/navigation/speech.ts`）
 
-`speechSynthesis`、`lang = "ja-JP"`、rate 1。キューは `speechSynthesis` 内蔵のもの（発話中は待って順に全部言う）。直前の文字列がまだ再生・待機中なら同一文字列は捨てる。ミュート中は navigation store が `speak` event を捨てる（キューにも入れない）。iOS 向けに「案内開始」の click 内で空発話（`unlock`）してから再探索する。
+`speechSynthesis`、`lang = "ja-JP"`、rate 1。キューは `speechSynthesis` 内蔵のもの（発話中は待って順に全部言う）。直前の文字列がまだ再生・待機中なら同一文字列は捨てる。ミュート中は navigation store が `speak` event を捨てる（キューにも入れない）。
 
 テンプレ（sign → 語）:
 
@@ -104,53 +76,43 @@ React・DOM 非依存。navigation store の `onFix` が fix ごとに呼び、e
 
 画面上部。
 
-- 方向アイコン: インライン SVG 11 種（直進・斜め右・右・鋭角右・斜め左・左・鋭角左・右寄り・左寄り・U ターン・ラウンドアバウト）。`sign` で選ぶ。経由地・目的地はピンアイコン
+- 方向アイコン: 11 種（直進・斜め右・右・鋭角右・斜め左・左・鋭角左・右寄り・左寄り・U ターン・ラウンドアバウト）。`sign` で選ぶ。経由地・目的地はピンアイコン
 - 残り距離: 1 km 以上「1.2 km」（0.1 km 単位）、未満「340 m」（10 m 単位）
 - 道路名: `street_name`（空なら非表示）
-- 次の次行: 本体直下、高さ固定 36px、文字 18px、本体と同じ `background` 色。`next` があれば「その先」+ 小アイコン 24px + `formatDistance(distance)` + 語（`signWord`）。null なら空のまま（高さは変えない。Toast の位置を固定するため）
+- 次の次行: 本体直下。`next` があれば「その先」+ 小アイコン + 距離 + 語。無ければ空のまま高さを変えない（Toast の位置を固定するため）
 - 細い道走行中: HUD 直下にオレンジのバナー `NarrowIcon` + 「細い道を走行中」。アイコンのみ表示（[ui.md](ui.md)）の対象外。発話は変えない
 - リルート要求中: バナー「再探索中…」。経路外れカウント中（1〜2 回目）は何も出さない
 
 ## 下部バー
 
-残り時間（`formatDuration`: 「1 時間 20 分」「25 分」「1 分」）/ 到着予想「HH:MM」/ ミュートトグル（スピーカーアイコン。ミュート中は × 付き、`aria-pressed`） / 「終了」（確認なし）/ 「現在地」（追従 OFF のときだけ表示）。
+残り時間（「1 時間 20 分」「25 分」「1 分」）/ 到着予想「HH:MM」/ ミュートトグル（スピーカーアイコン。ミュート中は × 付き、`aria-pressed`） / 「終了」（確認なし）/ 「現在地」（追従 OFF のときだけ表示）。
 
-残り時間の算出: 現在の案内地点以降の `instructions[].time` 合計 + 現在位置が乗る指示の `time × (残り距離 / 指示距離)`。実速度は使わない。到着予想 = 現在時刻 + 残り時間。
+残り時間の算出: 現在の案内地点以降の `instructions[].time` 合計 + 現在位置が乗る指示の `time × (残り距離 / 指示距離)`。実速度は使わない。到着予想 = 最新 fix の時刻 + 残り時間。
 
 ## カメラ
 
-- 開始時: `zoom 17`、`pitch 50`（`NAVIGATION_ZOOM` / `NAVIGATION_PITCH`、`map/useCamera.ts`）、`bearing = heading`、`padding.top = 画面高 / 3`・`padding.bottom = NavigationBar 高` で現在地を画面下 1/3 に置く（`jumpTo({ padding })`。編集モード復帰で padding 0）
-- 毎 fix（`follow` 中）: `easeTo({ center, bearing, zoom: state.zoom })`。`heading` が null なら bearing は据え置き
+- 開始時: `zoom 17`、`pitch 50`、`bearing = heading`。上 padding を画面高の 1/3、下 padding を NavigationBar の高さにして、現在地を画面下 1/3 に置く。編集モード復帰で padding 0
+- 毎 fix（追従中）: `easeTo({ center, bearing, zoom })`。`heading` が null なら bearing は据え置き
 - ジェスチャ:
-  - ドラッグ（`dragstart`、2 本指のピンチ中は除く）→ `follow = false`。「現在地」ボタンで `follow = true`、zoom はユーザーが変えた値を維持
-  - ピンチ（`zoomend`、`originalEvent` あり）→ `state.zoom` を更新、`follow` は維持
-  - 回転・ピッチ: `touchZoomRotate.disableRotation()`、`touchPitch.disable()`、`dragRotate.disable()`。編集モードに戻るとき復帰
+  - ドラッグ（2 本指のピンチ中は除く）→ 追従 OFF。「現在地」ボタンで追従 ON、zoom はユーザーが変えた値を維持
+  - ピンチ → zoom を記録、追従は維持
+  - 回転・ピッチは無効化し、編集モードに戻るとき復帰
+- コンパス（`NavigationControl`）はナビ中は外す（heading 追従と衝突するため）
 - 編集モードのシート・検索欄はナビ中非表示。地点変更は「終了」してから
 
 ## リルート
 
-1. `reroute` event → `rerouting = true`、バナー「再探索中…」
-2. 出発地 = 現在地から `heading` 方向へ リルート前方オフセット だけ進めた点。`heading` が null（停車中に外れた等）なら現在地そのまま
-3. `points` = [出発地, 未通過の経由地（`vias.slice(trip.passedVia)`）, 到着地]。`profile` は現在の有料トグル。`alternative_route` なし
-4. 成功: `routes = [新経路]`、`selected = 0`、`navigation` を初期化（`s = 0`、`announced` 空、`passedVia = 0`、`follow`・`zoom`・`muted` は維持）。発話「経路を再探索しました」+ 開始時文言。`fitBounds` しない（追従継続）
-5. 失敗（400 / ネットワーク / 10 秒タイムアウト）: トースト「経路を再探索できません」、`rerouting = false`、旧経路のまま案内継続。`offRouteCount = 0` に戻し、次の連続外れで再試行
-6. 地点リスト（編集モードに戻ったとき）: 通過済み経由地は薄色 + 「通過済」表示で残す。URL の `via` は全経由地を維持
+1. `reroute` event → リルート要求中にし、バナー「再探索中…」
+2. 出発地 = 現在地から `heading` 方向へ「リルート前方オフセット」だけ進めた点（U ターン指示を防ぐ）。`heading` が null（停車中に外れた等）なら現在地そのまま
+3. `points` = [出発地, 未通過の経由地, 到着地]。`profile` は現在の有料トグル。`alternative_route` なし
+4. 成功: 経路を置き換え、`navigation` を初期化（追従・zoom・ミュートは維持）。発話中の音声を止めてから「経路を再探索しました」+ 開始時文言。`fitBounds` しない（追従継続）
+5. 失敗（400 / ネットワーク / 10 秒タイムアウト）: トースト「経路を再探索できません」、旧経路のまま案内継続。外れ回数を 0 に戻し、次の連続外れで再試行
+6. 応答が返る前にナビを終了していたら応答を捨てる（終了後に再開していても捨てる）
+7. 地点リスト（編集モードに戻ったとき）: 通過済み経由地は薄色 + 「通過済」表示で残す。URL の `via` は全経由地を維持
 
 ## 終了・到着
 
-- 「終了」または `arrived`: `mode = "edit"`、`navigation = null`、Wake Lock 解放、カメラのジェスチャ制限を解除、`fitBounds` で経路全体表示。`speechSynthesis.cancel()` は「終了」のみ（到着は「目的地に到着しました」を言い切る）
+- 「終了」または到着: `mode = "edit"`、`navigation = null`、Wake Lock 解放、カメラのジェスチャ制限を解除、`fitBounds` で経路全体表示
+- 発話の打ち切り（`speechSynthesis.cancel()`）は「終了」のみ。到着は「目的地に到着しました」を言い切る
 - 経路・地点はそのまま（再度「案内開始」可）。GPS watch と現在地マーカーはそのまま継続
 - ミュート状態はセッション内のみ。リロードで解除
-
-## テスト（`progress.test.ts`）
-
-fixture 経路（[route-model.md](route-model.md)）上に fix 列を置き、events 列を検証する。
-
-- 進捗の単調増加（後戻り fix で `s` 据え置き）
-- 精度フィルタ（accuracy 50 m 以上で events 空）
-- 予告 → 直前の順序、1 fix で飛び越えたとき直前のみ、指示間 300 m 未満で予告なし
-- sign 0 を案内地点にしない
-- 経由地通過、到着
-- 細い道警告（先頭区間なし・末尾区間の文言・走行中バナー）
-- 経路外れ連続回数で `reroute` 1 回だけ（`rerouting` 中は再発火しない）
-- 発話順（案内 → 細い道）

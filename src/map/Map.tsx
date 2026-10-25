@@ -68,6 +68,7 @@ export function Map() {
         "bottom-right",
       );
 
+      // 生成と同時に登録する。フックの Effect を待つと初回の style.load を取りこぼしうる
       map.on("style.load", () => applyStyleExtras(map, layerData.current));
       const onScheme = (event: MediaQueryListEvent) =>
         map.setStyle(event.matches ? STYLE.dark : STYLE.light, { diff: false });

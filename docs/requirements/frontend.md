@@ -2,19 +2,19 @@
 
 ## 方針
 
-- 状態は zustand の store に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。外部同期のフック（`use*.ts(x)`）は、使う部品・機能と同じディレクトリに置く。ルーター不使用。状態の一覧は [design/ui.md](../design/ui.md)
+- 状態は zustand の store に置く。UI は値をセレクタで購読し、操作はアクションを呼ぶ。外部同期のフック（`use*.ts(x)`）は、使う部品・機能と同じディレクトリに置く。ルーター不使用。状態の分け方は [design/ui.md](../design/ui.md)
 - URL クエリ（[map-display.md](map-display.md)）が地点 + notoll の正。編集で `history.replaceState`、読み込み時に復元して探索
 - `src/` は機能で分ける（[ADR-0004](../adr/0004-colocation.md)）。1 機能の純関数・store・外部呼び出し・フック・部品を同じディレクトリに置く
-- 配置: 使う側が 1 つなら、使う側の隣。複数の機能が使うなら、意味上の持ち主の機能。どの機能にも属さないものは `shared/`。App だけが使うものは `src/` 直下
+- 配置: 使う側が 1 つなら、使う側の隣。複数の機能が使うなら、意味上の持ち主の機能。どの機能にも属さないものは `shared/`。App だけが使うものも同じ規則で置き、`src/` 直下は `main.tsx` `App.tsx` `stylex.css` のみ
 - `*.tsx` と `use*.ts` 以外のファイルは `react` `react-dom` を import せず、`*.tsx` `use*.ts` も import しない（zustand・MapLibre・DOM API は使ってよい）
 - 機能間の import は自由。`shared/` から機能ディレクトリへの import は禁止
 - 調整値（[CONTEXT.md](../CONTEXT.md)）は、使うファイルの先頭に定数で置く
 - `src/` 内の import は `@/` からの絶対パス（`@/trip/trip.ts`）。相対パスは書かない
 - Vitest は React を import しないファイルの純関数と store のみ。UI・外部呼び出しは手動確認
 - ライブラリは React / Vite / TypeScript / MapLibre GL JS / Vitest + StyleX（CSS）+ zustand（状態）+ React Compiler（babel plugin）のみ。追加しない（turf 不採用: 必要な計算は `geo.ts` 数十行）
-- CSS: StyleX。`@stylexjs/postcss-plugin` + `@vitejs/plugin-react`（5 系、`babel.configFile: true`）が共通の `babel.config.js` から `@stylexjs/babel-plugin` を読む。色トークンは `src/shared/tokens.stylex.ts`（`defineVars`、ダーク値は `@media (prefers-color-scheme: dark)`）、部品の高さは `src/shared/layout.stylex.ts`（`defineConsts`）
+- CSS: StyleX。`@stylexjs/postcss-plugin` と `@rolldown/plugin-babel`（`vite.config.ts`）が共通の `babel.config.js` から `@stylexjs/babel-plugin` を読む。色トークンは `src/shared/tokens.stylex.ts`（`defineVars`、ダーク値は `@media (prefers-color-scheme: dark)`）、部品の高さは `src/shared/layout.stylex.ts`（`defineConsts`）
 - StyleX は `border` `background` 等のショートハンドを**黙って捨てる**（CSS に出ない → ブラウザ既定の枠が見える）。`borderWidth` / `borderStyle` / `borderColor`、`backgroundColor` の longhand で書く
-- 各ファイルの export・シグネチャは [design/modules.md](../design/modules.md)
+- 設計文書（`docs/design/`）にはコードから読めないことだけを書く: 理由、外部 API との契約、複数ファイルにまたがる流れ。型・シグネチャ・擬似コード・境界条件の列挙は書かない（型はコード、境界条件はテストが正）
 
 ## 開発ツール
 
@@ -54,9 +54,6 @@ postcss.config.js           # @stylexjs/postcss-plugin
 src/
   main.tsx
   App.tsx                   # 下のフックの呼び出しと画面モード別のレイアウトだけ
-  Toast.tsx
-  useGeolocation.ts         # watchPosition（起動時から常時）→ trip.fixUpdated + navigation.onFix
-  useUpdateCheck.ts         # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
   stylex.css                # button リセット + @stylex;（StyleX 出力先）
   shared/                   # どの機能にも属さないもの。機能ディレクトリを import しない
     point.ts                # 地点の共通型（LatLng / Fix / Point / PointRole / SavedPoint）、MAX_VIAS
@@ -64,6 +61,8 @@ src/
     format.ts               # 距離・時間・時刻の表示文字列
     timeout.ts              # fetch のタイムアウト
     toast.ts                # store。メッセージ 1 つ
+    Toast.tsx               # toast.ts の表示。ナビ中かは App から prop で受け取る
+    useUpdateCheck.ts       # PWA 更新検知（visible 復帰で index.html 再取得 → reload）
     tokens.stylex.ts        # 色トークン（ライト / ダーク）
     button.stylex.ts        # ボタンの共通スタイル
     layout.stylex.ts        # 部品の高さ（peek / navigationBar / hud / next）
@@ -75,6 +74,7 @@ src/
     trip.ts                 # store。地点・notoll・探索結果・mode・popup・fix
     url.ts                  # クエリ ↔ 地点・notoll
     useUrlSync.ts           # 地点・notoll → history.replaceState
+    useGeolocation.ts       # watchPosition（起動時から常時）→ trip.fixUpdated + navigation.onFix
   route/
     graphhopper.ts          # fetch + 例外変換（契約は design/route-model.md）
     route.ts                # RouteModel、GraphHopper 応答 → RouteModel、累積距離、最近傍点

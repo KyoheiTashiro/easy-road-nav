@@ -1,7 +1,7 @@
-import { useGeolocation } from "@/useGeolocation.ts";
+import { useGeolocation } from "@/trip/useGeolocation.ts";
 import { useReverseGeocode } from "@/search/useReverseGeocode.ts";
 import { useRouteSearch } from "@/route/useRouteSearch.ts";
-import { useUpdateCheck } from "@/useUpdateCheck.ts";
+import { useUpdateCheck } from "@/shared/useUpdateCheck.ts";
 import { useUrlSync } from "@/trip/useUrlSync.ts";
 import { useWakeLock } from "@/navigation/useWakeLock.ts";
 import type { ReactElement } from "react";
@@ -12,7 +12,7 @@ import { Map } from "@/map/Map.tsx";
 import { NavigationBar } from "@/navigation/NavigationBar.tsx";
 import { NavigationHud } from "@/navigation/NavigationHud.tsx";
 import { SearchBox } from "@/search/SearchBox.tsx";
-import { Toast } from "@/Toast.tsx";
+import { Toast } from "@/shared/Toast.tsx";
 
 function screenOf(mode: Mode): ReactElement {
   switch (mode) {
@@ -52,7 +52,7 @@ export default function App() {
     <>
       <Map />
       {screenOf(mode)}
-      <Toast />
+      <Toast navigationMode={mode === MODE.NAVIGATION} />
     </>
   );
 }

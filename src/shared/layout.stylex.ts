@@ -1,6 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
 
-/** 画面部品の高さ（px）。地図の padding・Toast の位置合わせに使う。stylex.create 内から参照できるよう defineConsts */
+/**
+ * 画面部品の高さ（px）。地図の padding・Toast の位置合わせに使う。stylex.create 内から参照できるよう defineConsts。
+ * 値は単位なしで埋まる（vite dev では `max-height:80` が無効、build は lightningcss が px を補うので気づきにくい）。
+ * stylex.create 内では `${layout.peek}px` と単位を付け、足し算は JS でせず calc() に並べる
+ */
 export const layout = stylex.defineConsts({
   peek: 108, // BottomSheet ピーク時の高さ
   peekEmpty: 88, // 同 経路なし時（文言 1 行のみ）

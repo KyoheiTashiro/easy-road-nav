@@ -72,7 +72,7 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
 
 1. `rsync -az --delete data/graph-cache/ $VPS_HOST:/srv/easy-road-nav/data/graph-cache.new/`
 2. `rsync -az --delete graphhopper/` と `rsync -az compose.yml` を `/srv/easy-road-nav/` へ
-3. VPS で `docker compose --profile serve down`
+3. VPS で `docker compose down`
 4. `mv data/graph-cache data/graph-cache.old && mv data/graph-cache.new data/graph-cache`
 5. `docker compose up -d serve`
 6. `/info` を 2 秒間隔・最大 60 秒待つ。返れば `rm -rf data/graph-cache.old` で終了
@@ -103,7 +103,7 @@ VPS_HOST=ubuntu@easy-road-nav.<tailnet>.ts.net npm run deploy:graph
 
 ## 4. GraphHopper バージョン更新
 
-1. `compose.yml` の anchor の tag を上げる（1 箇所）
+1. `compose.yml` の `x-common` の image tag を上げる（1 箇所）
 2. `graphhopper/config.yml` を新バージョンの変更点に合わせる
 3. 3 章の手順で再インポート → `deploy:graph`。graph-cache はバージョン間で互換しない前提。`compose.yml` も一緒に転送されるので VPS 側の tag も揃う
 

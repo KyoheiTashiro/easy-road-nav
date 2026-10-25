@@ -1,4 +1,4 @@
-// ナビ純ロジック。処理順は docs/design/navigation.md、境界条件は docs/design/modules.md
+// ナビ純ロジック。処理順は docs/design/navigation.md、境界条件は progress.test.ts
 import { formatSpokenDistance } from "@/shared/format.ts";
 import { bearing, destination, haversine } from "@/shared/geo.ts";
 import type { NarrowSegment } from "@/route/narrow.ts";

@@ -59,6 +59,8 @@ export function Map() {
         center: TOKYO_STATION,
         zoom: 10,
         attributionControl: false,
+        pixelRatio: Math.min(devicePixelRatio, 2), // 3x 画面の描画ピクセル数を半分以下に。文字の甘さは許容
+        fadeDuration: 0, // タイルのクロスフェードを消してズーム直後を即表示
       });
 
       map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");

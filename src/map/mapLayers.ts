@@ -121,7 +121,10 @@ export function bounds(route: RouteModel): LngLatBoundsLike {
   return lngLatBounds;
 }
 
-/** style.load のたびに呼ぶ: ラベル上書き + 経路・現在地 source / layer。初期化とダーク切替で同じ */
+// 運転に不要で描画コストが高い層を消す: 建物 3D（fill-extrusion）、施設アイコン（衝突判定）、歩道・小道とその名前。駅（poi_transit）は目印として残す
+const HIDDEN_LAYER = /^(building-3d|poi_r\d+|.*path.*)$/;
+
+/** style.load のたびに呼ぶ: 不要層の非表示 + ラベル上書き + 経路・現在地 source / layer。初期化とダーク切替で同じ */
 export function applyStyleExtras(
   map: maplibregl.Map,
   data: {
@@ -132,6 +135,8 @@ export function applyStyleExtras(
 ) {
   const layers = map.getStyle().layers;
   for (const layer of layers) {
+    if (HIDDEN_LAYER.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
+
     const textField = layer.type === "symbol" ? layer.layout?.["text-field"] : undefined;
     // ref（道路番号）を出す層は地名ではないので触らない
     if (textField === undefined || JSON.stringify(textField).includes('"ref"')) continue;

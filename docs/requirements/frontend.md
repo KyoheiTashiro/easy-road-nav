@@ -8,6 +8,7 @@
 - 配置: 使う側が 1 つなら、使う側の隣。複数の機能が使うなら、意味上の持ち主の機能。どの機能にも属さないものは `shared/`。App だけが使うものも同じ規則で置き、`src/` 直下は `main.tsx` `App.tsx` `stylex.css` のみ
 - `*.tsx` と `use*.ts` 以外のファイルは `react` `react-dom` を import せず、`*.tsx` `use*.ts` も import しない（zustand・MapLibre・DOM API は使ってよい）
 - 機能間の import は自由。`shared/` から機能ディレクトリへの import は禁止
+- state は「ありえない組み合わせ」を型で作れない形にする。他の state から導出できる値は持たない（セレクタで計算）。フラグ + 値の組は値 1 つ（`null` = 無効）にまとめ、あるときだけ意味を持つ値はその親にネストする
 - 調整値（[CONTEXT.md](../CONTEXT.md)）は、使うファイルの先頭に定数で置く
 - `src/` 内の import は `@/` からの絶対パス（`@/trip/trip.ts`）。相対パスは書かない
 - Vitest は React を import しないファイルの純関数と store のみ。UI・外部呼び出しは手動確認

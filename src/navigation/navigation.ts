@@ -27,20 +27,19 @@ import {
 /** ナビ開始時の zoom（navigation.md「カメラ」） */
 export const NAVIGATION_ZOOM = 17;
 
-export type Hud = { instruction: Instruction | null; remaining: number; next: NextNext | null };
+type Hud = { instruction: Instruction | null; remaining: number; next: NextNext | null };
 
-export type NavigationStore = {
-  navigation: NavigationState | null;
-  hud: Hud | null;
-  inNarrow: boolean;
+/** ナビ 1 回分。hud・inNarrow は進捗の events から入る表示用の値で、ナビ中にだけ意味を持つ */
+type Navigation = { progress: NavigationState; hud: Hud | null; inNarrow: boolean };
+
+type NavigationStore = {
+  navigation: Navigation | null;
   muted: boolean; // セッション内のみ
   starting: boolean; // 「案内開始」の再探索中
 };
 
 const useStore = create<NavigationStore>(() => ({
   navigation: null,
-  hud: null,
-  inNarrow: false,
   muted: false,
   starting: false,
 }));
@@ -56,6 +55,21 @@ function say(text: string) {
   if (!getNavigation().muted) speech.speak(text);
 }
 
+const began = (progress: NavigationState): Navigation => ({ progress, hud: null, inNarrow: false });
+
+function patch(fields: Partial<Navigation>) {
+  set((store) => ({ navigation: store.navigation && { ...store.navigation, ...fields } }));
+}
+
+function patchProgress(fields: Partial<NavigationState>) {
+  set((store) => ({
+    navigation: store.navigation && {
+      ...store.navigation,
+      progress: { ...store.navigation.progress, ...fields },
+    },
+  }));
+}
+
 function dispatch(events: NavigationEvent[], state: NavigationState, fix: Fix) {
   for (const event of events) {
     switch (event.type) {
@@ -63,12 +77,12 @@ function dispatch(events: NavigationEvent[], state: NavigationState, fix: Fix) {
         say(event.text);
         break;
       case "hud":
-        set({
+        patch({
           hud: { instruction: event.instruction, remaining: event.remaining, next: event.next },
         });
         break;
       case "narrow":
-        set({ inNarrow: event.segment !== null });
+        patch({ inNarrow: event.segment !== null });
         break;
       case "arrived":
         navigationActions.end(false);
@@ -103,13 +117,11 @@ async function reroute(state: NavigationState, fix: Fix) {
   if (!route) {
     showToast("経路を再探索できません");
     // 旧経路で継続、次の連続外れで再試行
-    set((store) => ({
-      navigation: store.navigation && { ...store.navigation, rerouting: false, offRouteCount: 0 },
-    }));
+    patchProgress({ rerouting: false, offRouteCount: 0 });
     return;
   }
 
-  const current = getNavigation().navigation ?? state;
+  const current = getNavigation().navigation?.progress ?? state;
   const now = getTrip().fix ?? fix;
   const first = step(
     route,
@@ -118,7 +130,7 @@ async function reroute(state: NavigationState, fix: Fix) {
     now,
   );
 
-  set({ navigation: first.state });
+  set({ navigation: began(first.state) });
   tripActions.rerouted(route);
   speech.cancel();
   say(`経路を再探索しました。${startText(route, first.state.s)}`);
@@ -160,7 +172,7 @@ export const navigationActions = {
     const now = getTrip().fix ?? fix;
     const first = step(route, narrowSegments(route), initNavigation(NAVIGATION_ZOOM), now);
 
-    set({ navigation: first.state });
+    set({ navigation: began(first.state) });
     tripActions.navigationStarted(origin, route);
     say(`案内を開始します。${startText(route, first.state.s)}`);
     dispatch(first.events, first.state, now);
@@ -171,21 +183,21 @@ export const navigationActions = {
     const route = selectRoute(trip);
     if (trip.mode !== MODE.NAVIGATION || !navigation || !route) return;
 
-    const result = step(route, selectNarrow(trip), navigation, fix);
-    set({ navigation: result.state });
+    const result = step(route, selectNarrow(trip), navigation.progress, fix);
+    patchProgress(result.state);
     dispatch(result.events, result.state, fix);
   },
   end(cancelSpeech: boolean): void {
     if (cancelSpeech) speech.cancel(); // 到着時は「到着しました」を言い切らせる
     session++;
     tripActions.navigationEnded();
-    set({ navigation: null, hud: null, inNarrow: false });
+    set({ navigation: null });
   },
   setFollow(follow: boolean): void {
-    set((store) => ({ navigation: store.navigation && { ...store.navigation, follow } }));
+    patchProgress({ follow });
   },
   setZoom(zoom: number): void {
-    set((store) => ({ navigation: store.navigation && { ...store.navigation, zoom } }));
+    patchProgress({ zoom });
   },
   toggleMute(): void {
     const muted = !getNavigation().muted;

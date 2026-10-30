@@ -71,7 +71,7 @@
 出発地・到着地の入力 2 段。各欄は「現在の地点名の表示」と「住所検索・施設名検索」を兼ねる。経由地はここでは扱わない（地図タップ → ポップアップ）。
 
 - 未フォーカス: 地点名を表示（逆ジオ中は「…」、未設定なら placeholder「出発地を検索」）。右端の × で地点を削除（`onDelete` と同じ。削除後は空のまま）
-- フォーカス: 空欄から検索開始。Enter（`<form onSubmit>`。入力欄は `enterKeyHint="search"` でスマホキーボードに「検索」キー）または候補リスト先頭の「🔍 「<入力文字列>」で検索」行（入力あり かつ そのクエリで未検索のとき表示。タップは Enter と同じ）で国土地理院 住所検索と Yahoo! ローカルサーチ 施設名検索を 1 回ずつ並行して呼ぶ（[search.md](../requirements/search.md)）。入力中は呼ばない。IME 変換確定の Enter は `keydown` で `isComposing || keyCode === 229` を見て submit させない。再 Enter で前回の飛行中リクエストを `AbortController` で中断。検索 state はフォーカス中の欄 1 つ分だけ持つ
+- フォーカス: 空欄から検索開始。Enter（`<form onSubmit>`。入力欄は `enterKeyHint="search"` でスマホキーボードに「検索」キー）または候補リスト先頭の「🔍 「<入力文字列>」で検索」行（入力あり かつ そのクエリで未検索のとき表示。タップは Enter と同じ）で国土地理院 住所検索と Yahoo! ローカルサーチ 施設名検索を 1 回ずつ並行して呼ぶ（[search.md](../requirements/search.md)）。入力中は呼ばない。IME 変換確定の Enter は `keydown` で `isComposing || keyCode === 229` を見て submit させない。再 Enter で前回の飛行中リクエストを `AbortController` で中断。検索 state はフォーカス中の欄・入力・検索済みクエリを 1 つの値（`null` = フォーカスなし）で持つ。欄を離れた後に入力や検索済みクエリだけが残る状態を作らない
 - 住所検索の結果は素の GeoJSON Feature 配列（FeatureCollection ではない）。`geometry.coordinates` = `[lng, lat]`、`properties.title` = 表示名。件数上限なし。全件リスト表示（リストは `maxHeight: 40vh` でスクロール）
 - 1 つのリストに施設候補（最大 100）→ 住所候補（全件）の順で並べる。見出しは付けない。返った方から順に表示し、片方が 0 件・失敗でももう片方は出す。Enter 後に入力を変えると結果は消え、再 Enter まで出ない
 - 候補タップ → その欄の役割（出発地 / 到着地）に直接セット。ポップアップ・`flyTo` はしない（探索後の `fitBounds` に任せる）。欄のフォーカスを外す

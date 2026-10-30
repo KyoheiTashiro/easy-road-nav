@@ -1,6 +1,6 @@
 import { MAX_VIAS, type LatLng } from "@/shared/point.ts";
 
-export type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
+type Query = { from: LatLng | null; to: LatLng | null; vias: LatLng[]; notoll: boolean };
 
 function parseLatLng(text: string | null): LatLng | null {
   if (!text) return null;

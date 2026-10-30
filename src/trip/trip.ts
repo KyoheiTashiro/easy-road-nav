@@ -42,7 +42,7 @@ type Result = {
   narrows: NarrowSegment[][];
 };
 
-export type TripState = {
+type TripState = {
   mode: Mode;
   from: Point | null;
   to: Point | null;

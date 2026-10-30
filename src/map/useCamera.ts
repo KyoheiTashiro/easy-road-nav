@@ -15,7 +15,7 @@ export const LOCATE_ZOOM = 15;
 /** モード切替・追従・fitBounds・自宅や検索候補への移動と、それに伴うジェスチャ制限・コンパス */
 export function useCamera(map: maplibregl.Map | null): void {
   const mode = useTrip((state) => state.mode);
-  const navigation = useNavigation((state) => state.navigation);
+  const progress = useNavigation((state) => state.navigation?.progress);
   const home = useSaved((state) => state.home);
   const fix = useTrip((state) => state.fix);
   const routes = useTrip(selectRoutes);
@@ -117,8 +117,8 @@ export function useCamera(map: maplibregl.Map | null): void {
     if (mode === MODE.HOME_SETUP) easeToHome(map);
   }, [map, mode, compass]);
 
-  // 追従: navigation が更新されるたび（= 受理した fix ごと・follow/zoom 変更）に easeTo。heading null なら bearing 据え置き。
-  // fix は navigation と同時に更新されるので依存にしない（二重 easeTo 防止）
+  // 追従: progress が更新されるたび（= 受理した fix ごと・follow/zoom 変更）に easeTo。heading null なら bearing 据え置き。
+  // fix は progress と同時に更新されるので依存にしない（二重 easeTo 防止）
   const followFix = useEffectEvent((map: maplibregl.Map, navigationState: NavigationState) => {
     if (!fix) return;
     map.easeTo({
@@ -130,8 +130,8 @@ export function useCamera(map: maplibregl.Map | null): void {
   });
 
   useEffect(() => {
-    if (map && mode === MODE.NAVIGATION && navigation?.follow) followFix(map, navigation);
-  }, [map, navigation, mode]);
+    if (map && mode === MODE.NAVIGATION && progress?.follow) followFix(map, progress);
+  }, [map, progress, mode]);
 
   // 選択経路に fitBounds。下パディングはシートの高さに追従。selected は意図的に依存にしない: 代替切替でカメラを動かさない（ui.md「探索」）
   const fitSelected = useEffectEvent(() => {

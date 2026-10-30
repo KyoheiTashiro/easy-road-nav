@@ -136,6 +136,8 @@ export function applyStyleExtras(
   const layers = map.getStyle().layers;
   for (const layer of layers) {
     if (HIDDEN_LAYER.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
+    // liberty の平面建物は zoom 14 で 3D に引き継ぐ設計。3D を消したので平面を全縮尺に伸ばす（dark は元から平面のみ）
+    if (layer.id === "building") map.setLayerZoomRange(layer.id, layer.minzoom ?? 0, 24);
 
     const textField = layer.type === "symbol" ? layer.layout?.["text-field"] : undefined;
     // ref（道路番号）を出す層は地名ではないので触らない

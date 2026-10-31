@@ -96,6 +96,8 @@ const styles = stylex.create({
   },
 });
 
+type Editing = { role: PickRole; query: string; searched: string | null };
+
 export function SearchBox() {
   const mode = useTrip((state) => (state.mode === MODE.HOME_SETUP ? MODE.HOME_SETUP : MODE.EDIT));
   const from = useTrip((state) => state.from);
@@ -104,27 +106,30 @@ export function SearchBox() {
   const home = useSaved((state) => state.home);
   const history = useSaved((state) => state.history);
 
-  const [active, setActive] = useState<PickRole | null>(null);
-  const [query, setQuery] = useState("");
-  const trimmedQuery = query.trim();
-  const { search, searched, reset, gsiHits, poiHits } = useSearch(trimmedQuery);
+  // フォーカス中の欄とその入力・検索済みクエリ。null = どの欄もフォーカスなし（入力・検索済みは欄がある間だけ意味を持つ）
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const trimmedQuery = editing?.query.trim() ?? "";
+  const { search, gsiHits, poiHits } = useSearch(trimmedQuery);
+
+  function submit() {
+    search();
+    setEditing((current) => current && { ...current, searched: trimmedQuery });
+  }
 
   function pick(role: PickRole, point: LatLng, label: string | null) {
-    setQuery("");
-    reset();
-    setActive(null);
+    setEditing(null);
     tripActions.searchPicked(role, point, label);
   }
 
   function field(role: PickRole, point: Point | null, name: string, icon: ReactNode) {
-    const focused = active === role;
+    const focused = editing?.role === role;
     const shown = point ? (point.label ?? "…") : ""; // label null = 逆ジオ待ち
     return (
       <form
         {...stylex.props(styles.row, role === ROLE.TO && styles.divider)}
         onSubmit={(event) => {
           event.preventDefault();
-          search();
+          submit();
         }}
       >
         {role === ROLE.HOME ? (
@@ -145,17 +150,18 @@ export function SearchBox() {
             type="search"
             enterKeyHint="search"
             placeholder={`${name}を検索`}
-            value={focused ? query : shown}
-            onFocus={() => {
-              setActive(role);
-              setQuery("");
-              reset();
-            }}
-            // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら active は既に null
+            value={editing?.role === role ? editing.query : shown}
+            onFocus={() => setEditing({ role, query: "", searched: null })}
+            // 候補タップ（mousedown）より後に blur が来るので遅延。pick 済みなら editing は既に null
             onBlur={() =>
-              setTimeout(() => setActive((current) => (current === role ? null : current)), 150)
+              setTimeout(
+                () => setEditing((current) => (current?.role === role ? null : current)),
+                150,
+              )
             }
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) =>
+              setEditing((current) => current && { ...current, query: event.target.value })
+            }
             // IME 変換確定の Enter で submit しない（Safari は isComposing が false なので keyCode 229 も見る）
             onKeyDown={(event) => {
               if (event.key === "Enter" && (event.nativeEvent.isComposing || event.keyCode === 229))
@@ -179,7 +185,8 @@ export function SearchBox() {
   }
 
   const rows: ReactNode[] = [];
-  if (active) {
+  if (editing) {
+    const active = editing.role;
     const row = (key: string, node: ReactNode) => rows.push(<li key={key}>{node}</li>);
 
     if ((active === ROLE.FROM || active === ROLE.HOME) && fix) {
@@ -219,14 +226,14 @@ export function SearchBox() {
           </button>,
         ),
       );
-    } else if (searched !== trimmedQuery) {
+    } else if (editing.searched !== trimmedQuery) {
       row(
         "search",
         <button
           {...stylex.props(button.base, button.ghost)}
           // 入力欄の blur（→ リスト非表示）を防ぐ
           onMouseDown={(event) => event.preventDefault()}
-          onClick={search}
+          onClick={submit}
         >
           🔍 「{trimmedQuery}」で検索
         </button>,

@@ -68,30 +68,29 @@ describe("navigationActions", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(getTrip().mode).toBe("navigation");
     expect(getTrip().from?.label).toBe("現在地");
-    expect(getNavigation().navigation?.s).toBe(0);
+    expect(getNavigation().navigation?.progress.s).toBe(0);
 
     gps(fixAt(100));
-    expect(getNavigation().navigation?.s).toBeCloseTo(100, 0);
-    expect(getNavigation().hud?.remaining).toBeCloseTo(900, 0);
+    expect(getNavigation().navigation?.progress.s).toBeCloseTo(100, 0);
+    expect(getNavigation().navigation?.hud?.remaining).toBeCloseTo(900, 0);
 
     // 100 m 北に外れたまま 3 fix 移動 → リルート要求 1 回
     for (const s of [120, 140, 160]) gps(fixAt(s, 100));
-    expect(getNavigation().navigation?.rerouting).toBe(true);
-    expect(getNavigation().navigation?.offRouteCount).toBe(3);
+    expect(getNavigation().navigation?.progress.rerouting).toBe(true);
+    expect(getNavigation().navigation?.progress.offRouteCount).toBe(3);
 
     await flush();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[1]![0]).toHaveLength(2); // 前方オフセットした出発地 + 到着地
-    expect(getNavigation().navigation?.rerouting).toBe(false);
-    expect(getNavigation().navigation?.s).toBe(0); // 新経路で初期化
+    expect(getNavigation().navigation?.progress.rerouting).toBe(false);
+    expect(getNavigation().navigation?.progress.s).toBe(0); // 新経路で初期化
 
     gps(fixAt(500));
-    expect(getNavigation().navigation?.s).toBeCloseTo(500, 0);
+    expect(getNavigation().navigation?.progress.s).toBeCloseTo(500, 0);
 
     gps(fixAt(990)); // 残り 10 m < 到着判定 30 m
     expect(getTrip().mode).toBe("edit");
     expect(getNavigation().navigation).toBeNull();
-    expect(getNavigation().hud).toBeNull();
   });
 
   it("リルートの fetch が打ち切られたら rerouting を戻し旧経路で継続", async () => {
@@ -102,11 +101,11 @@ describe("navigationActions", () => {
 
     fetchMock.mockRejectedValueOnce(new DOMException("timeout", "TimeoutError"));
     for (const s of [120, 140, 160]) gps(fixAt(s, 100));
-    expect(getNavigation().navigation?.rerouting).toBe(true);
+    expect(getNavigation().navigation?.progress.rerouting).toBe(true);
 
     await flush();
-    expect(getNavigation().navigation?.rerouting).toBe(false);
-    expect(getNavigation().navigation?.offRouteCount).toBe(0);
+    expect(getNavigation().navigation?.progress.rerouting).toBe(false);
+    expect(getNavigation().navigation?.progress.offRouteCount).toBe(0);
     expect(getTrip().mode).toBe("navigation");
 
     navigationActions.end(true);

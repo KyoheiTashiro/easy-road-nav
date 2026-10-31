@@ -4,7 +4,7 @@ import type { LatLng } from "@/shared/point.ts";
 const FORK_ANGLE = 45; // 調整値「分岐判定角」deg（docs/CONTEXT.md）
 
 export const ROAD_KIND = { WIDE: "wide", NARROW: "narrow" } as const;
-export type RoadKind = (typeof ROAD_KIND)[keyof typeof ROAD_KIND];
+type RoadKind = (typeof ROAD_KIND)[keyof typeof ROAD_KIND];
 
 /** GraphHopper `instructions[].sign`。正が右、負が左 */
 export const SIGN = {
@@ -67,7 +67,7 @@ export type GraphHopperPath = {
 };
 
 /** details=intersection の 1 要素。頂点 from にある交差点の全接続エッジ。bearings は昇順、in/out はその index */
-export type GraphHopperIntersection = {
+type GraphHopperIntersection = {
   bearings: number[];
   entries: boolean[]; // 進入可能か（in エッジと一方通行の逆走は false）
   in?: number; // 先頭ノードには無い

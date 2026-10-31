@@ -11,13 +11,11 @@ type Result = { query: string; hits: SavedPoint[] }; // 結果はクエリ付き
 export function useSearch(query: string) {
   const [gsi, setGsi] = useState<Result | null>(null);
   const [poi, setPoi] = useState<Result | null>(null);
-  const [searched, setSearched] = useState<string | null>(null);
   const inflight = useRef<AbortController | null>(null);
 
   function search() {
     if (!query) return;
 
-    setSearched(query);
     inflight.current?.abort();
     const abortController = new AbortController();
     inflight.current = abortController;
@@ -37,8 +35,6 @@ export function useSearch(query: string) {
 
   return {
     search,
-    searched,
-    reset: () => setSearched(null),
     gsiHits: gsi?.query === query ? gsi.hits : [],
     poiHits: poi?.query === query ? poi.hits : [],
   };

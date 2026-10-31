@@ -35,13 +35,13 @@ const styles = stylex.create({
 });
 
 export function NavigationBar() {
-  const navigation = useNavigation((state) => state.navigation);
+  const progress = useNavigation((state) => state.navigation?.progress);
   const muted = useNavigation((state) => state.muted);
   const route = useTrip(selectRoute);
   const fix = useTrip((state) => state.fix);
-  if (!navigation || !route || !fix) return null;
+  if (!progress || !route || !fix) return null;
 
-  const remainingMs = remainingTime(route, navigation.s);
+  const remainingMs = remainingTime(route, progress.s);
   const arrivalAt = fix.timestamp + remainingMs; // 到着予想 epoch ms。render 内で Date.now を呼ばない
 
   return (
@@ -50,7 +50,7 @@ export function NavigationBar() {
         <span {...stylex.props(styles.time)}>{formatDuration(remainingMs)}</span>
         <span {...stylex.props(styles.eta)}>{formatClock(new Date(arrivalAt))} 到着予定</span>
       </div>
-      {!navigation.follow && (
+      {!progress.follow && (
         <button
           {...stylex.props(button.base, button.active)}
           onClick={() => navigationActions.setFollow(true)}

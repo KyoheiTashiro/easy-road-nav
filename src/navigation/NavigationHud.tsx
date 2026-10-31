@@ -67,13 +67,12 @@ const styles = stylex.create({
 
 export function NavigationHud() {
   const navigation = useNavigation((state) => state.navigation);
-  const hud = useNavigation((state) => state.hud);
-  const inNarrow = useNavigation((state) => state.inNarrow);
   const route = useTrip(selectRoute);
   if (!navigation || !route) return null;
 
+  const { hud, inNarrow } = navigation;
   const instruction = hud?.instruction ?? null; // null = 案内地点が残っていない → 「目的地まで」
-  const remaining = hud?.remaining ?? route.distance - navigation.s; // 初回 hud event 前は経路末尾まで
+  const remaining = hud?.remaining ?? route.distance - navigation.progress.s; // 初回 hud event 前は経路末尾まで
   const next = hud?.next ?? null; // 次の次。null なら行は空のまま（高さ固定）
   const name = instruction ? instruction.streetName : "目的地まで";
 
@@ -105,7 +104,7 @@ export function NavigationHud() {
           細い道を走行中
         </div>
       )}
-      {navigation.rerouting && (
+      {navigation.progress.rerouting && (
         <div {...stylex.props(styles.banner, styles.reroute)}>再探索中…</div>
       )}
     </div>

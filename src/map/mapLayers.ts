@@ -61,8 +61,8 @@ export function markerElement(color: string, text: string, onClick: () => void):
   return element;
 }
 
-export type LineFeatureCollection = FeatureCollection<LineString>;
-export type FixFeatureCollection = FeatureCollection<GeoPoint>;
+type LineFeatureCollection = FeatureCollection<LineString>;
+type FixFeatureCollection = FeatureCollection<GeoPoint>;
 export const EMPTY: LineFeatureCollection = { type: "FeatureCollection", features: [] };
 export const EMPTY_FIX: FixFeatureCollection = { type: "FeatureCollection", features: [] };
 

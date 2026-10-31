@@ -74,7 +74,7 @@ flowchart LR
 
 配信・運用:
 
-- Tailscale: 公開（`tailscale serve` と HTTPS 証明書）、認証（ノード共有）、SSH、CI ランナーの一時参加（OAuth クライアント）。端末どうしが直接つながらないときは Tailscale の DERP 中継を通る。VPS への導入は `scripts/vps-setup.sh`。詳細は「公開」
+- Tailscale: 公開（`tailscale serve` と HTTPS 証明書）、認証（ノード共有）、SSH、CI ランナーの一時参加（署名済み auth key）。端末どうしが直接つながらないときは Tailscale の DERP 中継を通る。VPS への導入は `scripts/vps-setup.sh`。詳細は「公開」
 - GitHub Actions: main への push で web と graph-cache を VPS へ反映する。public リポジトリなので無料。詳細は「デプロイ」
 - Docker Hub: GraphHopper のイメージ `israelhikingmap/graphhopper:11.0`。ランナー・Mac・VPS が `compose.yml` に従って取得する
 
@@ -104,7 +104,7 @@ Mac（リポジトリ）:
 - `scripts/swap-web.sh`、`scripts/swap-graph.sh`、`scripts/vps-ci-user.sh` — VPS に置く入替スクリプト（web・graph）と、その設置スクリプト
 - `src/` 以下は [frontend.md](frontend.md)
 
-GitHub（Environment `production`、デプロイ元は main のみ）: `TS_OAUTH_CLIENT_ID` `TS_OAUTH_SECRET` `VPS_HOST` `VITE_YAHOO_APPID`。リポジトリには書かない
+GitHub（Environment `production`、デプロイ元は main のみ）: `TAILSCALE_AUTHKEY` `VPS_HOST` `VITE_YAHOO_APPID`。リポジトリには書かない
 
 VPS:
 
@@ -135,7 +135,8 @@ VPS:
 - 公開: `tailscale serve --bg`。`/` → 静的ディレクトリ、`/gh` → `http://127.0.0.1:8989`（prefix を剥がして転送）。HTTPS は `<host>.<tailnet>.ts.net` の証明書を自動発行・更新。ドメイン不要
 - 認証: Tailscale。VPS ノードを共有先の Tailscale アカウントへ共有（無料枠 6 ユーザーの枠外、見えるのは VPS のみ）。追加・削除は管理画面
 - ACL: 共有先（`autogroup:shared`）から VPS へは tcp:443 のみ。SSH は自分（check）と CI ランナー `tag:ci`（accept、`deploy` ユーザーのみ、届く先は VPS の tcp:22 のみ）。共有先に見えるのは HTTPS のみ
-- CI ランナーの参加: Tailscale の OAuth クライアント（スコープ Auth Keys Write、`tag:ci` 限定）。期限切れがなく、漏れても発行できるのは `tag:ci` のキーだけ。auth key（最長 90 日で失効、差し替えが要る）は使わない
+- Tailnet Lock: 有効。新しいノードは signing node（Mac・iPhone・VPS）の署名がないと他ノードと通信できない。Tailscale のアカウントやコントロールプレーンが破られても、tailnet にノードを足すだけでは VPS に届かない
+- CI ランナーの参加: 署名済み（pre-signed）auth key（reusable・ephemeral・`tag:ci`）。Tailnet Lock 下では OAuth クライアントが使えない。OAuth はランナー上で auth key を発行するので事前に署名できず、参加したノードが locked out になる（2026-10-31 の初回 Deploy web が `Connection timed out` で落ちた原因）。auth key は最長 90 日で失効するので、90 日ごとに Mac で `tailscale lock sign` し直して差し替える（[runbook](../runbook.md) 2 章、[ci-authkey-rotation.md](../ci-authkey-rotation.md)）。漏れても入れるのは `tag:ci` のノードだけ
 - 共有先の端末からは FQDN `<host>.<tailnet>.ts.net` でのみ到達できる（短縮ホスト名は不可）
 - ネットワーク: inbound は UDP 41641（Tailscale 直接接続用）のみ許可、他は全閉。閉じると DERP 中継に落ちてレイテンシが増える
 - SSH: Tailscale SSH（`tailscale up --ssh`）。鍵管理なし。初期セットアップ後に 22 番を閉じる
@@ -171,7 +172,7 @@ VPS:
 - データ: 日本全国（RAM 8 GB 必要で月額 ¥3,410。県境越えは v1 で許容）
 - 配信: Caddy 維持（圧縮・ヘッダ制御あり。`serve` → Caddy の直列 2 段で部品増。必要時に追加）
 - 認証: Cloudflare Access OTP（スマホで再入力が手間）、Authelia（ログイン画面不要）
-- デプロイ: GitHub Actions + self-hosted runner（常駐ランナーの面倒を見ることになる。ephemeral ノードで足りた）、Actions に Tailscale の auth key を置く（90 日で失効。OAuth クライアント + `tag:ci` + `deploy` ユーザーで置き換えた。以前は「auth key を Actions に置く必要」を理由に Actions 自体を見送っていたが、権限を `tag:ci` と `deploy` に絞れば置いてよいと判断を改めた）、`schedule` による定期データ更新（ルートの変化に気づけない）、pbf のランナーキャッシュ（v1 では不要）
+- デプロイ: GitHub Actions + self-hosted runner（常駐ランナーの面倒を見ることになる。ephemeral ノードで足りた）、Tailscale の OAuth クライアントでランナーを参加させる（期限切れがなく auth key の差し替えが要らないので当初採用したが、Tailnet Lock と両立しない。署名済み auth key に戻し、90 日ごとの差し替えを受け入れた）、Tailnet Lock を切って OAuth を続ける（アカウント侵害時にノードを足されない防御を失う。差し替えは 90 日に 1 回 5 分なので Lock を残した）。以前は「auth key を Actions に置く必要」を理由に Actions 自体を見送っていたが、権限を `tag:ci` と `deploy` に絞れば置いてよいと判断を改めた、`schedule` による定期データ更新（ルートの変化に気づけない）、pbf のランナーキャッシュ（v1 では不要）
 - VPS 上での CH 再計算（2 GB で足りるか未検証、配信停止が伸びる。ランナーで回して転送する方が単純）
 - Mac/VPS で compose を分ける（tag を手で揃える運用になる。`profiles` で 1 ファイルにした）
 

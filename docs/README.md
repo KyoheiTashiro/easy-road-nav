@@ -36,3 +36,4 @@ Web で使える Google Maps ライクな地図・ナビアプリ。日本国内
 
 - [runbook.md](runbook.md) — VPS 初期構築、デプロイ、データ更新、バージョン更新
 - [vps-shared.md](vps-shared.md) — 同じ VPS に別アプリを載せるときの変更点（入口・メモリ・初期構築スクリプト）
+- [ci-authkey-rotation.md](ci-authkey-rotation.md) — CI ランナー用 Tailscale auth key の差し替え（90 日ごと）

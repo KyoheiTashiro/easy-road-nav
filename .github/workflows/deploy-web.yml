@@ -30,9 +30,8 @@ jobs:
       - run: npm test
       - uses: tailscale/github-action@v4
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          statedir: /tmp/tailscale-state/
       - run: |
           mkdir -p ~/.ssh
           printf 'Host *.ts.net\n  StrictHostKeyChecking accept-new\n' >> ~/.ssh/config

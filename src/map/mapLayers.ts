@@ -121,9 +121,15 @@ export function bounds(route: RouteModel): LngLatBoundsLike {
   return lngLatBounds;
 }
 
-// 運転に不要で描画コストが高い層を消す: 建物 3D（fill-extrusion）、施設アイコン（衝突判定）、歩道・小道とその名前、米国用の道路番号盾。駅（poi_transit）は目印として残す
-const HIDDEN_LAYER =
-  /^(building-3d|poi_r\d+|.*path.*|road_shield_us|highway-shield-us-interstate)$/;
+// 運転に不要で描画コストが高い層。駅（poi_transit）は目印として残す
+const HIDDEN_LAYERS = [
+  /^building-3d$/, // 建物 3D（fill-extrusion）
+  /^poi_r\d+$/, // 施設アイコン（衝突判定）
+  /path/, // 歩道・小道とその名前
+  /^road_shield_us$/, // 米国用の道路番号盾
+  /^highway-shield-us-interstate$/,
+];
+const isHiddenLayer = (id: string) => HIDDEN_LAYERS.some((pattern) => pattern.test(id));
 
 /** style.load のたびに呼ぶ: 不要層の非表示 + ラベル上書き + 経路・現在地 source / layer。初期化とダーク切替で同じ */
 export function applyStyleExtras(
@@ -136,7 +142,7 @@ export function applyStyleExtras(
 ) {
   const layers = map.getStyle().layers;
   for (const layer of layers) {
-    if (HIDDEN_LAYER.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
+    if (isHiddenLayer(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
     // liberty の平面建物は zoom 14 で 3D に引き継ぐ設計。3D を消したので平面を全縮尺に伸ばす（dark は元から平面のみ）
     if (layer.id === "building") map.setLayerZoomRange(layer.id, layer.minzoom ?? 0, 24);
 

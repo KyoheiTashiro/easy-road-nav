@@ -7,6 +7,12 @@ export default defineConfig({
   // StyleX の babel 設定は babel.config.js（postcss plugin と共用）。plugin-babel は設定ファイルを読まないので渡す
   plugins: [react(), babel(babelConfig)],
   resolve: { alias: { "@": `${import.meta.dirname}/src` } }, // tsconfig paths / babel.config.js aliases と揃える
+  build: {
+    // MapLibre を別 chunk にし、アプリ更新時の再取得を自前コードだけにする
+    rolldownOptions: {
+      output: { codeSplitting: { groups: [{ name: "maplibre", test: /[\\/]maplibre-gl[\\/]/ }] } },
+    },
+  },
   server: {
     // 実機検証: tailscale serve 経由の Host ヘッダを許可（先頭 . はサフィックス一致）
     allowedHosts: [".ts.net"],

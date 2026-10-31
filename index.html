@@ -5,13 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>easy-road-nav</title>
     <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
     <link rel="apple-touch-icon" href="/icon.png" />
-    <!-- apple-mobile-web-app-status-bar-style は置かない。black-translucent は非推奨で iOS 26 で下端に描画不能の帯が出る（WebKit 301108 / 317153）。変更はホーム画面に再追加しないと反映されない -->
-    <!-- 不透明バーを地図になじませる。値は tokens の colors.bg -->
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)" />
     <style>
-      /* iOS 26 のステータスバーはページ色・上端の fixed 要素の色を取り、起動後は拾い直さない。値は tokens の colors.bg */
       html {
         background: #ffffff;
       }

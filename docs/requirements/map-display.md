@@ -12,6 +12,7 @@
 
 - OpenFreeMap のベクトルタイル + 付属スタイル `liberty`。MapLibre GL JS で描画
 - ダークモード: OS 設定（`prefers-color-scheme: dark`）に追従し `dark` スタイル + UI ダーク。実行中の切替にも追従。手動トグルなし
+- 運転に不要で描画コストが高い層（建物 3D、施設アイコン、歩道・小道、米国用の道路番号盾）は `style.load` 時に非表示にする。建物は平面塗りを全縮尺に伸ばして残す。駅は目印として残す。対象の id は `src/map/mapLayers.ts`
 - ラベルは日本語のみ（付属スタイルは「ローマ字 + 日本語」併記なので `text-field` を上書き。方法は [design/ui.md](../design/ui.md)）
 - 帰属表示: OpenStreetMap contributors / OpenFreeMap
 

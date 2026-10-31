@@ -1,0 +1,42 @@
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+
+permissions: {}
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - run: |
+          mkdir -p ~/.ssh
+          printf 'Host *.ts.net\n  StrictHostKeyChecking accept-new\n' >> ~/.ssh/config
+      - run: npm run deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VITE_YAHOO_APPID: ${{ secrets.VITE_YAHOO_APPID }}

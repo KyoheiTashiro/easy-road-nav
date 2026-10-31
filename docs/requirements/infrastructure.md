@@ -101,18 +101,19 @@ Mac（リポジトリ）:
 - `data/*.osm.pbf`、`data/graph-cache/` — gitignore。compose から相対パスで mount
 - `.env.local` — `VITE_YAHOO_APPID`（Yahoo! ローカルサーチの Client ID）。gitignore（`*.local`）。`vite build` と Vite dev が読み、ビルド成果物に埋め込まれる。VPS には置かない。CI では同名の環境変数（Environment secret）で渡す
 - `.github/workflows/deploy-web.yml`、`deploy-graph.yml` — デプロイの workflow
-- `scripts/swap-graph.sh`、`scripts/vps-ci-user.sh` — VPS に置く入替スクリプトと、その設置スクリプト
+- `scripts/swap-web.sh`、`scripts/swap-graph.sh`、`scripts/vps-ci-user.sh` — VPS に置く入替スクリプト（web・graph）と、その設置スクリプト
 - `src/` 以下は [frontend.md](frontend.md)
 
 GitHub（Environment `production`、デプロイ元は main のみ）: `TS_OAUTH_CLIENT_ID` `TS_OAUTH_SECRET` `VPS_HOST` `VITE_YAHOO_APPID`。リポジトリには書かない
 
 VPS:
 
-- `/srv/easy-road-nav/web` — 静的ファイル（`tailscale serve` の `/`）。`deploy` 所有
+- `/srv/easy-road-nav/web` — 静的ファイル（`tailscale serve` の `/`）。root 所有。`tailscale serve` は root で動き、ツリー外を指す symlink もたどるので、`deploy` が書ける場所を直接配信しない
+- `/srv/easy-road-nav/web.new/` — web の rsync の受け口。`deploy` 所有
 - `/srv/easy-road-nav/data/graph-cache`（compose の `./data` mount に合わせる。入替中は `graph-cache.new` `graph-cache.old` が隣に出る）。`data/` は `deploy` 所有
-- `/srv/easy-road-nav/graphhopper.new/` — rsync の受け口。`deploy` 所有
+- `/srv/easy-road-nav/graphhopper.new/` — graph の rsync の受け口。`deploy` 所有
 - `/srv/easy-road-nav/graphhopper/`、`/srv/easy-road-nav/compose.yml`、`/srv/easy-road-nav` 自体 — root 所有。`compose.yml` は入替スクリプトが main から取る
-- `/usr/local/sbin/easy-road-nav-swap-graph`、`/etc/sudoers.d/easy-road-nav-swap-graph`、`/var/log/easy-road-nav-swap-graph.log`
+- `/usr/local/sbin/easy-road-nav-swap-web`、`/usr/local/sbin/easy-road-nav-swap-graph`、`/etc/sudoers.d/easy-road-nav-swap`、`/var/log/easy-road-nav-swap-graph.log`
 - VPS のホスト名は `VPS_HOST`（`deploy@host.tailnet.ts.net`）で渡す。リポジトリに書かない
 - CI と手動デプロイは `deploy` ユーザー（sudo の一般権限なし・docker グループなし）。初期構築・調査は `ubuntu`（sudo 付き）。root ログインしない
 
@@ -143,14 +144,15 @@ VPS:
 ## デプロイ
 
 - main への push で GitHub Actions が反映する。Mac から `npm run deploy` / `npm run deploy:graph` を打つのは Actions が使えないときだけ
-- 頻度が違うので web と graph は別 workflow・別コマンド。`concurrency` のグループも別（`deploy-web` / `deploy-graph`）。GitHub の待ち行列は 1 グループに 1 件しか持てず、同じグループだと web の push で待っていた graph が取り消されるため。両方とも `cancel-in-progress: false`（graph の入替を途中で切らない）。web は `web/`、graph は `data/` と `graphhopper/` にしか書かないので同時に動いてもぶつからない
-- Deploy web: main への push。`docs/**` と `**.md` だけなら動かない。`npm ci` → `npm test` → `npm run deploy`（`vite build` → `rsync --delete` で `/srv/easy-road-nav/web` へ）。テストか型検査が落ちたら転送しない。既存の Test workflow と重なるが、`workflow_run` で待ち合わせるより 1 ファイルで完結するほうが追いやすい
+- 頻度が違うので web と graph は別 workflow・別コマンド。`concurrency` のグループも別（`deploy-web` / `deploy-graph`）。GitHub の待ち行列は 1 グループに 1 件しか持てず、同じグループだと web の push で待っていた graph が取り消されるため。両方とも `cancel-in-progress: false`（graph の入替を途中で切らない）。web は `web.new/` と `web/`、graph は `data/` と `graphhopper*/` と `compose.yml` にしか書かないので同時に動いてもぶつからない
+- Deploy web: main への push。`docs/**` と `**.md` だけなら動かない。`npm ci` → `npm test` → `npm run deploy`（`vite build` → `scripts/deploy-web.sh`: `rsync --delete` で `web.new/` へ → VPS の入替スクリプトを `sudo -n` で呼ぶ）。テストか型検査が落ちたら転送しない。既存の Test workflow と重なるが、`workflow_run` で待ち合わせるより 1 ファイルで完結するほうが追いやすい
 - Deploy graph: `graphhopper/**`・`compose.yml`・`scripts/build-pbf.sh`・`scripts/regions/**`・`scripts/deploy-graph.sh` を含む push、または `workflow_dispatch`（OSM データだけ新しくするとき。空コミットを避ける）。ランナー（4 vCPU・16 GB）で `make pbf` → `make import` → `scripts/deploy-graph.sh`。pbf は毎回最新を取るので、custom model の調整値を変えて実走で比べるとデータ側の差も混ざる（v1 では許容。pbf のキャッシュは入れない）。`schedule` は付けない。ルートの変化に気づかないまま案内が変わるため
 - web と graph のどちらが先に終わるかは決まらない。フロントが呼ぶプロファイルを足す push では、serve にまだないプロファイルをフロントが呼ぶ時間ができる。workflow で待ち合わせず、push の順番で避ける（足すときは graph を先に、消すときはフロントを先に）
+- web の入替スクリプト（`scripts/swap-web.sh` → VPS の `/usr/local/sbin/easy-road-nav-swap-web`、root で動く）: `web.new/` を root 所有の `web.next/` へコピーしてから symlink 等を拒否 → `web/` と入れ替え。`tailscale serve` は root で動き、Go の `http.Dir` はツリー外を指す symlink もたどるので、`deploy` が書ける場所をそのまま配信すると root しか読めないファイルを HTTPS 越しに読ませられる。graph と同じ形で塞ぐ。数十 ms の `mv` なので systemd 一時ユニットは使わない
 - `deploy-graph.sh`: graph-cache を `data/graph-cache.new/`、`graphhopper/` を `graphhopper.new/` へ rsync し、VPS の入替スクリプトを `sudo -n` で呼ぶ。`compose.yml` は送らない
 - 入替スクリプト（`scripts/swap-graph.sh` → VPS の `/usr/local/sbin/easy-road-nav-swap-graph`、root で動く）: systemd の一時ユニットとして自分を動かし直す（ssh が切れても最後まで走る。`timeout-minutes` 超過・手動 Cancel・Tailscale 切断で `down` と `up` の間で止まらない。ユニット名固定で同時実行もしない）→ `graphhopper.new/` を root 所有の場所へコピーしてから symlink 等を拒否（bind mount 元の symlink はホスト側で root としてたどられる。検査後に差し替えられないようコピーが先）→ main の先頭コミットの `compose.yml` を取得（`deploy` が書き換えられると root で任意のコンテナを起動できる。`main` 名で取ると CDN キャッシュで古いことがあるのでコミット指定）→ `docker compose down`（終了後にプロジェクトのコンテナが残っていれば中止。compose ファイル上で `profiles` 付き等の対象外サービスは down が無言で飛ばし、旧プロセスが旧 graph-cache を掴んだまま入替だけ進んでしまう）→ `compose.yml`・`graphhopper/`・graph-cache を入替 → `up -d serve` → `/info` を最大 60 秒確認。返らなければ 3 つとも戻して `up`（graph-cache だけ戻すと新 `compose.yml` のまま旧 graph-cache を起動することになり、tag を変えた push では切り戻しも失敗する）。稼働中の graph-cache への上書きは不可（mmap 中）。停止は数十秒、許容する
 - `compose.yml` の取得元が main の先頭なので、ランナーが checkout したコミットとずれることがある（graph の job 中に別の push で main が進んだ場合）。その push で起きた次の実行が `concurrency` で順番を待っており、最新に揃え直す。ずれが image tag の変更なら入替は失敗して旧状態のまま動き続け、次の実行で揃う
-- `deploy` ユーザー: sudo の一般権限なし・docker グループなし（docker グループは `docker run -v /:/host` でホスト全体を読み書きできるので root と変わらない）。書き込めるのは `web/` `data/` `graphhopper.new/` だけ。sudoers では入替スクリプトの引数なし実行だけを許す。Secrets が漏れても被害は「web と graph-cache を差し替えられる」まで。`ubuntu`（sudo 付き）で CI を入れると、同じ VPS に載せる別アプリ（[vps-shared.md](../vps-shared.md)）まで巻き込む
+- `deploy` ユーザー: sudo の一般権限なし・docker グループなし（docker グループは `docker run -v /:/host` でホスト全体を読み書きできるので root と変わらない）。書き込めるのは `web.new/` `data/` `graphhopper.new/` だけ。sudoers では 2 つの入替スクリプトの引数なし実行だけを許す。root が触るツリー（`web/` `graphhopper/`）は入替スクリプトがコピーしてから symlink を拒否するので、Secrets が漏れても被害は「web と graph-cache を差し替えられる」まで。`ubuntu`（sudo 付き）で CI を入れると、同じ VPS に載せる別アプリ（[vps-shared.md](../vps-shared.md)）まで巻き込む
 - workflow の `permissions` は `contents: read` だけ。fork からの pull request には secrets が渡らず、発火条件も main への push だけ
 - 手で残す作業: VPS 初期構築と Tailscale 管理画面、Yahoo! appid の発行と Secrets 登録、地域追加時の `make heap-check`（VPS プランを決める材料）、障害時の手動デプロイ
 - 未決: ランナーでのインポート時間。初回の実行で測って `timeout-minutes`（90）を見直す

@@ -9,7 +9,7 @@
    - セキュリティグループ `easy-road-nav`: UDP 41641 IP `*` + 一時的に TCP 22 IP `*`（`*` = 全許可。先にセキュリティ > セキュリティグループで作る）
    - インスタンス: OS Ubuntu Server 26.04 LTS、セットアップ「Docker CE」（docker + compose plugin が入る）、2 コア / 2 GB / 200 GB 日額（¥28/日）、ログイン用認証キー（新規作成・秘密鍵を保存）、上の SG、コンソールパスワード
    - ログインユーザーは `ubuntu`（sudo 付き。root ログインは既定で無効）
-2. `ssh -i <鍵> ubuntu@<IP>` → `scripts/vps-setup.sh`・`scripts/vps-ci-user.sh`・`scripts/swap-graph.sh` の 3 つを同じディレクトリに scp して `sh vps-setup.sh`（swap・Tailscale・unattended-upgrades・`/srv/easy-road-nav` と `deploy` ユーザー・`tailscale serve` を一括。runbook 旧 2〜5・8〜10 相当）
+2. `ssh -i <鍵> ubuntu@<IP>` → `scripts/vps-setup.sh`・`scripts/vps-ci-user.sh`・`scripts/swap-web.sh`・`scripts/swap-graph.sh` の 4 つを同じディレクトリに scp して `sh vps-setup.sh`（swap・Tailscale・unattended-upgrades・`/srv/easy-road-nav` と `deploy` ユーザー・`tailscale serve` を一括。runbook 旧 2〜5・8〜10 相当）
    - `tailscale up --ssh` で出る認証 URL をブラウザで開く
 3. （スクリプトが実施）swap 2 GB `/swapfile`
 4. （スクリプトが実施）`docker` が入っていることの確認（VPS 事業者のセットアップ「Docker CE」で導入済み。`ubuntu` を docker グループには入れない。compose は入替スクリプトが root で動かす）
@@ -55,15 +55,15 @@
      `tag:ci` は GitHub Actions のランナー（一時ノード）。届く先は VPS の SSH だけ、入れるユーザーは `deploy` だけ。check だとブラウザ認証が要るので accept にする
 
    - Machines > `easy-road-nav` > Edit ACL tags → `tag:easy-road-nav`。タグは VPS だけに付ける（Mac に付けると `autogroup:member` から外れ、SSH も grants も当たらなくなる）
-   - Settings > OAuth clients（Trust credentials と表示されることもある）> Generate: スコープ Keys > Auth Keys の Write、タグ `tag:ci`。Client ID と Secret を控える（Secret はこの画面でしか見られない）。期限切れなし。漏れても発行できるのは `tag:ci` のキーだけで、被害は web と graph-cache の差し替えまで
+   - Settings > OAuth clients（Trust credentials と表示されることもある）> Generate: スコープ Keys > Auth Keys の Write、タグ `tag:ci`。Client ID と Secret を控える（Secret はこの画面でしか見られない）。期限切れなし。漏れても発行できるのは `tag:ci` のキーだけで、被害は web と graph-cache の差し替えまで（`web/` と `graphhopper/` は root 所有で、入替スクリプトが symlink を拒否する）
    - Machines > `easy-road-nav` > Share → 共有先のメール宛リンク。共有先はスマホに Tailscale アプリ + 自分のアカウントで受諾
 7. Tailscale SSH でログインできることを確認してから、VPS 事業者のセキュリティグループ `easy-road-nav` の TCP 22 行を削除（inbound は UDP 41641 のみ）
 8. （スクリプトが実施）`unattended-upgrades` 有効化。`Unattended-Upgrade::Automatic-Reboot "true"`、`Automatic-Reboot-Time "04:00"`（タイムゾーンは JST に設定）
 9. （スクリプトが実施。`vps-ci-user.sh`）CI 用ユーザー `deploy`（sudo の一般権限なし・docker グループなし）、`/srv/easy-road-nav` の所有者、入替スクリプト、sudoers
-   - `/srv/easy-road-nav` 自体・`compose.yml`・`graphhopper/` は root、`web/` `data/` `graphhopper.new/` は `deploy`（compose が `./data` を mount するので graph-cache は `data/` 配下）
-   - `swap-graph.sh` を `/usr/local/sbin/easy-road-nav-swap-graph` に置き、`deploy` に引数なし・パスワードなしの sudo 実行だけを許す（`/etc/sudoers.d/easy-road-nav-swap-graph`）
-   - 確認: `sudo -l -U deploy` に入替スクリプトの 1 行だけが出る。`ls -ld /srv/easy-road-nav /srv/easy-road-nav/*` の所有者が上のとおり
-   - 入替スクリプトを変えたときは、3 ファイルを scp し直して `sh vps-ci-user.sh` を再実行（workflow は VPS 上のスクリプトを更新しない）
+   - `/srv/easy-road-nav` 自体・`compose.yml`・`graphhopper/`・`web/` は root、`web.new/` `data/` `graphhopper.new/` は `deploy`（compose が `./data` を mount するので graph-cache は `data/` 配下）。`web/` を root にするのは、root で動く `tailscale serve` が配信するツリーに `deploy` が symlink を置けないようにするため
+   - `swap-web.sh` を `/usr/local/sbin/easy-road-nav-swap-web`、`swap-graph.sh` を `/usr/local/sbin/easy-road-nav-swap-graph` に置き、`deploy` に引数なし・パスワードなしの sudo 実行だけを許す（`/etc/sudoers.d/easy-road-nav-swap`）
+   - 確認: `sudo -l -U deploy` に入替スクリプトの 2 行だけが出る。`ls -ld /srv/easy-road-nav /srv/easy-road-nav/*` の所有者が上のとおり
+   - 入替スクリプトを変えたときは、4 ファイルを scp し直して `sh vps-ci-user.sh` を再実行（workflow は VPS 上のスクリプトを更新しない）
 10. （スクリプトが実施）`tailscale serve`（設定は tailscaled が永続化、再起動後も残る）
 
     ```sh
@@ -81,7 +81,7 @@
 
 main に push すると GitHub Actions が VPS へ反映する。Mac から打つのは Actions が使えないときだけ。
 
-- **Deploy web**（`.github/workflows/deploy-web.yml`）: main への push で発火。`docs/**` と `**.md` だけの変更では動かない。`npm ci` → `npm test` → `npm run deploy`（build + rsync）。テストか型検査が落ちたら転送しない
+- **Deploy web**（`.github/workflows/deploy-web.yml`）: main への push で発火。`docs/**` と `**.md` だけの変更では動かない。`npm ci` → `npm test` → `npm run deploy`（build + rsync + 入替）。テストか型検査が落ちたら転送しない
 - **Deploy graph**（`.github/workflows/deploy-graph.yml`）: main への push のうち `graphhopper/**`・`compose.yml`・`scripts/build-pbf.sh`・`scripts/regions/**`・`scripts/deploy-graph.sh` が変わったとき、または Actions タブの Run workflow（`workflow_dispatch`）。ランナーで `make pbf` → `make import` → `scripts/deploy-graph.sh`。pbf は毎回 Geofabrik の最新を取る。`timeout-minutes` 90
 - ランナーは `tailscale/github-action` で `tag:ci` の一時ノードとして tailnet に入り、`deploy@` で VPS に SSH する。Secrets は 1 章 12 の Environment `production`
 - web と graph は `concurrency` のグループが別（`deploy-web` / `deploy-graph`、`cancel-in-progress: false`）。同じ push に両方が入れば web が先に終わる。フロントが呼ぶプロファイルを足すときは graph 側を先に push し、Deploy graph が終わってからフロントを push する。消すときは逆
@@ -97,7 +97,10 @@ main に push すると GitHub Actions が VPS へ反映する。Mac から打�
 VPS_HOST=deploy@easy-road-nav.<tailnet>.ts.net npm run deploy
 ```
 
-= `npm run build`（`tsc --noEmit && vite build`）→ `rsync -az --delete dist/ $VPS_HOST:/srv/easy-road-nav/web/`。
+= `npm run build`（`tsc --noEmit && vite build`）→ `scripts/deploy-web.sh`。中身:
+
+1. `rsync -az --delete dist/ $VPS_HOST:/srv/easy-road-nav/web.new/`
+2. `ssh $VPS_HOST sudo -n /usr/local/sbin/easy-road-nav-swap-web`（VPS の入替スクリプト `scripts/swap-web.sh`。root で動く。`web.new/` を root 所有の `web.next/` にコピーし、通常のファイルとディレクトリ以外があれば中止 → `web/` と入れ替え）
 
 ビルド前に Mac のリポジトリ直下に `.env.local` が要る（6 章）。無いままビルドすると施設名検索だけが「施設検索に失敗しました」になる。
 

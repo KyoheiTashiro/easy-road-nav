@@ -1,6 +1,6 @@
 #!/bin/sh
 # VPS 初期構築（runbook 1 章 2〜10）。VPS 上で一般ユーザー（Ubuntu イメージ既定は ubuntu）で 1 回だけ実行。
-#   vps-ci-user.sh・swap-graph.sh と一緒に scp して  sh vps-setup.sh
+#   vps-ci-user.sh・swap-web.sh・swap-graph.sh と一緒に scp して  sh vps-setup.sh
 # 前提: VPS 事業者のセットアップ「Docker CE」で作成済み（docker + compose plugin 導入済み）。
 # 再実行は安全（各手順は済んでいれば飛ばす）。
 set -eu

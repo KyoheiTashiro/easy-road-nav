@@ -1,4 +1,4 @@
-# GraphHopper 11.0。GitHub Actions ランナー（import）・Mac（import + serve）・VPS（serve）で共用。
+# GraphHopper 11.0。GitHub Actions ランナー（import）・Mac（import + serve）・VPS（serve）で共用する。
 # 詳細: docs/requirements/infrastructure.md「GraphHopper 設定」
 x-common: &gh-common
   image: israelhikingmap/graphhopper:11.0

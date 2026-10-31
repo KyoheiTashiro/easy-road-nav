@@ -156,7 +156,7 @@ VPS:
 - `deploy` ユーザー: sudo の一般権限なし・docker グループなし（docker グループは `docker run -v /:/host` でホスト全体を読み書きできるので root と変わらない）。書き込めるのは `web.new/` `data/` `graphhopper.new/` だけ。sudoers では 2 つの入替スクリプトの引数なし実行だけを許す。root が触るツリー（`web/` `graphhopper/`）は入替スクリプトがコピーしてから symlink を拒否するので、Secrets が漏れても被害は「web と graph-cache を差し替えられる」まで。`ubuntu`（sudo 付き）で CI を入れると、同じ VPS に載せる別アプリ（[vps-shared.md](../vps-shared.md)）まで巻き込む
 - workflow の `permissions` は `contents: read` だけ。fork からの pull request には secrets が渡らず、発火条件も main への push だけ
 - 手で残す作業: VPS 初期構築と Tailscale 管理画面、Yahoo! appid の発行と Secrets 登録、地域追加時の `make heap-check`（VPS プランを決める材料）、障害時の手動デプロイ
-- 未決: ランナーでのインポート時間。初回の実行で測って `timeout-minutes`（90）を見直す
+- ランナーでのインポート時間: 初回実行（2026-10-31）の実測から `timeout-minutes` を 90 → 40 に下げた
 
 ## 運用
 

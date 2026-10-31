@@ -1,4 +1,4 @@
-# GraphHopper 11.0。Mac（import + serve）と VPS（serve）で共用。
+# GraphHopper 11.0。GitHub Actions ランナー（import）・Mac（import + serve）・VPS（serve）で共用。
 # 詳細: docs/requirements/infrastructure.md「GraphHopper 設定」
 x-common: &gh-common
   image: israelhikingmap/graphhopper:11.0
@@ -8,7 +8,7 @@ x-common: &gh-common
     - ./graphhopper/custom_models:/graphhopper/custom_models:ro
 
 services:
-  # Mac 専用。graph-cache + CH を作る。十数分。
+  # graph-cache + CH を作る。十数分。Deploy graph workflow（make import）と、必要なら Mac で動かす。
   #   docker compose --profile import run --rm import
   import:
     <<: *gh-common

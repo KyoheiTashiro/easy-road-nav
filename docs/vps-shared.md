@@ -26,7 +26,7 @@ Tailscale は 1 ノードに 1 つの MagicDNS 名しか付かず、`tailscale s
 
 ## 3. 初期構築スクリプトは再実行しない
 
-`scripts/vps-setup.sh` は共通部（swap・docker グループ・Tailscale・unattended-upgrades）とこのアプリ固有部（hostname・`/srv/easy-road-nav`・serve 設定）が 1 本に混ざっている。共通部は済んでいるので、別アプリ側の手順は固有部だけを自前で持つ:
+`scripts/vps-setup.sh` は共通部（swap・Tailscale・unattended-upgrades）とこのアプリ固有部（hostname・`/srv/easy-road-nav` と `deploy` ユーザー・serve 設定）が 1 本に混ざっている。共通部は済んでいるので、別アプリ側の手順は固有部だけを自前で持つ:
 
 ```sh
 sudo mkdir -p /srv/<app> && sudo chown -R $USER /srv/<app>

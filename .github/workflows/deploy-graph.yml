@@ -1,0 +1,42 @@
+name: Deploy graph
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "graphhopper/**"
+      - "compose.yml"
+      - "scripts/build-pbf.sh"
+      - "scripts/regions/**"
+      - "scripts/deploy-graph.sh"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy-graph
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y osmium-tool
+      - run: make pbf
+      - run: make import
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - run: |
+          mkdir -p ~/.ssh
+          printf 'Host *.ts.net\n  StrictHostKeyChecking accept-new\n' >> ~/.ssh/config
+      - run: sh scripts/deploy-graph.sh
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}

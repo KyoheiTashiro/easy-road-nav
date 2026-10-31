@@ -1,4 +1,4 @@
-# ローカル開発用。手順の詳細は docs/runbook.md
+# ローカル開発用。pbf と import は Deploy graph workflow からも呼ぶ。手順の詳細は docs/runbook.md
 .PHONY: help dev check up down logs import pbf fixtures heap-check
 
 help: ## ターゲット一覧

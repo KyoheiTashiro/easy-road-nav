@@ -82,7 +82,7 @@
 main に push すると GitHub Actions が VPS へ反映する。Mac から打つのは Actions が使えないときだけ。
 
 - **Deploy web**（`.github/workflows/deploy-web.yml`）: main への push で発火。`docs/**` と `**.md` だけの変更では動かない。`npm ci` → `npm test` → `npm run deploy`（build + rsync + 入替）。テストか型検査が落ちたら転送しない
-- **Deploy graph**（`.github/workflows/deploy-graph.yml`）: main への push のうち `graphhopper/**`・`compose.yml`・`scripts/build-pbf.sh`・`scripts/regions/**`・`scripts/deploy-graph.sh` が変わったとき、または Actions タブの Run workflow（`workflow_dispatch`）。ランナーで `make pbf` → `make import` → `scripts/deploy-graph.sh`。pbf は毎回 Geofabrik の最新を取る。`timeout-minutes` 90
+- **Deploy graph**（`.github/workflows/deploy-graph.yml`）: main への push のうち `graphhopper/**`・`compose.yml`・`scripts/build-pbf.sh`・`scripts/regions/**`・`scripts/deploy-graph.sh` が変わったとき、または Actions タブの Run workflow（`workflow_dispatch`）。ランナーで `make pbf` → `make import` → `scripts/deploy-graph.sh`。pbf は毎回 Geofabrik の最新を取る。`timeout-minutes` 40
 - ランナーは `tailscale/github-action` で `tag:ci` の一時ノードとして tailnet に入り、`deploy@` で VPS に SSH する。Secrets は 1 章 12 の Environment `production`。auth key は 90 日で失効するので [ci-authkey-rotation.md](ci-authkey-rotation.md) で差し替える。失効すると `tailscale/github-action` のステップで落ちる
 - web と graph は `concurrency` のグループが別（`deploy-web` / `deploy-graph`、`cancel-in-progress: false`）。同じ push に両方が入れば web が先に終わる。フロントが呼ぶプロファイルを足すときは graph 側を先に push し、Deploy graph が終わってからフロントを push する。消すときは逆
 - 実行結果は Actions タブで見る。graph の入替ログは VPS の `/var/log/easy-road-nav-swap-graph.log`（`ssh ubuntu@... sudo cat`）

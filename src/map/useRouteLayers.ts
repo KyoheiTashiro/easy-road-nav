@@ -22,7 +22,7 @@ export function useRouteLayers(map: maplibregl.Map | null) {
     const hide = mode === MODE.HOME_SETUP;
     const route = hide ? undefined : routes[selected];
     const data = {
-      route: route ? routeFeatures(route) : EMPTY,
+      route: route ? routeFeatures(route, mode === MODE.NAVIGATION) : EMPTY,
       alternative: hide ? EMPTY : alternativeFeatures(routes, selected),
     };
 
@@ -32,10 +32,10 @@ export function useRouteLayers(map: maplibregl.Map | null) {
   }, [map, routes, selected, mode]);
 
   useEffect(() => {
-    const data = fixFeatures(fix);
+    const data = fixFeatures(fix, mode === MODE.NAVIGATION);
     dataRef.current = { ...dataRef.current, fix: data };
     setSourceData(map, "fix", data);
-  }, [map, fix]);
+  }, [map, fix, mode]);
 
   return dataRef;
 }

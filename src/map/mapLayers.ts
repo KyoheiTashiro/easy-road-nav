@@ -14,6 +14,10 @@ export const STYLE = {
 export const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 export const TOKYO_STATION: [number, number] = [139.7671, 35.6812];
 
+// ナビ中は運転しながら一瞥で読めるよう、経路線と現在地を太く・大きくする。実走で変わる前提の値
+const navigating = (during: number, otherwise: number) =>
+  ["case", ["get", "navigating"], during, otherwise] as ["case", ["get", string], number, number];
+
 // MapLibre の paint は StyleX の変数を読めないので直値で持つ。route / narrow は tokens の accent / narrow のライト値と揃える
 const COLOR = { route: "#1a73e8", narrow: "#e8710a", white: "#fff", homeIcon: "#5f6368" } as const;
 
@@ -67,7 +71,7 @@ export const EMPTY: LineFeatureCollection = { type: "FeatureCollection", feature
 export const EMPTY_FIX: FixFeatureCollection = { type: "FeatureCollection", features: [] };
 
 /** 精度円: zoom 0 での px 半径 baseRadius を持たせ、layer 側で 2^zoom 倍する */
-export function fixFeatures(fix: Fix | null): FixFeatureCollection {
+export function fixFeatures(fix: Fix | null, navigating: boolean): FixFeatureCollection {
   if (!fix) return EMPTY_FIX;
 
   const baseRadius = fix.accuracy / (156543.03 * Math.cos((fix.lat * Math.PI) / 180));
@@ -76,19 +80,19 @@ export function fixFeatures(fix: Fix | null): FixFeatureCollection {
     features: [
       {
         type: "Feature",
-        properties: { baseRadius },
+        properties: { baseRadius, navigating },
         geometry: { type: "Point", coordinates: [fix.lng, fix.lat] },
       },
     ],
   };
 }
 
-export function routeFeatures(route: RouteModel): LineFeatureCollection {
+export function routeFeatures(route: RouteModel, navigating: boolean): LineFeatureCollection {
   return {
     type: "FeatureCollection",
     features: route.roadClass.map((range) => ({
       type: "Feature",
-      properties: { kind: range.kind },
+      properties: { kind: range.kind, navigating },
       geometry: { type: "LineString", coordinates: route.points.slice(range.from, range.to + 1) },
     })),
   };
@@ -179,7 +183,7 @@ export function applyStyleExtras(
       source: "route",
       filter: ["==", ["get", "kind"], ROAD_KIND.WIDE],
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": COLOR.route, "line-width": 6 },
+      paint: { "line-color": COLOR.route, "line-width": navigating(10, 6) },
     },
     beforeId,
   );
@@ -190,7 +194,11 @@ export function applyStyleExtras(
       source: "route",
       filter: ["!=", ["get", "kind"], ROAD_KIND.WIDE],
       layout: { "line-join": "round" },
-      paint: { "line-color": COLOR.narrow, "line-width": 8, "line-dasharray": [1.5, 1.2] },
+      paint: {
+        "line-color": COLOR.narrow,
+        "line-width": navigating(12, 8),
+        "line-dasharray": [1.5, 1.2],
+      },
     },
     beforeId,
   );
@@ -220,10 +228,10 @@ export function applyStyleExtras(
     type: "circle",
     source: "fix",
     paint: {
-      "circle-radius": 7,
+      "circle-radius": navigating(12, 7),
       "circle-color": COLOR.route,
       "circle-stroke-color": COLOR.white,
-      "circle-stroke-width": 2,
+      "circle-stroke-width": navigating(3, 2),
     },
   });
 }
